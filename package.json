@@ -1,0 +1,91 @@
+{
+  "name": "ropide-vscode-plugin",
+  "displayName": "RopIDE",
+  "description": "VS Code editor for CASIO fx-991 CN X ROP (.rop) files — syntax highlighting, address gutter, gadget manager and one-click compile.",
+  "version": "0.1.0",
+  "publisher": "ropide",
+  "license": "GPL-3.0",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Other"
+  ],
+  "keywords": [
+    "rop",
+    "casio",
+    "fx-991",
+    "ropide"
+  ],
+  "activationEvents": [
+    "onCustomEditor:ropide.rop",
+    "onCommand:ropide.newFile",
+    "onCommand:ropide.compile",
+    "onCommand:ropide.showGadgets"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "customEditors": [
+      {
+        "viewType": "ropide.rop",
+        "displayName": "RopIDE ROP Editor",
+        "selector": [
+          {
+            "filenamePattern": "*.rop"
+          }
+        ],
+        "priority": "default"
+      }
+    ],
+    "commands": [
+      {
+        "command": "ropide.newFile",
+        "title": "RopIDE: New .rop File",
+        "icon": "$(new-file)"
+      },
+      {
+        "command": "ropide.compile",
+        "title": "RopIDE: Compile",
+        "icon": "$(play)"
+      },
+      {
+        "command": "ropide.showGadgets",
+        "title": "RopIDE: Show Gadgets",
+        "icon": "$(symbol-namespace)"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "ropide.compile",
+          "when": "resourceExtname == .rop",
+          "group": "navigation@1"
+        },
+        {
+          "command": "ropide.showGadgets",
+          "when": "resourceExtname == .rop",
+          "group": "navigation@2"
+        },
+        {
+          "command": "ropide.newFile",
+          "when": "resourceExtname == .rop",
+          "group": "navigation@3"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "esbuild src/extension.ts --bundle --external:vscode --format=cjs --platform=node --outfile=dist/extension.js",
+    "watch": "esbuild src/extension.ts --bundle --external:vscode --format=cjs --platform=node --outfile=dist/extension.js --watch",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^2.24.0",
+    "esbuild": "^0.20.2",
+    "typescript": "^5.4.3"
+  }
+}
