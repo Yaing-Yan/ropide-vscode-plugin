@@ -50,6 +50,7 @@
   let editingGadget = null;
   let acItems = [];
   let acSelected = 0;
+  let acKind = 'gadget';
 
   /* ---------------- DOM ---------------- */
   document.getElementById('app').innerHTML = `
@@ -304,6 +305,21 @@
     el.gutterRight.scrollTop = el.input.scrollTop;
   }
   el.input.addEventListener('scroll', syncScroll);
+
+  // 持续 rAF 同步，避免大幅度移动光标 / 滚动时高亮层与光标错位。
+  function startScrollSyncLoop() {
+    const tick = () => {
+      syncScroll();
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }
+  startScrollSyncLoop();
+
+  // 在可能触发自动滚动的操作后立即同步一次。
+  ['keydown', 'keyup', 'mousedown', 'click', 'focus', 'wheel'].forEach((evt) => {
+    el.input.addEventListener(evt, syncScroll);
+  });
 
   el.input.addEventListener('click', updateCursor);
   el.input.addEventListener('keyup', updateCursor);
@@ -637,7 +653,7 @@
     if (await copyText(dump.join('\n'))) flashCopy(el.btnCopyDump);
   });
 
-  /* ---------------- autocomplete（gadget 补全） ---------------- */
+  /* ---------------- autocomplete（gadget / 常量补全） ---------------- */
   function handleAutocomplete() {
     const pos = el.input.selectionStart;
     const before = state.input.slice(0, pos);
@@ -645,6 +661,27 @@
     const lineBefore = before.slice(lineStart);
     if (lineBefore.includes('//')) { hideAutocomplete(); return; }
 
+    // 常量 / 锚点补全：$...
+    const cm = before.match(/\$([A-Za-z0-9_-]*)$/);
+    if (cm) {
+      const query = cm[1].toLowerCase();
+      const consts = (parsed && parsed.constants) ? parsed.constants : {};
+      const list = Object.keys(consts)
+        .filter((n) => n.toLowerCase().includes(query))
+        .sort()
+        .slice(0, 50)
+        .map((n) => ({ name: n, value: consts[n] }));
+      if (!list.length) { hideAutocomplete(); return; }
+      acKind = 'constant';
+      acItems = list;
+      acSelected = 0;
+      renderAutocomplete();
+      positionAutocomplete(pos);
+      el.autocomplete.hidden = false;
+      return;
+    }
+
+    // gadget 补全：#...
     const m = before.match(/#([A-Za-z0-9-]*)$/);
     if (!m || !state.gadgets.length) { hideAutocomplete(); return; }
 
@@ -656,6 +693,7 @@
       .slice(0, 50);
 
     if (!list.length) { hideAutocomplete(); return; }
+    acKind = 'gadget';
     acItems = list;
     acSelected = 0;
     renderAutocomplete();
@@ -670,12 +708,16 @@
 
   function renderAutocomplete() {
     el.autocomplete.innerHTML = acItems
-      .map((g, i) => `
+      .map((it, i) => {
+        const addr = acKind === 'constant' ? hexAddr(it.value) : (it.addr || '');
+        const desc = acKind === 'constant' ? '常量 / 锚点' : (it.desc || '').split('\n')[0];
+        return `
         <div class="ac-item ${i === acSelected ? 'selected' : ''}" data-ac="${i}">
-          <span class="ac-name">${escapeHtml(g.name)}</span>
-          <span class="ac-addr">${escapeHtml(g.addr || '')}</span>
-          <span class="ac-desc">${escapeHtml((g.desc || '').split('\n')[0])}</span>
-        </div>`)
+          <span class="ac-name">${escapeHtml(it.name)}</span>
+          <span class="ac-addr">${escapeHtml(addr)}</span>
+          <span class="ac-desc">${escapeHtml(desc)}</span>
+        </div>`;
+      })
       .join('');
   }
 
@@ -704,19 +746,27 @@
   });
 
   function selectAutocomplete(index) {
-    const g = acItems[index];
-    if (!g) { hideAutocomplete(); return; }
+    const it = acItems[index];
+    if (!it) { hideAutocomplete(); return; }
     const pos = el.input.selectionStart;
     const before = state.input.slice(0, pos);
-    const m = before.match(/#[A-Za-z0-9-]*$/);
-    if (m) {
-      const startIdx = pos - m[0].length;
-      el.input.setRangeText(`#${g.name};`, startIdx, pos, 'end');
-      state.input = el.input.value;
-      if (!dirty) { dirty = true; el.dirtyBadge.hidden = false; }
-      render();
-      scheduleSave();
+    if (acKind === 'constant') {
+      const m = before.match(/\$[A-Za-z0-9_-]*$/);
+      if (m) {
+        const startIdx = pos - m[0].length;
+        el.input.setRangeText('$' + it.name, startIdx, pos, 'end');
+      }
+    } else {
+      const m = before.match(/#[A-Za-z0-9-]*$/);
+      if (m) {
+        const startIdx = pos - m[0].length;
+        el.input.setRangeText('#' + it.name + ';', startIdx, pos, 'end');
+      }
     }
+    state.input = el.input.value;
+    if (!dirty) { dirty = true; el.dirtyBadge.hidden = false; }
+    render();
+    scheduleSave();
     hideAutocomplete();
   }
 

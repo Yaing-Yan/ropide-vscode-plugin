@@ -179,6 +179,9 @@ body {
   word-spacing: normal;
   tab-size: 4;
   white-space: pre;
+  /* 关闭连字，保证 textarea 与高亮层文本宽度一致，避免光标错位 */
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0, "clig" 0;
 }
 
 .highlight {

@@ -35,8 +35,10 @@
 - **状态栏地址**：光标所在处，VS Code 左下角状态栏实时显示 `L:xxxx R:xxxx`。
 - **Gadgets 面板**：右上角按钮打开，优美排版展示所有 gadgets（名称、彩色标签、地址、描述），支持搜索、新增、编辑、删除。
 - **编译**：右上角按钮一键编译，显示 hexdump（每行 16 字节，带左右地址），支持复制纯 hex 串 / hexdump。
-- **新建**：右上角按钮或命令面板「RopIDE: New .rop File」新建 `.rop` 文件（默认左地址 `E9E0`、右地址 `D710`）。
+- **新建**：新建 `.rop` 文件时依次填写**文件名**、**左侧地址**、**右侧地址**，并选择 gadgets 来源（`VerF` 预设 / `VerC` 预设 / 导入 `gadgets.json` / 空）。
 - **gadget 补全**：输入 `#` 后弹出 gadget 补全列表。
+- **常量 / 锚点补全**：输入 `$` 后弹出已定义常量与锚点补全列表。
+- **侧边栏启动**：左侧活动栏新增 RopIDE 图标，点开即可在当前窗口「新建 / 打开」`.rop` 文件（不弹额外窗口）。
 - **Tab 对齐注释**：按 Tab 自动对齐当前行的 `//` 注释到上文列。
 
 ## 安装 / 运行
@@ -73,14 +75,16 @@ ropide-vscode-plugin/
 ├── package.json
 ├── tsconfig.json
 ├── src/
-│   ├── extension.ts          # 激活入口、命令注册、新建文件
+│   ├── extension.ts          # 激活入口、命令注册、新建/打开文件
 │   ├── ropEditorProvider.ts  # CustomTextEditor 提供者、状态栏
+│   ├── launcherView.ts       # 侧边栏启动面板（WebviewView）
+│   ├── presets.ts            # VerF / VerC gadgets 内置预设
 │   └── rop.ts                # .rop JSON 解析/序列化
 └── media/
-    ├── editor.html           # （由 provider 内联生成，见 ropEditorProvider.ts getHtml）
     ├── editor.css            # 编辑器/面板/语法高亮样式
     ├── compiler.js           # 编译器 + 语法高亮解析（parser 移植）
-    └── editor.js             # Webview 主逻辑（地址栏、gadgets、编译、补全）
+    ├── editor.js             # Webview 主逻辑（地址栏、gadgets、编译、补全）
+    └── icon.svg              # 侧边栏图标
 ```
 
 > 注意：`media/editor.html` 未单独使用，HTML 由 `RopEditorProvider.getHtml()` 生成（便于注入 CSP nonce 与 webview URI）。

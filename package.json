@@ -3,8 +3,17 @@
   "displayName": "RopIDE",
   "description": "VS Code editor for CASIO fx-991 CN X ROP (.rop) files — syntax highlighting, address gutter, gadget manager and one-click compile.",
   "version": "0.1.0",
-  "publisher": "ropide",
+  "publisher": "Yaing-Yan",
   "license": "GPL-3.0",
+  "icon": "icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Yaing-Yan/ropide-vscode-plugin.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Yaing-Yan/ropide-vscode-plugin/issues"
+  },
+  "homepage": "https://github.com/Yaing-Yan/ropide-vscode-plugin#readme",
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -20,7 +29,9 @@
   ],
   "activationEvents": [
     "onCustomEditor:ropide.rop",
+    "onView:ropide.launcher",
     "onCommand:ropide.newFile",
+    "onCommand:ropide.openFile",
     "onCommand:ropide.compile",
     "onCommand:ropide.showGadgets"
   ],
@@ -38,11 +49,34 @@
         "priority": "default"
       }
     ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "ropide",
+          "title": "RopIDE",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "ropide": [
+        {
+          "id": "ropide.launcher",
+          "name": "RopIDE",
+          "type": "webview"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "ropide.newFile",
         "title": "RopIDE: New .rop File",
         "icon": "$(new-file)"
+      },
+      {
+        "command": "ropide.openFile",
+        "title": "RopIDE: Open .rop File",
+        "icon": "$(folder-opened)"
       },
       {
         "command": "ropide.compile",
@@ -71,6 +105,24 @@
           "command": "ropide.newFile",
           "when": "resourceExtname == .rop",
           "group": "navigation@3"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "ropide.newFile",
+          "when": "true"
+        },
+        {
+          "command": "ropide.openFile",
+          "when": "true"
+        },
+        {
+          "command": "ropide.compile",
+          "when": "resourceExtname == .rop"
+        },
+        {
+          "command": "ropide.showGadgets",
+          "when": "resourceExtname == .rop"
         }
       ]
     }

@@ -358,6 +358,7 @@
       highlightLines,
       errorCount,
       byteStartPositions,
+      constants,
       totalBytes: Math.floor(hexChars.length / 2),
     };
   }

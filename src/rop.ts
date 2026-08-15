@@ -62,6 +62,24 @@ function normalizeGadget(raw: unknown): RopGadget {
   };
 }
 
+export type GadgetsParseResult =
+  | { ok: true; gadgets: RopGadget[] }
+  | { ok: false; error: string };
+
+/** 解析一个独立的 gadgets.json（数组），用于导入到 .rop 文件的 gadgets 字段。 */
+export function parseGadgetsJson(text: string): GadgetsParseResult {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch (e) {
+    return { ok: false, error: `不是合法的 JSON：${(e as Error).message}` };
+  }
+  if (!Array.isArray(raw)) {
+    return { ok: false, error: 'gadgets.json 顶层必须是数组。' };
+  }
+  return { ok: true, gadgets: raw.map(normalizeGadget) };
+}
+
 export function parseRopDocument(text: string): RopParseResult {
   let raw: unknown;
   try {
