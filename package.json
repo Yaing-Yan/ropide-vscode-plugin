@@ -1,6 +1,6 @@
 {
   "name": "ropide-vscode-plugin",
-  "displayName": "RopIDE",
+  "displayName": "RopIDE for VS Code",
   "description": "VS Code editor for CASIO fx-991 CN X ROP (.rop) files — syntax highlighting, address gutter, gadget manager and one-click compile.",
   "version": "0.1.0",
   "publisher": "yaing-yan",

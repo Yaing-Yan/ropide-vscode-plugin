@@ -5,5 +5,7 @@ tsconfig.json
 .gitignore
 install.sh
 install.ps1
+uninstall.sh
+uninstall.ps1
 **/*.map
 **/tsconfig.json

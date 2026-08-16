@@ -69,6 +69,14 @@ code --install-extension ropide-vscode-plugin-0.1.0.vsix --force
 
 如需改代码后联调，仍可 `F5` 启动扩展开发宿主（仓库带 `.vscode/launch.json`）。
 
+**卸载**：
+
+```bash
+./uninstall.sh          # Linux / macOS
+# 或 Windows PowerShell：
+.\uninstall.ps1
+```
+
 ## 编译规则
 
 编译器忠实移植自 [rop-ide](https://github.com/WulanOVO/rop-ide) 的 `src/parser.js` 与 ropide-python 的 `compiler.py`：
@@ -87,6 +95,8 @@ ropide-vscode-plugin/
 ├── tsconfig.json
 ├── install.sh              # Linux/macOS 一键安装脚本
 ├── install.ps1             # Windows 一键安装脚本
+├── uninstall.sh            # Linux/macOS 卸载脚本
+├── uninstall.ps1           # Windows 卸载脚本
 ├── icon.png                # 扩展图标
 ├── src/
 │   ├── extension.ts          # 激活入口、命令注册、新建/打开文件
@@ -103,3 +113,10 @@ ropide-vscode-plugin/
 ```
 
 > 注意：`media/editor.html` 未单独使用，HTML 由 `RopEditorProvider.getHtml()` 生成（便于注入 CSP nonce 与 webview URI）。
+
+## 致谢
+
+- **原版 RopIDE**：贴吧 **@wlyibo**，网页版 https://ropide.pages.dev
+- **rop-ide**（语法高亮 / 程序广场 / 编译逻辑参考）：https://github.com/WulanOVO/rop-ide
+- **ropide-python**（编译器移植与 gadgets 预设）：https://github.com/（梁圣开源项目）
+- 模拟器基础：贴吧 @噶么prince 的 CasioEmuMsvc 源码项目
