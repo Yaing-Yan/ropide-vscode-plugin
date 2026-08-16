@@ -907,7 +907,8 @@
   function downloadMarketItem(id) {
     downloadingId = String(id);
     renderMarketList();
-    vscode.postMessage({ type: 'market:get', id });
+    const item = marketItems.find((it) => String(it.id) === String(id));
+    vscode.postMessage({ type: 'market:get', id, name: item ? item.name : '' });
   }
 
   function renderMarketList() {
@@ -1019,8 +1020,10 @@
         downloadingId = null;
         if (msg.error) {
           showToast('下载失败：' + msg.error, true);
+        } else if (msg.cancelled) {
+          showToast('已取消');
         } else {
-          showToast('已加载到编辑器');
+          showToast('已保存并打开');
           el.marketOverlay.hidden = true;
         }
         renderMarketList();

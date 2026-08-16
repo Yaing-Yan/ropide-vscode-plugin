@@ -16,6 +16,24 @@
 
 本插件**不涉及** `.rin` / `gadgets.json` / `config.json`——所有操作都在单个 `.rop` 文件里完成。
 
+## 快速安装（免 git clone）
+
+一条命令即可完成，运行后会弹出**综合处理菜单**，选择「1 安装」或「2 卸载」：
+
+**Linux / macOS：**
+
+```bash
+curl -sSL https://raw.githubusercontent.com/Yaing-Yan/ropide-vscode-plugin/main/simply-plugin.sh | bash
+```
+
+**Windows（CMD）：**
+
+```bat
+curl -sSL https://raw.githubusercontent.com/Yaing-Yan/ropide-vscode-plugin/main/simply-plugin.bat -o %TEMP%\simply-plugin.bat && call %TEMP%\simply-plugin.bat
+```
+
+> 也可以 clone 仓库后运行 `./install.sh` / `install.bat` / `.\install.ps1`（见下文「安装 / 运行」）。
+
 ## 功能
 
 打开 `.rop` 文件后，编辑器显示的是 `input` 字段的内容（而非原始 JSON），并带完整语法高亮：
@@ -38,8 +56,7 @@
 - **新建**：新建 `.rop` 文件时依次填写**文件名**、**左侧地址**、**右侧地址**，并选择 gadgets 来源（`VerF` 预设 / `VerC` 预设 / 导入 `gadgets.json` / 空）。
 - **gadget 补全**：输入 `#` 后弹出 gadget 补全列表。
 - **常量 / 锚点补全**：输入 `$` 后弹出已定义常量与锚点补全列表。
-- **侧边栏启动**：左侧活动栏新增 RopIDE 图标，点开即可在当前窗口「新建 / 打开」`.rop` 文件（不弹额外窗口）。
-- **程序广场**：浏览 / 搜索 [ropide.pages.dev](https://ropide.pages.dev) 上的程序，精选/全部分区，一键下载（加载进当前编辑器）、发布（程序名/作者/机型/描述表单）。
+- **程序广场**：浏览 / 搜索 [ropide.pages.dev](https://ropide.pages.dev) 上的程序，精选/全部分区，一键下载（**指定保存路径后打开**）、发布（程序名/作者/机型/描述表单）。
 - **Tab 对齐注释**：按 Tab 自动对齐当前行的 `//` 注释到上文列。
 
 ## 安装 / 运行
@@ -51,6 +68,7 @@
 
 ```bash
 ./install.sh          # Linux / macOS
+install.bat           # Windows（CMD 双击或命令行）
 # 或 Windows PowerShell：
 .\install.ps1
 ```
@@ -73,6 +91,7 @@ code --install-extension ropide-vscode-plugin-0.1.0.vsix --force
 
 ```bash
 ./uninstall.sh          # Linux / macOS
+uninstall.bat           # Windows（CMD）
 # 或 Windows PowerShell：
 .\uninstall.ps1
 ```
@@ -93,23 +112,25 @@ code --install-extension ropide-vscode-plugin-0.1.0.vsix --force
 ropide-vscode-plugin/
 ├── package.json
 ├── tsconfig.json
+├── simply-plugin.sh        # 免 git clone 一行安装/卸载（Linux/macOS）
+├── simply-plugin.bat       # 免 git clone 一行安装/卸载（Windows）
 ├── install.sh              # Linux/macOS 一键安装脚本
-├── install.ps1             # Windows 一键安装脚本
+├── install.ps1             # Windows PowerShell 一键安装脚本
+├── install.bat             # Windows CMD 一键安装脚本
 ├── uninstall.sh            # Linux/macOS 卸载脚本
-├── uninstall.ps1           # Windows 卸载脚本
+├── uninstall.ps1           # Windows PowerShell 卸载脚本
+├── uninstall.bat           # Windows CMD 卸载脚本
 ├── icon.png                # 扩展图标
 ├── src/
 │   ├── extension.ts          # 激活入口、命令注册、新建/打开文件
 │   ├── ropEditorProvider.ts  # CustomTextEditor 提供者、状态栏
-│   ├── launcherView.ts       # 侧边栏启动面板（WebviewView）
 │   ├── presets.ts            # VerF / VerC gadgets 内置预设
 │   ├── market.ts             # 程序广场 API（ropide.pages.dev）
 │   └── rop.ts                # .rop JSON 解析/序列化
 └── media/
     ├── editor.css            # 编辑器/面板/语法高亮样式
     ├── compiler.js           # 编译器 + 语法高亮解析（parser 移植）
-    ├── editor.js             # Webview 主逻辑（地址栏、gadgets、编译、补全）
-    └── icon.svg              # 侧边栏图标
+    └── editor.js             # Webview 主逻辑（地址栏、gadgets、编译、补全、程序广场）
 ```
 
 > 注意：`media/editor.html` 未单独使用，HTML 由 `RopEditorProvider.getHtml()` 生成（便于注入 CSP nonce 与 webview URI）。

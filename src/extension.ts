@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
 import { RopEditorProvider } from './ropEditorProvider';
-import { RopideLauncherProvider } from './launcherView';
 import {
   RopDocumentData,
   RopGadget,
@@ -21,10 +20,6 @@ export function activate(context: vscode.ExtensionContext): void {
       webviewOptions: { retainContextWhenHidden: true },
       supportsMultipleEditorsPerDocument: false,
     }),
-    vscode.window.registerWebviewViewProvider(
-      RopideLauncherProvider.viewType,
-      new RopideLauncherProvider(context)
-    ),
     vscode.commands.registerCommand('ropide.newFile', () => createNewRopFile()),
     vscode.commands.registerCommand('ropide.openFile', () => openRopFile()),
     vscode.commands.registerCommand('ropide.compile', () => provider.postToActive('compile')),

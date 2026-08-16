@@ -5,7 +5,11 @@ tsconfig.json
 .gitignore
 install.sh
 install.ps1
+install.bat
 uninstall.sh
 uninstall.ps1
+uninstall.bat
+simply-plugin.sh
+simply-plugin.bat
 **/*.map
 **/tsconfig.json

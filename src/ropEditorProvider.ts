@@ -158,14 +158,40 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
       }
       case 'market:get': {
         const id = message.id as number | string;
+        const name = typeof message.name === 'string' ? message.name : 'program';
         void (async () => {
           const r = await fetchMarketItem(id);
           if ('error' in r) {
             session.panel.webview.postMessage({ type: 'market:get-result', id, error: r.error });
-          } else {
-            this.loadData(session, r.data);
-            session.panel.webview.postMessage({ type: 'market:get-result', id, ok: true });
+            return;
           }
+          // 让用户指定保存路径，再打开。
+          const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri;
+          const defaultUri = workspaceFolder
+            ? vscode.Uri.joinPath(workspaceFolder, `${sanitizeFileName(name)}.rop`)
+            : vscode.Uri.file(`${sanitizeFileName(name)}.rop`);
+          const uri = await vscode.window.showSaveDialog({
+            defaultUri,
+            filters: { 'Rop File': ['rop'] },
+            saveLabel: 'Save & Open',
+            title: '保存下载的程序',
+          });
+          if (!uri) {
+            session.panel.webview.postMessage({ type: 'market:get-result', id, cancelled: true });
+            return;
+          }
+          try {
+            await vscode.workspace.fs.writeFile(uri, Buffer.from(serializeRopDocument(r.data), 'utf8'));
+          } catch (e) {
+            session.panel.webview.postMessage({
+              type: 'market:get-result',
+              id,
+              error: `写入失败：${(e as Error).message}`,
+            });
+            return;
+          }
+          await vscode.commands.executeCommand('vscode.openWith', uri, RopEditorProvider.viewType);
+          session.panel.webview.postMessage({ type: 'market:get-result', id, ok: true });
         })();
         break;
       }
@@ -194,15 +220,6 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
       default:
         break;
     }
-  }
-
-  /** 从外部数据（如程序广场下载）整体替换当前文档。 */
-  private loadData(session: EditorSession, data: RopDocumentData): void {
-    session.data = data;
-    session.valid = true;
-    session.error = '';
-    this.writeBack(session);
-    session.panel.webview.postMessage({ type: 'update', ...data });
   }
 
   private writeBack(session: EditorSession): void {
@@ -277,4 +294,13 @@ function getNonce(): string {
     text += possible.charAt(Math.floor(Math.random() * possible.length));
   }
   return text;
+}
+
+function sanitizeFileName(name: string): string {
+  const cleaned = name
+    .replace(/[\\/:*?"<>|]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\.rop$/i, '');
+  return cleaned || 'program';
 }

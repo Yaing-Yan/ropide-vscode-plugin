@@ -29,7 +29,6 @@
   ],
   "activationEvents": [
     "onCustomEditor:ropide.rop",
-    "onView:ropide.launcher",
     "onCommand:ropide.newFile",
     "onCommand:ropide.openFile",
     "onCommand:ropide.compile",
@@ -50,24 +49,6 @@
         "priority": "default"
       }
     ],
-    "viewsContainers": {
-      "activitybar": [
-        {
-          "id": "ropide",
-          "title": "RopIDE",
-          "icon": "media/icon.svg"
-        }
-      ]
-    },
-    "views": {
-      "ropide": [
-        {
-          "id": "ropide.launcher",
-          "name": "RopIDE",
-          "type": "webview"
-        }
-      ]
-    },
     "commands": [
       {
         "command": "ropide.newFile",
@@ -96,28 +77,6 @@
       }
     ],
     "menus": {
-      "editor/title": [
-        {
-          "command": "ropide.compile",
-          "when": "resourceExtname == .rop",
-          "group": "navigation@1"
-        },
-        {
-          "command": "ropide.showGadgets",
-          "when": "resourceExtname == .rop",
-          "group": "navigation@2"
-        },
-        {
-          "command": "ropide.openMarket",
-          "when": "resourceExtname == .rop",
-          "group": "navigation@3"
-        },
-        {
-          "command": "ropide.newFile",
-          "when": "resourceExtname == .rop",
-          "group": "navigation@4"
-        }
-      ],
       "commandPalette": [
         {
           "command": "ropide.newFile",
