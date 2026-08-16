@@ -118,5 +118,4 @@ ropide-vscode-plugin/
 
 - **贴吧 @wlyibo** —— RopIDE 作者、[ropide.pages.dev](https://ropide.pages.dev) 网页版作者。他的 RopIDE 项目**推动了全民 ROP**，本插件的一切都建立在它之上。
 - **rop-ide**（语法高亮 / 程序广场 / 编译逻辑参考）：https://github.com/WulanOVO/rop-ide
-- **ropide-python**（编译器移植与 gadgets 预设，感谢梁圣开源）：`~/human-coding/ropide-python`
 - 模拟器基础：贴吧 @噶么prince 的 CasioEmuMsvc 源码项目
