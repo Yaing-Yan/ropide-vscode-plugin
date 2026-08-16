@@ -81,13 +81,6 @@ cd /path/to/CasioEmuMsvc-mcp          # 进入 CasioEmuMsvc 可执行文件所�
 ./CasioEmuMsvc ../models/fx991cnxfVirtual   # 启动时带上模型目录
 ```
 
-例如你的环境：
-
-```bash
-cd /home/yanshangxuan/casioemu/CasioEmuMsvc-mcp
-./CasioEmuMsvc ../models/fx991cnxfVirtual
-```
-
 > 验证是否成功：浏览器/命令行访问 `http://127.0.0.1:3001/health`，返回 `{"status":"ok",...}` 即表示 MCP 已就绪。
 > 若端口不是 3001，可在设置里改 `ropide.casioemuMcpPort`。
 
