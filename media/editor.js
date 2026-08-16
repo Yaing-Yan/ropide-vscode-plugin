@@ -61,6 +61,8 @@
   let downloadingId = null;
   let challenge = null;
   let challengeLoading = false;
+  let injectAddress = '';
+  let launcher = '';
 
   /* ---------------- DOM ---------------- */
   document.getElementById('app').innerHTML = `
@@ -102,6 +104,17 @@
             <div class="compile-setting">
               <span class="field">左地址 <input class="addr-input" id="leftAddrInput" maxlength="5" /></span>
               <span class="field">右地址 <input class="addr-input" id="rightAddrInput" maxlength="5" /></span>
+            </div>
+            <div class="emu-section">
+              <div class="emu-row">
+                <span class="field">注入地址 <input class="addr-input" id="injectAddress" maxlength="5" /></span>
+                <button class="icon-btn primary" id="btnWriteRam">覆写RAM</button>
+              </div>
+              <div class="emu-row">
+                <input class="text-input" id="launcher" placeholder="请输入 launcher（如 FD 24 E0 E9 8F 23 42）" />
+                <button class="icon-btn primary" id="btnWriteLauncher">覆写launcher</button>
+              </div>
+              <div class="emu-error" id="emuError" hidden></div>
             </div>
             <div class="compile-actions">
               <button class="icon-btn" id="btnCopyHex">${ICONS.copy}复制 hex 串</button>
@@ -200,6 +213,11 @@
     btnAddGadget: document.getElementById('btnAddGadget'),
     leftAddrInput: document.getElementById('leftAddrInput'),
     rightAddrInput: document.getElementById('rightAddrInput'),
+    injectAddress: document.getElementById('injectAddress'),
+    launcher: document.getElementById('launcher'),
+    btnWriteRam: document.getElementById('btnWriteRam'),
+    btnWriteLauncher: document.getElementById('btnWriteLauncher'),
+    emuError: document.getElementById('emuError'),
     btnCopyHex: document.getElementById('btnCopyHex'),
     btnCopyDump: document.getElementById('btnCopyDump'),
     compileInfo: document.getElementById('compileInfo'),
@@ -727,6 +745,9 @@
   function openCompile() {
     el.leftAddrInput.value = state.leftStartAddress;
     el.rightAddrInput.value = state.rightStartAddress;
+    el.injectAddress.value = injectAddress || state.leftStartAddress;
+    el.launcher.value = launcher;
+    el.emuError.hidden = true;
     renderCompile();
   }
 
@@ -745,6 +766,7 @@
     const hex = parsed ? parsed.hexChars : '';
     const leftBase = parseBase(state.leftStartAddress);
     const rightBase = parseBase(state.rightStartAddress);
+    if (!injectAddress) el.injectAddress.value = state.leftStartAddress;
 
     const bytes = [];
     for (let i = 0; i < hex.length; i += 2) bytes.push(hex.slice(i, i + 2));
@@ -813,6 +835,56 @@
     el.input.scrollTop = Math.max(0, lineIndex * lh - el.input.clientHeight / 2);
     syncScroll();
   }
+
+  /* ---------------- 覆写模拟器（RAM / launcher） ---------------- */
+  function setEmuError(msg) {
+    if (msg) {
+      el.emuError.textContent = msg;
+      el.emuError.hidden = false;
+    } else {
+      el.emuError.hidden = true;
+    }
+  }
+
+  el.injectAddress.addEventListener('input', () => {
+    injectAddress = el.injectAddress.value;
+  });
+  el.injectAddress.addEventListener('change', () => {
+    injectAddress = el.injectAddress.value.trim();
+    vscode.postMessage({ type: 'persist', key: 'injectAddress', value: injectAddress });
+  });
+  el.launcher.addEventListener('input', () => {
+    launcher = el.launcher.value;
+  });
+  el.launcher.addEventListener('change', () => {
+    launcher = el.launcher.value;
+    vscode.postMessage({ type: 'persist', key: 'launcher', value: launcher });
+  });
+
+  el.btnWriteRam.addEventListener('click', () => {
+    const raw = (injectAddress.trim() || state.leftStartAddress).toUpperCase().replace(/^0X/, '');
+    if (!/^[0-9A-F]{1,5}$/.test(raw)) {
+      setEmuError('注入地址无效（1-5 位十六进制）');
+      return;
+    }
+    const hex = parsed ? parsed.hexChars : '';
+    if (!hex) {
+      setEmuError('没有可写入的编译结果');
+      return;
+    }
+    setEmuError('');
+    vscode.postMessage({ type: 'emu:write', address: parseInt(raw, 16), hex });
+  });
+
+  el.btnWriteLauncher.addEventListener('click', () => {
+    const hex = el.launcher.value.trim();
+    if (!hex) {
+      setEmuError('请输入 launcher');
+      return;
+    }
+    setEmuError('');
+    vscode.postMessage({ type: 'emu:write', address: 0xd180, hex });
+  });
 
   /* ---------------- autocomplete（gadget / 常量补全） ---------------- */
   function handleAutocomplete() {
@@ -1087,6 +1159,8 @@
         } else {
           clearError();
         }
+        injectAddress = typeof msg.injectAddress === 'string' ? msg.injectAddress : '';
+        launcher = typeof msg.launcher === 'string' ? msg.launcher : '';
         // fallthrough
       case 'update': {
         state.input = typeof msg.input === 'string' ? msg.input : '';
@@ -1165,6 +1239,14 @@
           fetchChallenge();
         } else {
           showToast('发布失败：' + msg.error, true);
+        }
+        break;
+      case 'emu:write-result':
+        if (msg.ok) {
+          setEmuError('');
+          showToast('已写入');
+        } else {
+          setEmuError(msg.error || '写入失败');
         }
         break;
       default:

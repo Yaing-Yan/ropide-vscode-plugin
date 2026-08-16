@@ -6,6 +6,7 @@ import {
   newRopDocument,
 } from './rop';
 import { fetchMarketList, fetchMarketItem, fetchMarketChallenge, publishToMarket } from './market';
+import { emuWrite, parseHexBytes } from './emu';
 
 interface EditorSession {
   document: vscode.TextDocument;
@@ -111,6 +112,8 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
           fileName,
           valid: session.valid,
           error: session.error,
+          injectAddress: this.context.globalState.get<string>('ropide.injectAddress', ''),
+          launcher: this.context.globalState.get<string>('ropide.launcher', ''),
         });
         break;
       }
@@ -235,6 +238,35 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
               : { type: 'market:publish-result', ok: false, code: r.code, error: r.error }
           );
         })();
+        break;
+      }
+      case 'emu:write': {
+        const address = Number(message.address);
+        const hex = String(message.hex || '');
+        void (async () => {
+          if (!Number.isFinite(address)) {
+            session.panel.webview.postMessage({ type: 'emu:write-result', ok: false, error: '地址无效' });
+            return;
+          }
+          const bytes = parseHexBytes(hex);
+          if (bytes === null) {
+            session.panel.webview.postMessage({ type: 'emu:write-result', ok: false, error: '十六进制数据无效' });
+            return;
+          }
+          const r = await emuWrite(address, bytes);
+          session.panel.webview.postMessage(
+            r.ok
+              ? { type: 'emu:write-result', ok: true }
+              : { type: 'emu:write-result', ok: false, error: r.error }
+          );
+        })();
+        break;
+      }
+      case 'persist': {
+        const key = String(message.key || '');
+        if (key === 'injectAddress' || key === 'launcher') {
+          void this.context.globalState.update(`ropide.${key}`, String(message.value ?? ''));
+        }
         break;
       }
       default:
