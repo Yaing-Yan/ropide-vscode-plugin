@@ -3,5 +3,7 @@ src/**
 node_modules/**
 tsconfig.json
 .gitignore
+install.sh
+install.ps1
 **/*.map
 **/tsconfig.json

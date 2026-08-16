@@ -43,20 +43,30 @@
 
 ## 安装 / 运行
 
-要求 Node.js 18+ 与 VS Code 1.85+。
+要求 Node.js 18+ 与 VS Code 1.85+，并确保已安装 `code` 命令行工具
+（VS Code 命令面板 → `Shell Command: Install 'code' command in PATH`）。
+
+**一键安装（推荐）**：编译 → 打包 `.vsix` → 安装进 VS Code：
+
+```bash
+./install.sh          # Linux / macOS
+# 或 Windows PowerShell：
+.\install.ps1
+```
+
+装完重新加载 VS Code 窗口（`Ctrl+Shift+P` → `Reload Window`），
+打开任意 `.rop` 文件即可进入 RopIDE 编辑器——**无需 F5 调试宿主**。
+
+手动分步（等价于上面脚本）：
 
 ```bash
 npm install
 npm run compile
+npm run package                       # 生成 ropide-vscode-plugin-0.1.0.vsix
+code --install-extension ropide-vscode-plugin-0.1.0.vsix --force
 ```
 
-然后按 `F5` 启动「扩展开发宿主」调试（仓库已带 `.vscode/launch.json`），打开任意 `.rop` 文件即可。
-
-打包成 `.vsix`：
-
-```bash
-npm run package
-```
+如需改代码后联调，仍可 `F5` 启动扩展开发宿主（仓库带 `.vscode/launch.json`）。
 
 ## 编译规则
 
@@ -74,6 +84,9 @@ npm run package
 ropide-vscode-plugin/
 ├── package.json
 ├── tsconfig.json
+├── install.sh              # Linux/macOS 一键安装脚本
+├── install.ps1             # Windows 一键安装脚本
+├── icon.png                # 扩展图标
 ├── src/
 │   ├── extension.ts          # 激活入口、命令注册、新建/打开文件
 │   ├── ropEditorProvider.ts  # CustomTextEditor 提供者、状态栏
