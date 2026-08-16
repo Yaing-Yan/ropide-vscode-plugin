@@ -68,6 +68,29 @@ curl.exe -sSL https://raw.githubusercontent.com/Yaing-Yan/ropide-vscode-plugin/m
 - **覆写模拟器**：编译结果页可「覆写 RAM」（注入地址，默认左地址）与「覆写 launcher」（固定 `0xD180`），通过 CasioEmuMsvc 的 McpPlugin（MCP，端口 `3001`）写入正在运行的模拟器内存。
 - **Tab 对齐注释**：按 Tab 自动对齐当前行的 `//` 注释到上文列。
 
+## ⚠️ 覆写功能：必须这样启动模拟器
+
+「覆写 RAM / 覆写 launcher」通过 CasioEmuMsvc 的 **McpPlugin**（MCP，`http://127.0.0.1:3001`）写入内存，
+因此模拟器**必须从它自己的目录启动**（Linux/macOS 的插件加载器只扫描**当前工作目录**里的 `CasioEmuMsvc.Plugin.*.so`），
+否则插件不会加载、3001 端口不会监听，覆写会报「找不到正在运行的 CasioEmuMsvc，或者进程不支持 MCP」。
+
+**正确启动方式（重点）：**
+
+```bash
+cd /path/to/CasioEmuMsvc-mcp          # 进入 CasioEmuMsvc 可执行文件所在的目录（不是父目录！）
+./CasioEmuMsvc ../models/fx991cnxfVirtual   # 启动时带上模型目录
+```
+
+例如你的环境：
+
+```bash
+cd /home/yanshangxuan/casioemu/CasioEmuMsvc-mcp
+./CasioEmuMsvc ../models/fx991cnxfVirtual
+```
+
+> 验证是否成功：浏览器/命令行访问 `http://127.0.0.1:3001/health`，返回 `{"status":"ok",...}` 即表示 MCP 已就绪。
+> 若端口不是 3001，可在设置里改 `ropide.casioemuMcpPort`。
+
 ## 安装 / 运行
 
 要求 Node.js 18+ 与 VS Code 1.85+，并确保已安装 `code` 命令行工具
