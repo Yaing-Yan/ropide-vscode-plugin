@@ -1,19 +1,27 @@
 /**
- * CasioEmuMsvc MCP 客户端（极简）。
+ * CasioEmuMsvc RAM 覆写（外部进程内存方式）。
  *
- * CasioEmuMsvc 的 McpPlugin 通过 Streamable HTTP JSON-RPC 暴露调试接口：
- *   - GET  http://127.0.0.1:3001/health   （检测模拟器是否运行）
- *   - POST http://127.0.0.1:3001/mcp      （initialize / tools/call）
+ * 通过 ropide-python 同款的 casioemu_ram.py 工具，直接对正在运行的
+ * CasioEmuMsvc 进程做内存写入（ptrace / ReadProcessMemory / task_for_pid），
+ * 不依赖 MCP 插件。
  *
- * 参考：ropide-python 的 CEM_API/cem/mcp.py 与 cem/emu.py。
- * 本插件仅做「覆写」：write_memory，不按键、不开关机。
+ * 一次性命令等价于：
+ *   python3 casioemu_ram.py write 0xE9E0 01 02 03 ... [--pid N] [--model-dir DIR]
  */
 
-const MCP_BASE = 'http://127.0.0.1:3001';
-const MCP_PROTOCOL_VERSION = '2025-11-25';
-const NOT_RUNNING = '找不到正在运行的CasioEmuMsvc，或者进程不支持MCP';
+import { execFile } from 'child_process';
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 
-export type EmuWriteResult = { ok: true } | { ok: false; error: string };
+export type EmuWriteResult = { ok: true; message: string } | { ok: false; error: string };
+
+export interface EmuOptions {
+  script: string;
+  python: string;
+  modelDir?: string;
+  pid?: number;
+}
 
 /** 解析 hex 字符串（容忍空格 / 0x 前缀 / 分隔符），返回字节数组；非法返回 null。 */
 export function parseHexBytes(s: string): number[] | null {
@@ -28,91 +36,71 @@ export function parseHexBytes(s: string): number[] | null {
   return bytes;
 }
 
-async function emuHealth(): Promise<boolean> {
-  try {
-    const res = await fetch(`${MCP_BASE}/health`, {
-      signal: AbortSignal.timeout(2000),
-    });
-    if (!res.ok) return false;
-    const data = (await res.json()) as Record<string, unknown>;
-    return data?.status === 'ok';
-  } catch {
-    return false;
+/** 定位 casioemu_ram.py（优先用设置里配置的路径，其次常见位置）。 */
+export function resolveRamScript(configured: string): string {
+  if (configured && fs.existsSync(configured)) {
+    return configured;
   }
+  const home = os.homedir();
+  const candidates = [
+    path.join(home, 'casioemu', 'tools', 'casioemu_ram.py'),
+    path.join(home, 'casioemu', 'casioemu_ram.py'),
+    path.join(home, 'tools', 'casioemu_ram.py'),
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) {
+      return c;
+    }
+  }
+  return configured || candidates[0];
 }
 
-async function emuInitialize(): Promise<string | null> {
-  try {
-    const res = await fetch(`${MCP_BASE}/mcp`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json, text/event-stream',
-      },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'initialize',
-        params: {
-          protocolVersion: MCP_PROTOCOL_VERSION,
-          capabilities: {},
-          clientInfo: { name: 'ropide-vscode', version: '0.1.0' },
-        },
-      }),
-      signal: AbortSignal.timeout(5000),
-    });
-    if (!res.ok) return null;
-    return res.headers.get('MCP-Session-Id');
-  } catch {
-    return null;
+/** 向模拟器 RAM 写入字节（仅覆写，不做其它操作）。 */
+export function emuWrite(address: number, bytes: number[], opts: EmuOptions): Promise<EmuWriteResult> {
+  const hexArgs = bytes.map((b) => b.toString(16).toUpperCase().padStart(2, '0'));
+  const args = ['write', `0x${address.toString(16).toUpperCase()}`, ...hexArgs];
+  if (opts.modelDir) {
+    args.push('--model-dir', opts.modelDir);
   }
+  if (opts.pid) {
+    args.push('--pid', String(opts.pid));
+  }
+
+  return new Promise((resolve) => {
+    execFile(
+      opts.python,
+      [opts.script, ...args],
+      { timeout: 120000, maxBuffer: 10 * 1024 * 1024 },
+      (err, stdout, stderr) => {
+        const out = `${stdout || ''}\n${stderr || ''}`;
+        if (!err) {
+          resolve({ ok: true, message: out.trim() });
+        } else {
+          resolve({ ok: false, error: mapEmuError(out, err) });
+        }
+      }
+    );
+  });
 }
 
-/** 向模拟器内存写入字节（仅覆写，不做其它操作）。 */
-export async function emuWrite(address: number, bytes: number[]): Promise<EmuWriteResult> {
-  if (!(await emuHealth())) {
-    return { ok: false, error: NOT_RUNNING };
+function mapEmuError(output: string, err: unknown): string {
+  const text = output.trim();
+  if (text.includes('未找到运行中的 CasioEmuMsvc')) {
+    return '找不到正在运行的CasioEmuMsvc';
   }
-
-  const session = await emuInitialize();
-
-  try {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      Accept: 'application/json, text/event-stream',
-    };
-    if (session) headers['MCP-Session-Id'] = session;
-
-    const res = await fetch(`${MCP_BASE}/mcp`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 2,
-        method: 'tools/call',
-        params: {
-          name: 'write_memory',
-          arguments: { address, bytes },
-        },
-      }),
-      signal: AbortSignal.timeout(10000),
-    });
-    if (!res.ok) {
-      return { ok: false, error: `MCP 返回 HTTP ${res.status}` };
-    }
-    const data = (await res.json()) as Record<string, unknown>;
-    if (data && data.error) {
-      const e = data.error as Record<string, unknown>;
-      return { ok: false, error: String(e.message || 'MCP 错误') };
-    }
-    const result = data?.result as Record<string, unknown> | undefined;
-    if (result && result.isError) {
-      const content = result.content as Array<{ text?: string }> | undefined;
-      const text = content && content[0] ? content[0].text : undefined;
-      return { ok: false, error: text || '写入失败' };
-    }
-    return { ok: true };
-  } catch (e) {
-    return { ok: false, error: (e as Error).message };
+  if (text.includes('ptrace ATTACH 失败')) {
+    return 'ptrace 连接失败：请执行 `echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope`，或用 sudo 运行';
   }
+  if (text.includes('ram.dmp')) {
+    return '找不到 ram.dmp（请先让模拟器运行并生成 RAM 快照）';
+  }
+  const m = text.match(/错误[:：]\s*(.+)/);
+  if (m) {
+    return m[1].trim();
+  }
+  if (text.includes('ENOENT')) {
+    return '找不到 Python 或 casioemu_ram.py，请在设置 ropide.casioemuRamScript / ropide.casioemuPython 中指定';
+  }
+  const first = text.split('\n').map((s) => s.trim()).filter(Boolean)[0];
+  return first || ((err as Error)?.message) || '覆写失败';
 }

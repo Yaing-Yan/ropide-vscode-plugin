@@ -6,7 +6,8 @@ import {
   newRopDocument,
 } from './rop';
 import { fetchMarketList, fetchMarketItem, fetchMarketChallenge, publishToMarket } from './market';
-import { emuWrite, parseHexBytes } from './emu';
+import { emuWrite, parseHexBytes, resolveRamScript } from './emu';
+import * as fs from 'fs';
 
 interface EditorSession {
   document: vscode.TextDocument;
@@ -253,10 +254,24 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
             session.panel.webview.postMessage({ type: 'emu:write-result', ok: false, error: '十六进制数据无效' });
             return;
           }
-          const r = await emuWrite(address, bytes);
+          const cfg = vscode.workspace.getConfiguration('ropide');
+          const script = resolveRamScript(cfg.get<string>('casioemuRamScript', ''));
+          if (!fs.existsSync(script)) {
+            session.panel.webview.postMessage({
+              type: 'emu:write-result',
+              ok: false,
+              error: '找不到 casioemu_ram.py，请在设置 ropide.casioemuRamScript 中指定其路径',
+            });
+            return;
+          }
+          const r = await emuWrite(address, bytes, {
+            script,
+            python: cfg.get<string>('casioemuPython', 'python3'),
+            modelDir: cfg.get<string>('casioemuModelDir', '') || undefined,
+          });
           session.panel.webview.postMessage(
             r.ok
-              ? { type: 'emu:write-result', ok: true }
+              ? { type: 'emu:write-result', ok: true, message: r.message }
               : { type: 'emu:write-result', ok: false, error: r.error }
           );
         })();

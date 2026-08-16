@@ -837,13 +837,17 @@
   }
 
   /* ---------------- 覆写模拟器（RAM / launcher） ---------------- */
-  function setEmuError(msg) {
+  function showEmuStatus(msg, kind) {
+    // kind: 'busy' | 'error' | ''（清空）
     if (msg) {
       el.emuError.textContent = msg;
       el.emuError.hidden = false;
     } else {
       el.emuError.hidden = true;
     }
+    el.emuError.classList.toggle('error', kind === 'error');
+    el.btnWriteRam.disabled = kind === 'busy';
+    el.btnWriteLauncher.disabled = kind === 'busy';
   }
 
   el.injectAddress.addEventListener('input', () => {
@@ -864,25 +868,25 @@
   el.btnWriteRam.addEventListener('click', () => {
     const raw = (injectAddress.trim() || state.leftStartAddress).toUpperCase().replace(/^0X/, '');
     if (!/^[0-9A-F]{1,5}$/.test(raw)) {
-      setEmuError('注入地址无效（1-5 位十六进制）');
+      showEmuStatus('注入地址无效（1-5 位十六进制）', 'error');
       return;
     }
     const hex = parsed ? parsed.hexChars : '';
     if (!hex) {
-      setEmuError('没有可写入的编译结果');
+      showEmuStatus('没有可写入的编译结果', 'error');
       return;
     }
-    setEmuError('');
+    showEmuStatus('覆写中…（首次定位 RAM 可能需要数十秒）', 'busy');
     vscode.postMessage({ type: 'emu:write', address: parseInt(raw, 16), hex });
   });
 
   el.btnWriteLauncher.addEventListener('click', () => {
     const hex = el.launcher.value.trim();
     if (!hex) {
-      setEmuError('请输入 launcher');
+      showEmuStatus('请输入 launcher', 'error');
       return;
     }
-    setEmuError('');
+    showEmuStatus('覆写中…（首次定位 RAM 可能需要数十秒）', 'busy');
     vscode.postMessage({ type: 'emu:write', address: 0xd180, hex });
   });
 
@@ -1243,10 +1247,10 @@
         break;
       case 'emu:write-result':
         if (msg.ok) {
-          setEmuError('');
+          showEmuStatus('', '');
           showToast('已写入');
         } else {
-          setEmuError(msg.error || '写入失败');
+          showEmuStatus(msg.error || '写入失败', 'error');
         }
         break;
       default:

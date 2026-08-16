@@ -442,7 +442,8 @@ body.vscode-dark .code-input::selection { background: rgba(255, 255, 255, 0.2); 
 .emu-row { display: flex; align-items: center; gap: 8px; }
 .emu-row .field { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
 .emu-row .text-input { flex: 1 1 auto; }
-.emu-error { color: var(--vscode-errorForeground, #e51400); font-size: 12px; line-height: 1.4; }
+.emu-error { color: var(--muted); font-size: 12px; line-height: 1.4; }
+.emu-error.error { color: var(--vscode-errorForeground, #e51400); }
 .emu-error[hidden] { display: none; }
 .compile-actions { display: flex; gap: 8px; margin-bottom: 8px; }
 .compile-info { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
