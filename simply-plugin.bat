@@ -5,6 +5,8 @@ chcp 65001 >nul
 rem RopIDE for VS Code — 简易安装 / 卸载（免 git clone）
 rem 用法（Windows CMD 一行）：
 rem   curl -sSL https://raw.githubusercontent.com/Yaing-Yan/ropide-vscode-plugin/main/simply-plugin.bat -o %TEMP%\simply-plugin.bat && call %TEMP%\simply-plugin.bat
+rem 用法（PowerShell）：
+rem   curl.exe -sSL https://raw.githubusercontent.com/Yaing-Yan/ropide-vscode-plugin/main/simply-plugin.bat -o $env:TEMP\simply-plugin.bat; cmd /c $env:TEMP\simply-plugin.bat
 
 set "REPO=Yaing-Yan/ropide-vscode-plugin"
 set "BRANCH=main"

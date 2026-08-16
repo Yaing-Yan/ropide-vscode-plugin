@@ -26,10 +26,18 @@
 curl -sSL https://raw.githubusercontent.com/Yaing-Yan/ropide-vscode-plugin/main/simply-plugin.sh -o /tmp/simply-plugin.sh && bash /tmp/simply-plugin.sh
 ```
 
-**Windows（CMD）：**
+**Windows：**
+
+CMD（命令提示符）：
 
 ```bat
 curl -sSL https://raw.githubusercontent.com/Yaing-Yan/ropide-vscode-plugin/main/simply-plugin.bat -o %TEMP%\simply-plugin.bat && call %TEMP%\simply-plugin.bat
+```
+
+PowerShell：
+
+```powershell
+curl.exe -sSL https://raw.githubusercontent.com/Yaing-Yan/ropide-vscode-plugin/main/simply-plugin.bat -o $env:TEMP\simply-plugin.bat; cmd /c $env:TEMP\simply-plugin.bat
 ```
 
 > 也可以 clone 仓库后运行 `./install.sh` / `install.bat` / `.\install.ps1`（见下文「安装 / 运行」）。
