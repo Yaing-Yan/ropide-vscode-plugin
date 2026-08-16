@@ -59,6 +59,8 @@
   let marketLoading = false;
   let marketError = '';
   let downloadingId = null;
+  let challenge = null;
+  let challengeLoading = false;
 
   /* ---------------- DOM ---------------- */
   document.getElementById('app').innerHTML = `
@@ -154,6 +156,11 @@
           </div>
           <div class="form-row" id="publishOtherRow" hidden><label>其它机型 *</label><input class="text-input" id="publishOtherModel" placeholder="输入机型" /></div>
           <div class="form-row"><label>描述 *</label><textarea class="text-input" id="publishDescription" rows="6" placeholder="程序说明…"></textarea></div>
+          <div class="form-row">
+            <label>内行验证 *</label>
+            <div class="challenge-hint" id="challengeHint">正在获取验证题目…</div>
+            <input class="text-input" id="challengeAnswer" maxlength="9" placeholder="两字节十六进制（如 1A2B）" disabled />
+          </div>
           <div class="market-actions">
             <button class="icon-btn" id="btnCancelPublish">取消</button>
             <button class="icon-btn primary" id="btnConfirmPublish">发布</button>
@@ -208,6 +215,8 @@
     publishOtherRow: document.getElementById('publishOtherRow'),
     publishOtherModel: document.getElementById('publishOtherModel'),
     publishDescription: document.getElementById('publishDescription'),
+    challengeHint: document.getElementById('challengeHint'),
+    challengeAnswer: document.getElementById('challengeAnswer'),
     btnCancelPublish: document.getElementById('btnCancelPublish'),
     btnConfirmPublish: document.getElementById('btnConfirmPublish'),
     toast: document.getElementById('toast'),
@@ -954,10 +963,20 @@
     el.publishOtherRow.hidden = true;
     el.publishDescription.value = '';
     el.publishOverlay.hidden = false;
+    fetchChallenge();
   }
 
   function closePublish() {
     el.publishOverlay.hidden = true;
+  }
+
+  function fetchChallenge() {
+    challenge = null;
+    challengeLoading = true;
+    el.challengeAnswer.value = '';
+    el.challengeAnswer.disabled = true;
+    el.challengeHint.textContent = '正在获取验证题目…';
+    vscode.postMessage({ type: 'market:challenge' });
   }
 
   function confirmPublish() {
@@ -969,8 +988,27 @@
     if (!author) { showToast('请填写作者', true); return; }
     if (!model) { showToast('请选择 / 填写机型', true); return; }
     if (!description) { showToast('请填写描述', true); return; }
+
+    const answer = el.challengeAnswer.value.replace(/[^0-9a-fA-F]/g, '').toLowerCase();
+    if (!challenge) {
+      if (challengeLoading) showToast('验证题目加载中，请稍候', true);
+      else { showToast('验证题目加载失败，正在重试', true); fetchChallenge(); }
+      return;
+    }
+    if (!/^[0-9a-f]{4}$/.test(answer)) {
+      showToast('请输入 4 位十六进制的两字节答案', true);
+      return;
+    }
     el.btnConfirmPublish.disabled = true;
-    vscode.postMessage({ type: 'market:publish', name, author, model, description });
+    vscode.postMessage({
+      type: 'market:publish',
+      name,
+      author,
+      model,
+      description,
+      challengeToken: challenge.token,
+      challengeAnswer: answer,
+    });
   }
 
   function downloadMarketItem(id) {
@@ -1096,6 +1134,19 @@
         }
         renderMarketList();
         break;
+      case 'market:challenge-result':
+        challengeLoading = false;
+        if (msg.ok) {
+          challenge = { token: msg.token, offset: msg.offset };
+          el.challengeAnswer.disabled = false;
+          el.challengeHint.textContent =
+            '请输入 fx-991CNX VerF ROM 中 0x' + hexAddr(msg.offset) + ' 处的两个字节（如 1A2B）。';
+        } else {
+          challenge = null;
+          el.challengeAnswer.disabled = true;
+          el.challengeHint.textContent = '获取验证题目失败：' + (msg.error || '请稍后重试');
+        }
+        break;
       case 'market:publish-result':
         el.btnConfirmPublish.disabled = false;
         if (msg.ok) {
@@ -1106,6 +1157,12 @@
           marketLoading = true;
           renderMarketList();
           vscode.postMessage({ type: 'market:list' });
+        } else if (msg.code === 'wrong') {
+          showToast('验证失败：字节错误，已更换新题目', true);
+          fetchChallenge();
+        } else if (msg.code === 'expired') {
+          showToast('验证题目已过期，已更换新题目', true);
+          fetchChallenge();
         } else {
           showToast('发布失败：' + msg.error, true);
         }

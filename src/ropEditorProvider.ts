@@ -5,7 +5,7 @@ import {
   serializeRopDocument,
   newRopDocument,
 } from './rop';
-import { fetchMarketList, fetchMarketItem, publishToMarket } from './market';
+import { fetchMarketList, fetchMarketItem, fetchMarketChallenge, publishToMarket } from './market';
 
 interface EditorSession {
   document: vscode.TextDocument;
@@ -195,11 +195,29 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
         })();
         break;
       }
+      case 'market:challenge': {
+        void (async () => {
+          const r = await fetchMarketChallenge();
+          session.panel.webview.postMessage(
+            'error' in r
+              ? { type: 'market:challenge-result', ok: false, error: r.error }
+              : {
+                  type: 'market:challenge-result',
+                  ok: true,
+                  token: r.challenge.token,
+                  offset: r.challenge.offset,
+                }
+          );
+        })();
+        break;
+      }
       case 'market:publish': {
         const name = String(message.name || '');
         const author = String(message.author || '');
         const model = String(message.model || '');
         const description = String(message.description || '');
+        const challengeToken = typeof message.challengeToken === 'string' ? message.challengeToken : '';
+        const challengeAnswer = typeof message.challengeAnswer === 'string' ? message.challengeAnswer : '';
         void (async () => {
           const r = await publishToMarket({
             name,
@@ -208,11 +226,13 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
             description,
             data: serializeRopDocument(session.data),
             timestamp: Date.now(),
+            challengeToken,
+            challengeAnswer,
           });
           session.panel.webview.postMessage(
             r.ok
               ? { type: 'market:publish-result', ok: true }
-              : { type: 'market:publish-result', ok: false, error: r.error }
+              : { type: 'market:publish-result', ok: false, code: r.code, error: r.error }
           );
         })();
         break;

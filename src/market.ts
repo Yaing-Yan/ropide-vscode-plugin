@@ -19,7 +19,12 @@ export interface MarketItem {
 
 export type MarketListResult = { items: MarketItem[] } | { error: string };
 export type MarketGetResult = { data: RopDocumentData } | { error: string };
-export type MarketPublishResult = { ok: true } | { ok: false; error: string };
+export type MarketChallengeResult =
+  | { challenge: { token: string; offset: number } }
+  | { error: string };
+export type MarketPublishResult =
+  | { ok: true }
+  | { ok: false; code: 'wrong' | 'expired' | 'error'; error: string };
 
 async function getJson(url: string, init?: RequestInit): Promise<unknown> {
   const res = await fetch(url, init);
@@ -59,6 +64,21 @@ export async function fetchMarketItem(id: number | string): Promise<MarketGetRes
   }
 }
 
+/** 获取「内行验证」题目（返回 ROM 偏移 offset，用户需回答该处两个字节）。 */
+export async function fetchMarketChallenge(): Promise<MarketChallengeResult> {
+  try {
+    const data = (await getJson(
+      `${MARKET_BASE_URL}/api/market?challenge=true`
+    )) as Record<string, unknown>;
+    if (typeof data.token !== 'string' || typeof data.offset !== 'number') {
+      return { error: '验证题目格式错误' };
+    }
+    return { challenge: { token: data.token, offset: data.offset } };
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+}
+
 export async function publishToMarket(payload: {
   name: string;
   author: string;
@@ -66,15 +86,26 @@ export async function publishToMarket(payload: {
   description: string;
   data: string;
   timestamp: number;
+  challengeToken: string;
+  challengeAnswer: string;
 }): Promise<MarketPublishResult> {
   try {
-    await getJson(`${MARKET_BASE_URL}/api/market`, {
+    const res = await fetch(`${MARKET_BASE_URL}/api/market`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    return { ok: true };
+    if (res.ok) {
+      return { ok: true };
+    }
+    if (res.status === 403) {
+      return { ok: false, code: 'wrong', error: '字节错误' };
+    }
+    if (res.status === 410) {
+      return { ok: false, code: 'expired', error: '题目已过期' };
+    }
+    return { ok: false, code: 'error', error: `HTTP ${res.status} ${res.statusText}` };
   } catch (e) {
-    return { ok: false, error: (e as Error).message };
+    return { ok: false, code: 'error', error: (e as Error).message };
   }
 }
