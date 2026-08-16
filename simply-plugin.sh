@@ -2,7 +2,10 @@
 #
 # RopIDE for VS Code — 简易安装 / 卸载（免 git clone）
 #
-# 用法（一行）：
+# 推荐用法（先下载到文件再执行，避免管道占用 stdin）：
+#   curl -sSL https://raw.githubusercontent.com/Yaing-Yan/ropide-vscode-plugin/main/simply-plugin.sh -o /tmp/simply-plugin.sh && bash /tmp/simply-plugin.sh
+#
+# 或直接管道（脚本会从 /dev/tty 读取选择）：
 #   curl -sSL https://raw.githubusercontent.com/Yaing-Yan/ropide-vscode-plugin/main/simply-plugin.sh | bash
 #
 # 运行后会显示一个综合处理菜单，可选择「安装」或「卸载」。
@@ -15,7 +18,7 @@ WORK_DIR="${TMPDIR:-/tmp}/ropide-vscode-plugin-src"
 EXT_ID="yaing-yan.ropide-vscode-plugin"
 
 echo "=============================================="
-echo "  RopIDE for VS Code — 简易安装 / 卸载"
+echo "  RopIDE for VS Code — 简易安装 / 卸载 (v2)"
 echo "=============================================="
 echo "  [1] 安装"
 echo "  [2] 卸载"

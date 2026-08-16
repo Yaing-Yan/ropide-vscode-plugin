@@ -23,7 +23,7 @@
 **Linux / macOS：**
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/Yaing-Yan/ropide-vscode-plugin/main/simply-plugin.sh | bash
+curl -sSL https://raw.githubusercontent.com/Yaing-Yan/ropide-vscode-plugin/main/simply-plugin.sh -o /tmp/simply-plugin.sh && bash /tmp/simply-plugin.sh
 ```
 
 **Windows（CMD）：**
