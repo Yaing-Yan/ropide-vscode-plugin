@@ -65,7 +65,7 @@ curl.exe -sSL https://raw.githubusercontent.com/Yaing-Yan/ropide-vscode-plugin/m
 - **gadget 补全**：输入 `#` 后弹出 gadget 补全列表。
 - **常量 / 锚点补全**：输入 `$` 后弹出已定义常量与锚点补全列表。
 - **程序广场**：浏览 / 搜索 [ropide.pages.dev](https://ropide.pages.dev) 上的程序，精选/全部分区，一键下载（**指定保存路径后打开**）、发布（程序名/作者/机型/描述表单）。
-- **覆写模拟器**：编译结果页可「覆写 RAM」（注入地址，默认左地址）与「覆写 launcher」（固定 `0xD180`），通过 `casioemu_ram.py` 直接写入正在运行的 CasioEmuMsvc 进程内存（不依赖 MCP）。
+- **覆写模拟器**：编译结果页可「覆写 RAM」（注入地址，默认左地址）与「覆写 launcher」（固定 `0xD180`），通过 CasioEmuMsvc 的 McpPlugin（MCP，端口 `3001`）写入正在运行的模拟器内存。
 - **Tab 对齐注释**：按 Tab 自动对齐当前行的 `//` 注释到上文列。
 
 ## 安装 / 运行
