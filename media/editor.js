@@ -30,6 +30,10 @@
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
     check:
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+    globe:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
+    download:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
   };
 
   /* ---------------- 状态 ---------------- */
@@ -51,6 +55,10 @@
   let acItems = [];
   let acSelected = 0;
   let acKind = 'gadget';
+  let marketItems = [];
+  let marketLoading = false;
+  let marketError = '';
+  let downloadingId = null;
 
   /* ---------------- DOM ---------------- */
   document.getElementById('app').innerHTML = `
@@ -64,6 +72,7 @@
         <button class="tb-btn" id="btnNew" title="新建 .rop 文件">${ICONS['new-file']}</button>
         <button class="tb-btn" id="btnGadgets" title="查看 / 编辑 gadgets">${ICONS.list}<span class="tb-badge" id="gadgetCount">0</span></button>
         <button class="tb-btn" id="btnCompile" title="编译">${ICONS.play}</button>
+        <button class="tb-btn" id="btnMarket" title="程序广场">${ICONS.globe}</button>
       </div>
     </div>
 
@@ -119,6 +128,51 @@
         </div>
       </div>
     </div>
+
+    <div class="overlay" id="marketOverlay" hidden>
+      <div class="panel">
+        <div class="panel-header">
+          <h2>程序广场</h2>
+          <div class="spacer"></div>
+          <input class="search-input" id="marketSearch" type="text" placeholder="搜索 name / author / model / desc…" />
+          <button class="icon-btn primary" id="btnPublish">${ICONS.plus}发布</button>
+          <button class="icon-btn" id="btnCloseMarket">${ICONS.close}</button>
+        </div>
+        <div class="panel-body">
+          <div class="market-list" id="marketList"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay" id="publishOverlay" hidden>
+      <div class="panel">
+        <div class="panel-header">
+          <h2>发布到程序广场</h2>
+          <div class="spacer"></div>
+          <button class="icon-btn" id="btnClosePublish">${ICONS.close}</button>
+        </div>
+        <div class="panel-body">
+          <div class="form-row"><label>程序名 *</label><input class="text-input" id="publishName" placeholder="例如 tetris" /></div>
+          <div class="form-row"><label>作者 *</label><input class="text-input" id="publishAuthor" placeholder="你的昵称" /></div>
+          <div class="form-row"><label>机型 *</label>
+            <select class="tag-select" id="publishModel" style="width:100%">
+              <option value="">选择机型</option>
+              <option value="fx-991CNX (VerC)">fx-991CNX (VerC)</option>
+              <option value="fx-991CNX (VerF)">fx-991CNX (VerF)</option>
+              <option value="other">其它</option>
+            </select>
+          </div>
+          <div class="form-row" id="publishOtherRow" hidden><label>其它机型 *</label><input class="text-input" id="publishOtherModel" placeholder="输入机型" /></div>
+          <div class="form-row"><label>描述 *</label><textarea class="text-input" id="publishDescription" rows="6" placeholder="程序说明…"></textarea></div>
+          <div class="market-actions">
+            <button class="icon-btn" id="btnCancelPublish">取消</button>
+            <button class="icon-btn primary" id="btnConfirmPublish">发布</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast" hidden></div>
   `;
 
   const el = {
@@ -128,6 +182,7 @@
     btnNew: document.getElementById('btnNew'),
     btnGadgets: document.getElementById('btnGadgets'),
     btnCompile: document.getElementById('btnCompile'),
+    btnMarket: document.getElementById('btnMarket'),
     gadgetCount: document.getElementById('gadgetCount'),
     gutterLeft: document.getElementById('gutterLeft'),
     gutterRight: document.getElementById('gutterRight'),
@@ -151,6 +206,22 @@
     btnCopyDump: document.getElementById('btnCopyDump'),
     compileInfo: document.getElementById('compileInfo'),
     hexdump: document.getElementById('hexdump'),
+    marketOverlay: document.getElementById('marketOverlay'),
+    marketSearch: document.getElementById('marketSearch'),
+    marketList: document.getElementById('marketList'),
+    btnPublish: document.getElementById('btnPublish'),
+    btnCloseMarket: document.getElementById('btnCloseMarket'),
+    publishOverlay: document.getElementById('publishOverlay'),
+    btnClosePublish: document.getElementById('btnClosePublish'),
+    publishName: document.getElementById('publishName'),
+    publishAuthor: document.getElementById('publishAuthor'),
+    publishModel: document.getElementById('publishModel'),
+    publishOtherRow: document.getElementById('publishOtherRow'),
+    publishOtherModel: document.getElementById('publishOtherModel'),
+    publishDescription: document.getElementById('publishDescription'),
+    btnCancelPublish: document.getElementById('btnCancelPublish'),
+    btnConfirmPublish: document.getElementById('btnConfirmPublish'),
+    toast: document.getElementById('toast'),
   };
 
   /* ---------------- 工具函数 ---------------- */
@@ -209,6 +280,15 @@
     const prev = btn.innerHTML;
     btn.innerHTML = ICONS.check + '已复制';
     setTimeout(() => { btn.innerHTML = prev; }, 1400);
+  }
+
+  let toastTimer = null;
+  function showToast(text, isError) {
+    el.toast.textContent = text;
+    el.toast.classList.toggle('error', !!isError);
+    el.toast.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.toast.hidden = true; }, 2600);
   }
 
   function byteOffsetAt(pos) {
@@ -770,6 +850,120 @@
     hideAutocomplete();
   }
 
+  /* ---------------- 程序广场 ---------------- */
+  el.btnMarket.addEventListener('click', openMarket);
+  el.btnCloseMarket.addEventListener('click', () => { el.marketOverlay.hidden = true; });
+  el.marketSearch.addEventListener('input', renderMarketList);
+  el.btnPublish.addEventListener('click', openPublish);
+  el.btnClosePublish.addEventListener('click', closePublish);
+  el.btnCancelPublish.addEventListener('click', closePublish);
+  el.publishModel.addEventListener('change', () => {
+    el.publishOtherRow.hidden = el.publishModel.value !== 'other';
+  });
+  el.btnConfirmPublish.addEventListener('click', confirmPublish);
+
+  el.marketList.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-download]');
+    if (btn) downloadMarketItem(btn.dataset.download);
+  });
+
+  function openMarket() {
+    el.marketSearch.value = '';
+    el.marketOverlay.hidden = false;
+    marketItems = [];
+    marketError = '';
+    marketLoading = true;
+    renderMarketList();
+    vscode.postMessage({ type: 'market:list' });
+  }
+
+  function openPublish() {
+    el.publishName.value = (fileName || 'untitled.rop').replace(/\.rop$/i, '');
+    el.publishAuthor.value = '';
+    el.publishModel.value = '';
+    el.publishOtherModel.value = '';
+    el.publishOtherRow.hidden = true;
+    el.publishDescription.value = '';
+    el.publishOverlay.hidden = false;
+  }
+
+  function closePublish() {
+    el.publishOverlay.hidden = true;
+  }
+
+  function confirmPublish() {
+    const name = el.publishName.value.trim();
+    const author = el.publishAuthor.value.trim();
+    const model = el.publishModel.value === 'other' ? el.publishOtherModel.value.trim() : el.publishModel.value;
+    const description = el.publishDescription.value.trim();
+    if (!name) { showToast('请填写程序名', true); return; }
+    if (!author) { showToast('请填写作者', true); return; }
+    if (!model) { showToast('请选择 / 填写机型', true); return; }
+    if (!description) { showToast('请填写描述', true); return; }
+    el.btnConfirmPublish.disabled = true;
+    vscode.postMessage({ type: 'market:publish', name, author, model, description });
+  }
+
+  function downloadMarketItem(id) {
+    downloadingId = String(id);
+    renderMarketList();
+    vscode.postMessage({ type: 'market:get', id });
+  }
+
+  function renderMarketList() {
+    if (marketLoading) {
+      el.marketList.innerHTML = '<div class="empty-hint">加载中…</div>';
+      return;
+    }
+    if (marketError) {
+      el.marketList.innerHTML = '<div class="empty-hint">加载失败：' + escapeHtml(marketError) + '</div>';
+      return;
+    }
+
+    const q = el.marketSearch.value.trim().toLowerCase();
+    const items = marketItems.filter((it) => {
+      if (!q) return true;
+      return [it.name, it.author, it.model, it.description].some((s) =>
+        String(s || '').toLowerCase().includes(q)
+      );
+    });
+    const featured = items.filter((it) => it.featured);
+    const normal = items.filter((it) => !it.featured);
+
+    if (items.length === 0) {
+      el.marketList.innerHTML = '<div class="empty-hint">' + (q ? '没有匹配的程序' : '程序广场空空如也') + '</div>';
+      return;
+    }
+
+    const card = (it, isFeatured) => {
+      const idStr = String(it.id);
+      const busy = downloadingId === idStr;
+      return `
+      <div class="market-card ${isFeatured ? 'featured' : ''}">
+        <div class="market-card-info">
+          <div class="market-card-title">${escapeHtml(it.name || '(未命名)')}${isFeatured ? ' <span class="market-star">★</span>' : ''}</div>
+          <div class="market-card-meta">
+            <span>作者：${escapeHtml(it.author || '-')}</span>
+            <span>机型：${escapeHtml(it.model || '-')}</span>
+          </div>
+          ${it.description ? `<div class="market-card-desc">${escapeHtml(it.description)}</div>` : ''}
+        </div>
+        <button class="icon-btn primary market-dl" data-download="${escapeHtml(idStr)}" ${busy ? 'disabled' : ''}>${busy ? '下载中…' : ICONS.download + '下载'}</button>
+      </div>`;
+    };
+
+    let html = '';
+    if (featured.length) {
+      html += `<div class="market-section">精选 <span class="tb-badge">${featured.length}</span></div>`;
+      html += featured.map((it) => card(it, true)).join('');
+    }
+    if (normal.length) {
+      if (featured.length) html += `<div class="market-section">全部</div>`;
+      html += normal.map((it) => card(it, false)).join('');
+    }
+    el.marketList.innerHTML = html;
+  }
+
   /* ---------------- 宿主消息 ---------------- */
   window.addEventListener('message', (e) => {
     const msg = e.data;
@@ -806,6 +1000,44 @@
         break;
       case 'show-gadgets':
         openGadgets();
+        break;
+      case 'show-market':
+        openMarket();
+        break;
+      case 'market:list-result':
+        marketLoading = false;
+        if (msg.error) {
+          marketItems = [];
+          marketError = String(msg.error);
+        } else {
+          marketError = '';
+          marketItems = Array.isArray(msg.items) ? msg.items : [];
+        }
+        renderMarketList();
+        break;
+      case 'market:get-result':
+        downloadingId = null;
+        if (msg.error) {
+          showToast('下载失败：' + msg.error, true);
+        } else {
+          showToast('已加载到编辑器');
+          el.marketOverlay.hidden = true;
+        }
+        renderMarketList();
+        break;
+      case 'market:publish-result':
+        el.btnConfirmPublish.disabled = false;
+        if (msg.ok) {
+          showToast('发布成功');
+          closePublish();
+          marketItems = [];
+          marketError = '';
+          marketLoading = true;
+          renderMarketList();
+          vscode.postMessage({ type: 'market:list' });
+        } else {
+          showToast('发布失败：' + msg.error, true);
+        }
         break;
       default:
         break;

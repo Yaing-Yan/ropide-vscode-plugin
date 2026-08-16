@@ -5,6 +5,7 @@ import {
   serializeRopDocument,
   newRopDocument,
 } from './rop';
+import { fetchMarketList, fetchMarketItem, publishToMarket } from './market';
 
 interface EditorSession {
   document: vscode.TextDocument;
@@ -144,9 +145,64 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
         void vscode.commands.executeCommand('ropide.newFile');
         break;
       }
+      case 'market:list': {
+        void (async () => {
+          const r = await fetchMarketList();
+          session.panel.webview.postMessage(
+            'error' in r
+              ? { type: 'market:list-result', error: r.error }
+              : { type: 'market:list-result', items: r.items }
+          );
+        })();
+        break;
+      }
+      case 'market:get': {
+        const id = message.id as number | string;
+        void (async () => {
+          const r = await fetchMarketItem(id);
+          if ('error' in r) {
+            session.panel.webview.postMessage({ type: 'market:get-result', id, error: r.error });
+          } else {
+            this.loadData(session, r.data);
+            session.panel.webview.postMessage({ type: 'market:get-result', id, ok: true });
+          }
+        })();
+        break;
+      }
+      case 'market:publish': {
+        const name = String(message.name || '');
+        const author = String(message.author || '');
+        const model = String(message.model || '');
+        const description = String(message.description || '');
+        void (async () => {
+          const r = await publishToMarket({
+            name,
+            author,
+            model,
+            description,
+            data: serializeRopDocument(session.data),
+            timestamp: Date.now(),
+          });
+          session.panel.webview.postMessage(
+            r.ok
+              ? { type: 'market:publish-result', ok: true }
+              : { type: 'market:publish-result', ok: false, error: r.error }
+          );
+        })();
+        break;
+      }
       default:
         break;
     }
+  }
+
+  /** 从外部数据（如程序广场下载）整体替换当前文档。 */
+  private loadData(session: EditorSession, data: RopDocumentData): void {
+    session.data = data;
+    session.valid = true;
+    session.error = '';
+    this.writeBack(session);
+    session.panel.webview.postMessage({ type: 'update', ...data });
   }
 
   private writeBack(session: EditorSession): void {
@@ -170,8 +226,8 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
     })();
   }
 
-  /** 让某个面板执行动作（编译 / 显示 gadgets 等）。 */
-  postToActive(type: 'compile' | 'show-gadgets'): void {
+  /** 让某个面板执行动作（编译 / 显示 gadgets / 程序广场等）。 */
+  postToActive(type: 'compile' | 'show-gadgets' | 'show-market'): void {
     let session: EditorSession | undefined;
     if (this.lastActiveUri) {
       session = this.sessions.get(this.lastActiveUri);

@@ -1,0 +1,29 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="ROP + Function Calculator">
+  <g stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <rect x="14" y="18" width="30" height="20" rx="4"/>
+    <rect x="52" y="18" width="30" height="20" rx="4"/>
+    <path d="M44 28 h8"/>
+    <path d="M82 28 h14 v22"/>
+    <path d="M92 44 l4 6 4 -6"/>
+  </g>
+  <g stroke="#FFFFFF" stroke-width="3" stroke-linecap="round">
+    <path d="M20 28 h6"/>
+    <path d="M58 28 h6"/>
+  </g>
+  <g stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <rect x="24" y="56" width="80" height="58" rx="8"/>
+    <rect x="34" y="64" width="60" height="16" rx="3"/>
+  </g>
+  <g fill="#FFFFFF" font-family="Georgia, 'Times New Roman', serif" font-style="italic" font-weight="700">
+    <text x="42" y="77" font-size="14">f(x)</text>
+  </g>
+  <g fill="#FFFFFF">
+    <circle cx="40" cy="92" r="3.2"/><circle cx="54" cy="92" r="3.2"/>
+    <circle cx="68" cy="92" r="3.2"/><circle cx="88" cy="92" r="3.2"/>
+    <circle cx="40" cy="104" r="3.2"/><circle cx="54" cy="104" r="3.2"/>
+    <circle cx="68" cy="104" r="3.2"/>
+  </g>
+  <g stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" fill="none">
+    <rect x="82" y="100" width="14" height="8" rx="3"/>
+  </g>
+</svg>

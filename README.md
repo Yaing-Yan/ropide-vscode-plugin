@@ -39,6 +39,7 @@
 - **gadget 补全**：输入 `#` 后弹出 gadget 补全列表。
 - **常量 / 锚点补全**：输入 `$` 后弹出已定义常量与锚点补全列表。
 - **侧边栏启动**：左侧活动栏新增 RopIDE 图标，点开即可在当前窗口「新建 / 打开」`.rop` 文件（不弹额外窗口）。
+- **程序广场**：浏览 / 搜索 [ropide.pages.dev](https://ropide.pages.dev) 上的程序，精选/全部分区，一键下载（加载进当前编辑器）、发布（程序名/作者/机型/描述表单）。
 - **Tab 对齐注释**：按 Tab 自动对齐当前行的 `//` 注释到上文列。
 
 ## 安装 / 运行
@@ -92,6 +93,7 @@ ropide-vscode-plugin/
 │   ├── ropEditorProvider.ts  # CustomTextEditor 提供者、状态栏
 │   ├── launcherView.ts       # 侧边栏启动面板（WebviewView）
 │   ├── presets.ts            # VerF / VerC gadgets 内置预设
+│   ├── market.ts             # 程序广场 API（ropide.pages.dev）
 │   └── rop.ts                # .rop JSON 解析/序列化
 └── media/
     ├── editor.css            # 编辑器/面板/语法高亮样式
