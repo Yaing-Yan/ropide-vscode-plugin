@@ -3,7 +3,7 @@
   "displayName": "RopIDE",
   "description": "VS Code editor for CASIO fx-991 CN X ROP (.rop) files — syntax highlighting, address gutter, gadget manager and one-click compile.",
   "version": "0.1.0",
-  "publisher": "Yaing-Yan",
+  "publisher": "yaing-yan",
   "license": "GPL-3.0",
   "icon": "icon.png",
   "repository": {
