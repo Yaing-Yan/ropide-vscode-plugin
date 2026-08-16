@@ -76,72 +76,62 @@
       </div>
     </div>
 
-    <div class="editor">
-      <div class="gutter" id="gutterLeft"><div class="gutter-inner"></div></div>
-      <div class="code-wrap" id="codeWrap">
-        <pre class="highlight" id="highlight" aria-hidden="true"></pre>
-        <textarea class="code-input" id="input" spellcheck="false" wrap="off"></textarea>
-        <div class="autocomplete" id="autocomplete" hidden></div>
+    <div class="main">
+      <div class="editor">
+        <div class="gutter" id="gutterLeft"><div class="gutter-inner"></div></div>
+        <div class="code-wrap" id="codeWrap">
+          <pre class="highlight" id="highlight" aria-hidden="true"></pre>
+          <textarea class="code-input" id="input" spellcheck="false" wrap="off"></textarea>
+          <div class="autocomplete" id="autocomplete" hidden></div>
+        </div>
+        <div class="gutter right" id="gutterRight"><div class="gutter-inner"></div></div>
       </div>
-      <div class="gutter right" id="gutterRight"><div class="gutter-inner"></div></div>
+
+      <div class="sidepanel" id="sidepanel" hidden>
+        <div class="sidepanel-tabs">
+          <button class="sp-tab" data-tab="compile">编译</button>
+          <button class="sp-tab" data-tab="gadgets">Gadgets</button>
+          <button class="sp-tab" data-tab="market">程序广场</button>
+          <div class="spacer"></div>
+          <button class="sp-close" id="btnClosePanel" title="关闭分栏">${ICONS.close}</button>
+        </div>
+        <div class="sidepanel-body">
+          <div class="tab-content" id="panelCompile" hidden>
+            <div class="compile-setting">
+              <span class="field">左地址 <input class="addr-input" id="leftAddrInput" maxlength="5" /></span>
+              <span class="field">右地址 <input class="addr-input" id="rightAddrInput" maxlength="5" /></span>
+            </div>
+            <div class="compile-actions">
+              <button class="icon-btn" id="btnCopyHex">${ICONS.copy}复制 hex 串</button>
+              <button class="icon-btn" id="btnCopyDump">${ICONS.copy}复制 hexdump</button>
+            </div>
+            <div class="compile-info" id="compileInfo"></div>
+            <div class="compile-hint">点击任意字节 → 左下角显示左右地址，并高亮输入区对应位置</div>
+            <div class="hexdump" id="hexdump"></div>
+          </div>
+
+          <div class="tab-content" id="panelGadgets" hidden>
+            <div class="panel-toolbar">
+              <input class="search-input" id="gadgetSearch" type="text" placeholder="搜索 name / addr / desc / tag…" />
+              <button class="icon-btn primary" id="btnAddGadget">${ICONS.plus}新增</button>
+            </div>
+            <div class="gadget-list" id="gadgetList"></div>
+          </div>
+
+          <div class="tab-content" id="panelMarket" hidden>
+            <div class="panel-toolbar">
+              <input class="search-input" id="marketSearch" type="text" placeholder="搜索 name / author / model / desc…" />
+              <button class="icon-btn primary" id="btnPublish">${ICONS.plus}发布</button>
+            </div>
+            <div class="market-list" id="marketList"></div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="footer">
       <span id="bytesInfo">0 bytes · 0 errors</span>
       <span id="cursorInfo"></span>
-    </div>
-
-    <div class="overlay" id="gadgetOverlay" hidden>
-      <div class="panel">
-        <div class="panel-header">
-          <h2>Gadgets</h2>
-          <span class="tb-badge" id="gadgetPanelCount">0</span>
-          <div class="spacer"></div>
-          <input class="search-input" id="gadgetSearch" type="text" placeholder="搜索 name / addr / desc / tag…" />
-          <button class="icon-btn primary" id="btnAddGadget">${ICONS.plus}新增</button>
-          <button class="icon-btn" id="btnCloseGadgets">${ICONS.close}</button>
-        </div>
-        <div class="panel-body">
-          <div class="gadget-list" id="gadgetList"></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="overlay" id="compileOverlay" hidden>
-      <div class="panel">
-        <div class="panel-header">
-          <h2>编译结果</h2>
-          <div class="spacer"></div>
-          <button class="icon-btn" id="btnCloseCompile">${ICONS.close}</button>
-        </div>
-        <div class="panel-body">
-          <div class="compile-setting">
-            <span class="field">左地址 <input class="addr-input" id="leftAddrInput" maxlength="5" /></span>
-            <span class="field">右地址 <input class="addr-input" id="rightAddrInput" maxlength="5" /></span>
-            <div class="compile-actions">
-              <button class="icon-btn" id="btnCopyHex">${ICONS.copy}复制 hex 串</button>
-              <button class="icon-btn" id="btnCopyDump">${ICONS.copy}复制 hexdump</button>
-            </div>
-          </div>
-          <div class="compile-info" id="compileInfo"></div>
-          <div class="hexdump" id="hexdump"></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="overlay" id="marketOverlay" hidden>
-      <div class="panel">
-        <div class="panel-header">
-          <h2>程序广场</h2>
-          <div class="spacer"></div>
-          <input class="search-input" id="marketSearch" type="text" placeholder="搜索 name / author / model / desc…" />
-          <button class="icon-btn primary" id="btnPublish">${ICONS.plus}发布</button>
-          <button class="icon-btn" id="btnCloseMarket">${ICONS.close}</button>
-        </div>
-        <div class="panel-body">
-          <div class="market-list" id="marketList"></div>
-        </div>
-      </div>
     </div>
 
     <div class="overlay" id="publishOverlay" hidden>
@@ -192,25 +182,24 @@
     autocomplete: document.getElementById('autocomplete'),
     bytesInfo: document.getElementById('bytesInfo'),
     cursorInfo: document.getElementById('cursorInfo'),
-    gadgetOverlay: document.getElementById('gadgetOverlay'),
-    gadgetPanelCount: document.getElementById('gadgetPanelCount'),
+    sidepanel: document.getElementById('sidepanel'),
+    btnClosePanel: document.getElementById('btnClosePanel'),
+    tabs: document.querySelectorAll('.sp-tab'),
+    panelCompile: document.getElementById('panelCompile'),
+    panelGadgets: document.getElementById('panelGadgets'),
+    panelMarket: document.getElementById('panelMarket'),
     gadgetSearch: document.getElementById('gadgetSearch'),
     gadgetList: document.getElementById('gadgetList'),
     btnAddGadget: document.getElementById('btnAddGadget'),
-    btnCloseGadgets: document.getElementById('btnCloseGadgets'),
-    compileOverlay: document.getElementById('compileOverlay'),
-    btnCloseCompile: document.getElementById('btnCloseCompile'),
     leftAddrInput: document.getElementById('leftAddrInput'),
     rightAddrInput: document.getElementById('rightAddrInput'),
     btnCopyHex: document.getElementById('btnCopyHex'),
     btnCopyDump: document.getElementById('btnCopyDump'),
     compileInfo: document.getElementById('compileInfo'),
     hexdump: document.getElementById('hexdump'),
-    marketOverlay: document.getElementById('marketOverlay'),
     marketSearch: document.getElementById('marketSearch'),
     marketList: document.getElementById('marketList'),
     btnPublish: document.getElementById('btnPublish'),
-    btnCloseMarket: document.getElementById('btnCloseMarket'),
     publishOverlay: document.getElementById('publishOverlay'),
     btnClosePublish: document.getElementById('btnClosePublish'),
     publishName: document.getElementById('publishName'),
@@ -312,6 +301,7 @@
     renderGutters();
     renderFooter();
     updateCursor();
+    if (activeTab === 'compile') renderCompile();
   }
 
   function renderHighlight() {
@@ -464,10 +454,43 @@
     scheduleSave();
   }
 
-  /* ---------------- 工具栏 ---------------- */
+  /* ---------------- 工具栏 + 右侧分栏 ---------------- */
   el.btnNew.addEventListener('click', () => vscode.postMessage({ type: 'new' }));
-  el.btnGadgets.addEventListener('click', openGadgets);
-  el.btnCompile.addEventListener('click', openCompile);
+  el.btnGadgets.addEventListener('click', () => togglePanel('gadgets'));
+  el.btnCompile.addEventListener('click', () => togglePanel('compile'));
+  el.btnMarket.addEventListener('click', () => togglePanel('market'));
+  el.btnClosePanel.addEventListener('click', () => {
+    el.sidepanel.hidden = true;
+    activeTab = null;
+  });
+  el.tabs.forEach((t) => t.addEventListener('click', () => setActiveTab(t.dataset.tab)));
+
+  let activeTab = null;
+
+  function openPanel(tab) {
+    el.sidepanel.hidden = false;
+    setActiveTab(tab);
+    if (tab === 'compile') openCompile();
+    else if (tab === 'gadgets') openGadgets();
+    else if (tab === 'market') openMarket();
+  }
+
+  function togglePanel(tab) {
+    if (!el.sidepanel.hidden && activeTab === tab) {
+      el.sidepanel.hidden = true;
+      activeTab = null;
+    } else {
+      openPanel(tab);
+    }
+  }
+
+  function setActiveTab(tab) {
+    activeTab = tab;
+    el.tabs.forEach((t) => t.classList.toggle('active', t.dataset.tab === tab));
+    el.panelCompile.hidden = tab !== 'compile';
+    el.panelGadgets.hidden = tab !== 'gadgets';
+    el.panelMarket.hidden = tab !== 'market';
+  }
 
   /* ---------------- Gadgets 面板 ---------------- */
   function openGadgets() {
@@ -475,10 +498,8 @@
     editingGadgetIndex = -1;
     editingGadget = null;
     renderGadgetList();
-    el.gadgetOverlay.hidden = false;
     el.gadgetSearch.focus();
   }
-  el.btnCloseGadgets.addEventListener('click', () => { el.gadgetOverlay.hidden = true; });
   el.btnAddGadget.addEventListener('click', () => {
     el.gadgetSearch.value = '';
     const g = { name: '', addr: '', desc: '', tags: [] };
@@ -519,7 +540,6 @@
 
   function renderGadgetList() {
     const list = filteredGadgets();
-    el.gadgetPanelCount.textContent = state.gadgets.length;
 
     if (list.length === 0 && state.gadgets.length === 0) {
       el.gadgetList.innerHTML = '<div class="empty-hint">还没有 gadgets。点击右上角「新增」添加一个。</div>';
@@ -677,9 +697,7 @@
     el.leftAddrInput.value = state.leftStartAddress;
     el.rightAddrInput.value = state.rightStartAddress;
     renderCompile();
-    el.compileOverlay.hidden = false;
   }
-  el.btnCloseCompile.addEventListener('click', () => { el.compileOverlay.hidden = true; });
 
   function bindAddressInput(inputEl, key) {
     inputEl.addEventListener('input', () => {
@@ -704,7 +722,7 @@
     for (let row = 0; row * 16 < bytes.length; row++) {
       const rowBytes = bytes.slice(row * 16, row * 16 + 16);
       const byteSpans = rowBytes
-        .map((b) => `<span class="hex-byte ${b === '00' ? 'zero' : ''}">${b}</span>`)
+        .map((b, col) => `<span class="hex-byte ${b === '00' ? 'zero' : ''}" data-byte="${row * 16 + col}">${b}</span>`)
         .join(' ');
       html += `<div class="hex-row">`
         + `<span class="hex-addr left">${hexAddr(leftBase + row * 16)}</span>`
@@ -732,6 +750,36 @@
     for (let i = 0; i < pairs.length; i += 16) dump.push(pairs.slice(i, i + 16).join(' '));
     if (await copyText(dump.join('\n'))) flashCopy(el.btnCopyDump);
   });
+
+  // 点击编译结果中的字节 → 左下角显示左右地址 + 高亮输入区对应位置
+  el.hexdump.addEventListener('click', (e) => {
+    const span = e.target.closest('[data-byte]');
+    if (!span) return;
+    const byteIndex = parseInt(span.dataset.byte, 10);
+    if (!isNaN(byteIndex)) selectByte(byteIndex);
+  });
+
+  function selectByte(byteIndex) {
+    const left = hexAddr(parseBase(state.leftStartAddress) + byteIndex);
+    const right = hexAddr(parseBase(state.rightStartAddress) + byteIndex);
+    el.cursorInfo.textContent = `字节 #${byteIndex}  L:${left}  R:${right}`;
+    vscode.postMessage({ type: 'cursor', left, right });
+
+    const map = parsed ? parsed.charPosInInputMap : [];
+    const start = map[byteIndex * 2];
+    const end = map[byteIndex * 2 + 1];
+    if (start === undefined || end === undefined) return;
+    el.input.focus();
+    el.input.setSelectionRange(start, end + 1);
+    scrollToInputPos(start);
+  }
+
+  function scrollToInputPos(pos) {
+    const lineIndex = state.input.slice(0, pos).split('\n').length - 1;
+    const lh = parseFloat(getComputedStyle(el.input).lineHeight) || 21;
+    el.input.scrollTop = Math.max(0, lineIndex * lh - el.input.clientHeight / 2);
+    syncScroll();
+  }
 
   /* ---------------- autocomplete（gadget / 常量补全） ---------------- */
   function handleAutocomplete() {
@@ -851,8 +899,6 @@
   }
 
   /* ---------------- 程序广场 ---------------- */
-  el.btnMarket.addEventListener('click', openMarket);
-  el.btnCloseMarket.addEventListener('click', () => { el.marketOverlay.hidden = true; });
   el.marketSearch.addEventListener('input', renderMarketList);
   el.btnPublish.addEventListener('click', openPublish);
   el.btnClosePublish.addEventListener('click', closePublish);
@@ -869,7 +915,6 @@
 
   function openMarket() {
     el.marketSearch.value = '';
-    el.marketOverlay.hidden = false;
     marketItems = [];
     marketError = '';
     marketLoading = true;
@@ -997,13 +1042,13 @@
         showError(msg.error || '这不是合法的 .rop（JSON）文件。');
         break;
       case 'compile':
-        openCompile();
+        openPanel('compile');
         break;
       case 'show-gadgets':
-        openGadgets();
+        openPanel('gadgets');
         break;
       case 'show-market':
-        openMarket();
+        openPanel('market');
         break;
       case 'market:list-result':
         marketLoading = false;
@@ -1024,7 +1069,6 @@
           showToast('已取消');
         } else {
           showToast('已保存并打开');
-          el.marketOverlay.hidden = true;
         }
         renderMarketList();
         break;

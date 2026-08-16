@@ -129,10 +129,18 @@ body {
   margin-left: 2px;
 }
 
+/* ---------- 主区域（编辑器 + 右侧分栏） ---------- */
+.main {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 /* ---------- 编辑器区域 ---------- */
 .editor {
   display: flex;
   flex: 1 1 auto;
+  min-width: 0;
   min-height: 0;
 }
 
@@ -248,7 +256,72 @@ body.vscode-dark .code-input::selection { background: rgba(255, 255, 255, 0.2); 
 }
 .footer .err { color: #ffb3b3; }
 
-/* ---------- 覆盖层（gadgets / compile） ---------- */
+/* ---------- 右侧分栏 ---------- */
+.sidepanel {
+  flex: 0 0 auto;
+  width: 42%;
+  min-width: 300px;
+  max-width: 620px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-left: 1px solid var(--border);
+  background: var(--panel-bg);
+}
+.sidepanel[hidden] { display: none; }
+
+.sidepanel-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border);
+  flex: 0 0 auto;
+  user-select: none;
+}
+.sidepanel-tabs .spacer { flex: 1 1 auto; }
+.sp-tab {
+  padding: 5px 10px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+}
+.sp-tab:hover { background: var(--vscode-toolbar-hoverBackground, rgba(0,0,0,0.08)); }
+.sp-tab.active { border-bottom-color: var(--accent); font-weight: 700; }
+.sp-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+}
+.sp-close:hover { background: var(--vscode-toolbar-hoverBackground, rgba(0,0,0,0.08)); }
+.sp-close svg { width: 15px; height: 15px; }
+
+.sidepanel-body { flex: 1 1 auto; min-height: 0; overflow: hidden; }
+.tab-content { height: 100%; display: flex; flex-direction: column; min-height: 0; padding: 10px; }
+.tab-content[hidden] { display: none; }
+
+.panel-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  flex: 0 0 auto;
+}
+.panel-toolbar .search-input { flex: 1 1 auto; }
+
+.compile-hint { font-size: 11px; color: var(--muted); margin-bottom: 8px; }
+
+/* ---------- 覆盖层（发布等） ---------- */
 .overlay {
   position: fixed;
   inset: 0;
@@ -314,7 +387,7 @@ body.vscode-dark .code-input::selection { background: rgba(255, 255, 255, 0.2); 
 .icon-btn svg { width: 15px; height: 15px; }
 
 /* ---------- gadget 卡片 ---------- */
-.gadget-list { display: flex; flex-direction: column; gap: 10px; }
+.gadget-list { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; flex: 1 1 auto; min-height: 0; }
 .gadget-card {
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -362,13 +435,15 @@ body.vscode-dark .code-input::selection { background: rgba(255, 255, 255, 0.2); 
 .empty-hint { color: var(--muted); text-align: center; padding: 30px 0; font-size: 13px; }
 
 /* ---------- compile 面板 ---------- */
-.compile-setting { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+.compile-setting { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
 .compile-setting .field { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
-.compile-actions { display: flex; gap: 8px; margin-left: auto; }
+.compile-actions { display: flex; gap: 8px; margin-bottom: 8px; }
 .compile-info { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
 .compile-info .err { color: var(--vscode-errorForeground, #e51400); }
 
 .hexdump {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -382,6 +457,8 @@ body.vscode-dark .code-input::selection { background: rgba(255, 255, 255, 0.2); 
 .hex-addr.left { color: var(--s-constant-name); }
 .hex-addr.right { color: var(--s-anchor); }
 .hex-bytes { color: var(--fg); }
+.hex-byte { cursor: pointer; }
+.hex-byte:hover { background: var(--accent); color: #fff; border-radius: 2px; }
 .hex-byte.zero { color: var(--muted); }
 
 /* autocomplete */
@@ -411,7 +488,7 @@ body.vscode-dark .code-input::selection { background: rgba(255, 255, 255, 0.2); 
 .ac-item .ac-desc { margin-left: auto; color: var(--muted); font-size: 12px; }
 
 /* ---------- 程序广场 ---------- */
-.market-list { display: flex; flex-direction: column; gap: 10px; }
+.market-list { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; flex: 1 1 auto; min-height: 0; }
 .market-section {
   display: flex;
   align-items: center;
