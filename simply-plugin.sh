@@ -21,7 +21,8 @@ echo "  [1] 安装"
 echo "  [2] 卸载"
 echo "  [q] 退出"
 printf "请选择 [1/2/q]: "
-read -r choice
+# 通过管道执行（curl | bash）时 stdin 被脚本内容占用，必须从终端读取
+read -r choice < /dev/tty 2>/dev/null || read -r choice
 
 find_code() {
   for c in code code-insiders codium; do
