@@ -458,7 +458,8 @@ body.vscode-dark .code-input::selection { background: rgba(255, 255, 255, 0.2); 
 .hex-addr.right { color: var(--s-anchor); }
 .hex-bytes { color: var(--fg); }
 .hex-byte { cursor: pointer; }
-.hex-byte:hover { background: var(--accent); color: #fff; border-radius: 2px; }
+.hex-byte:hover { background: var(--vscode-list-hoverBackground, rgba(0,0,0,0.12)); }
+.hex-byte.sel, .hex-byte.sel:hover { background: var(--accent); color: #fff; border-radius: 2px; }
 .hex-byte.zero { color: var(--muted); }
 
 /* autocomplete */

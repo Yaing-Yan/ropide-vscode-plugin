@@ -344,6 +344,28 @@
     const right = hexAddr(parseBase(state.rightStartAddress) + off);
     el.cursorInfo.textContent = `L:${left}  R:${right}`;
     vscode.postMessage({ type: 'cursor', left, right });
+    updateByteHighlight();
+  }
+
+  // 找到光标处对应的字节索引（一个 token 可能对应多个字节，如 gadget 4 字节）
+  function byteIndicesAtPos(pos) {
+    const map = parsed ? parsed.charPosInInputMap : [];
+    const set = new Set();
+    const n = Math.floor(map.length / 2);
+    for (let b = 0; b < n; b++) {
+      const s = map[b * 2];
+      const e = map[b * 2 + 1];
+      if (s !== undefined && e !== undefined && pos >= s && pos <= e) set.add(b);
+    }
+    return set;
+  }
+
+  function updateByteHighlight() {
+    if (el.sidepanel.hidden || activeTab !== 'compile') return;
+    const set = byteIndicesAtPos(el.input.selectionStart);
+    el.hexdump.querySelectorAll('[data-byte]').forEach((sp) => {
+      sp.classList.toggle('sel', set.has(parseInt(sp.dataset.byte, 10)));
+    });
   }
 
   function scheduleSave() {
@@ -736,6 +758,8 @@
     const errClass = parsed && parsed.errorCount > 0 ? ' class="err"' : '';
     el.compileInfo.innerHTML = `共 <b>${parsed ? parsed.totalBytes : 0}</b> bytes，`
       + `<span${errClass}>${parsed ? parsed.errorCount : 0} errors</span>`;
+
+    updateByteHighlight();
   }
 
   el.btnCopyHex.addEventListener('click', async () => {
