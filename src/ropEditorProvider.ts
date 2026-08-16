@@ -6,8 +6,7 @@ import {
   newRopDocument,
 } from './rop';
 import { fetchMarketList, fetchMarketItem, fetchMarketChallenge, publishToMarket } from './market';
-import { emuWrite, parseHexBytes, resolveRamScript } from './emu';
-import * as fs from 'fs';
+import { emuWrite, parseHexBytes } from './emu';
 
 interface EditorSession {
   document: vscode.TextDocument;
@@ -254,24 +253,13 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
             session.panel.webview.postMessage({ type: 'emu:write-result', ok: false, error: '十六进制数据无效' });
             return;
           }
-          const cfg = vscode.workspace.getConfiguration('ropide');
-          const script = resolveRamScript(cfg.get<string>('casioemuRamScript', ''));
-          if (!fs.existsSync(script)) {
-            session.panel.webview.postMessage({
-              type: 'emu:write-result',
-              ok: false,
-              error: '找不到 casioemu_ram.py，请在设置 ropide.casioemuRamScript 中指定其路径',
-            });
-            return;
-          }
-          const r = await emuWrite(address, bytes, {
-            script,
-            python: cfg.get<string>('casioemuPython', 'python3'),
-            modelDir: cfg.get<string>('casioemuModelDir', '') || undefined,
-          });
+          const port = vscode.workspace
+            .getConfiguration('ropide')
+            .get<number>('casioemuMcpPort', 3001);
+          const r = await emuWrite(address, bytes, { port });
           session.panel.webview.postMessage(
             r.ok
-              ? { type: 'emu:write-result', ok: true, message: r.message }
+              ? { type: 'emu:write-result', ok: true }
               : { type: 'emu:write-result', ok: false, error: r.error }
           );
         })();
@@ -282,6 +270,41 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
         if (key === 'injectAddress' || key === 'launcher') {
           void this.context.globalState.update(`ropide.${key}`, String(message.value ?? ''));
         }
+        break;
+      }
+      case 'gadgets:export': {
+        const gadgets = Array.isArray(message.gadgets)
+          ? (message.gadgets as RopDocumentData['gadgets'])
+          : session.data.gadgets;
+        void (async () => {
+          const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri;
+          const defaultUri = workspaceFolder
+            ? vscode.Uri.joinPath(workspaceFolder, 'gadgets.json')
+            : undefined;
+          const uri = await vscode.window.showSaveDialog({
+            defaultUri,
+            filters: { 'Gadgets JSON': ['json'] },
+            saveLabel: 'Export',
+            title: '导出 gadgets',
+          });
+          if (!uri) {
+            session.panel.webview.postMessage({ type: 'gadgets:export-result', cancelled: true });
+            return;
+          }
+          try {
+            await vscode.workspace.fs.writeFile(
+              uri,
+              Buffer.from(JSON.stringify(gadgets, null, 2), 'utf8')
+            );
+            session.panel.webview.postMessage({ type: 'gadgets:export-result', ok: true });
+          } catch (e) {
+            session.panel.webview.postMessage({
+              type: 'gadgets:export-result',
+              ok: false,
+              error: (e as Error).message,
+            });
+          }
+        })();
         break;
       }
       default:

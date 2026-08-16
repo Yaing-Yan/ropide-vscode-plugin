@@ -129,6 +129,7 @@
             <div class="panel-toolbar">
               <input class="search-input" id="gadgetSearch" type="text" placeholder="搜索 name / addr / desc / tag…" />
               <button class="icon-btn primary" id="btnAddGadget">${ICONS.plus}新增</button>
+              <button class="icon-btn" id="btnExportGadgets" title="导出 gadgets.json">${ICONS.download}导出</button>
             </div>
             <div class="gadget-list" id="gadgetList"></div>
           </div>
@@ -211,6 +212,7 @@
     gadgetSearch: document.getElementById('gadgetSearch'),
     gadgetList: document.getElementById('gadgetList'),
     btnAddGadget: document.getElementById('btnAddGadget'),
+    btnExportGadgets: document.getElementById('btnExportGadgets'),
     leftAddrInput: document.getElementById('leftAddrInput'),
     rightAddrInput: document.getElementById('rightAddrInput'),
     injectAddress: document.getElementById('injectAddress'),
@@ -512,7 +514,7 @@
     el.sidepanel.hidden = true;
     activeTab = null;
   });
-  el.tabs.forEach((t) => t.addEventListener('click', () => setActiveTab(t.dataset.tab)));
+  el.tabs.forEach((t) => t.addEventListener('click', () => openPanel(t.dataset.tab)));
 
   let activeTab = null;
 
@@ -556,6 +558,10 @@
     editingGadgetIndex = state.gadgets.length - 1;
     editingGadget = deepCopy(g);
     renderGadgetList();
+  });
+
+  el.btnExportGadgets.addEventListener('click', () => {
+    vscode.postMessage({ type: 'gadgets:export', gadgets: state.gadgets });
   });
 
   el.gadgetSearch.addEventListener('input', renderGadgetList);
@@ -1251,6 +1257,15 @@
           showToast('已写入');
         } else {
           showEmuStatus(msg.error || '写入失败', 'error');
+        }
+        break;
+      case 'gadgets:export-result':
+        if (msg.ok) {
+          showToast('已导出 gadgets.json');
+        } else if (msg.cancelled) {
+          showToast('已取消');
+        } else {
+          showToast('导出失败：' + msg.error, true);
         }
         break;
       default:

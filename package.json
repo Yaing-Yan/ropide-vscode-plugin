@@ -103,20 +103,10 @@
     "configuration": {
       "title": "RopIDE",
       "properties": {
-        "ropide.casioemuRamScript": {
-          "type": "string",
-          "default": "",
-          "description": "casioemu_ram.py 的路径（留空自动检测 ~/casioemu/tools/casioemu_ram.py）。"
-        },
-        "ropide.casioemuPython": {
-          "type": "string",
-          "default": "python3",
-          "description": "用于运行 casioemu_ram.py 的 Python 解释器（如 python3 / python）。"
-        },
-        "ropide.casioemuModelDir": {
-          "type": "string",
-          "default": "",
-          "description": "CasioEmuMsvc 模型目录（留空自动检测）。"
+        "ropide.casioemuMcpPort": {
+          "type": "number",
+          "default": 3001,
+          "description": "CasioEmuMsvc McpPlugin 的 MCP 端口（默认 3001）。"
         }
       }
     }
