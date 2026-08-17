@@ -11,5 +11,6 @@ uninstall.ps1
 uninstall.bat
 simply-plugin.sh
 simply-plugin.bat
+build.sh
 **/*.map
 **/tsconfig.json

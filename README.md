@@ -110,6 +110,12 @@ npm run package                       # 生成 ropide-vscode-plugin-0.1.0.vsix
 code --install-extension ropide-vscode-plugin-0.1.0.vsix --force
 ```
 
+**跨平台打包**（输出 `ropide-vscode-plugin-<yyyymmdd>.vsix`，全平台通用）：
+
+```bash
+./build.sh
+```
+
 如需改代码后联调，仍可 `F5` 启动扩展开发宿主（仓库带 `.vscode/launch.json`）。
 
 **卸载**：
@@ -137,6 +143,7 @@ uninstall.bat           # Windows（CMD）
 ropide-vscode-plugin/
 ├── package.json
 ├── tsconfig.json
+├── build.sh                # 跨平台打包：输出 ropide-vscode-plugin-<yyyymmdd>.vsix
 ├── simply-plugin.sh        # 免 git clone 一行安装/卸载（Linux/macOS）
 ├── simply-plugin.bat       # 免 git clone 一行安装/卸载（Windows）
 ├── install.sh              # Linux/macOS 一键安装脚本
