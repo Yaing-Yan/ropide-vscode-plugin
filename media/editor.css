@@ -224,7 +224,7 @@ body {
 body.vscode-dark .code-input::selection { background: rgba(255, 255, 255, 0.2); }
 
 /* 语法高亮 span */
-.highlight .comment { color: var(--s-comment); }
+.highlight .comment { color: var(--s-comment); font-style: italic; }
 .highlight .constant.name { color: var(--s-constant-name); }
 .highlight .constant.equal { color: var(--s-constant-equal); }
 .highlight .constant.value { color: var(--s-constant-value); }
@@ -249,7 +249,7 @@ body.vscode-dark .code-input::selection { background: rgba(255, 255, 255, 0.2); 
   outline: 1px solid var(--s-anchor-closed-outline);
   border-radius: 8px;
 }
-.highlight .hex { color: var(--s-hex); }
+.highlight .hex { color: var(--s-hex); font-weight: 600; }
 .highlight .other { color: var(--s-other); }
 .highlight .warning { text-decoration: underline wavy var(--s-warn-underline); }
 
