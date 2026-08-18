@@ -8,6 +8,7 @@ import {
 } from './rop';
 import { fetchMarketList, fetchMarketItem, fetchMarketChallenge, publishToMarket } from './market';
 import { emuWrite, parseHexBytes } from './emu';
+import { showWelcome } from './welcome';
 
 interface EditorSession {
   document: vscode.TextDocument;
@@ -272,6 +273,10 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
         if (key === 'injectAddress' || key === 'launcher' || key === 'launcherAddr') {
           void this.context.globalState.update(`ropide.${key}`, String(message.value ?? ''));
         }
+        break;
+      }
+      case 'about': {
+        showWelcome(this.context);
         break;
       }
       case 'gadgets:import': {

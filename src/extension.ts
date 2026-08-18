@@ -25,7 +25,8 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('ropide.openFile', () => openRopFile()),
     vscode.commands.registerCommand('ropide.compile', () => provider.postToActive('compile')),
     vscode.commands.registerCommand('ropide.showGadgets', () => provider.postToActive('show-gadgets')),
-    vscode.commands.registerCommand('ropide.openMarket', () => provider.postToActive('show-market'))
+    vscode.commands.registerCommand('ropide.openMarket', () => provider.postToActive('show-market')),
+    vscode.commands.registerCommand('ropide.about', () => showWelcome(context))
   );
 
   // 首次安装 / 重装（globalState 被清除）时显示欢迎页

@@ -34,6 +34,8 @@
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
     download:
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
+    info:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
   };
 
   /* ---------------- 状态 ---------------- */
@@ -78,6 +80,7 @@
         <button class="tb-btn" id="btnGadgets" title="查看 / 编辑 gadgets">${ICONS.list}<span class="tb-badge" id="gadgetCount">0</span></button>
         <button class="tb-btn" id="btnCompile" title="编译">${ICONS.play}</button>
         <button class="tb-btn" id="btnMarket" title="程序广场">${ICONS.globe}</button>
+        <button class="tb-btn" id="btnAbout" title="关于">${ICONS.info}</button>
       </div>
     </div>
 
@@ -200,6 +203,7 @@
     btnGadgets: document.getElementById('btnGadgets'),
     btnCompile: document.getElementById('btnCompile'),
     btnMarket: document.getElementById('btnMarket'),
+    btnAbout: document.getElementById('btnAbout'),
     gadgetCount: document.getElementById('gadgetCount'),
     gutterLeft: document.getElementById('gutterLeft'),
     gutterRight: document.getElementById('gutterRight'),
@@ -539,6 +543,7 @@
   el.btnGadgets.addEventListener('click', () => togglePanel('gadgets'));
   el.btnCompile.addEventListener('click', () => togglePanel('compile'));
   el.btnMarket.addEventListener('click', () => togglePanel('market'));
+  el.btnAbout.addEventListener('click', () => vscode.postMessage({ type: 'about' }));
   el.btnClosePanel.addEventListener('click', () => {
     el.sidepanel.hidden = true;
     el.sideDivider.hidden = true;

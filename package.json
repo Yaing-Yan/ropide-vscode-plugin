@@ -34,7 +34,8 @@
     "onCommand:ropide.openFile",
     "onCommand:ropide.compile",
     "onCommand:ropide.showGadgets",
-    "onCommand:ropide.openMarket"
+    "onCommand:ropide.openMarket",
+    "onCommand:ropide.about"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -75,6 +76,11 @@
         "command": "ropide.openMarket",
         "title": "RopIDE: Program Market",
         "icon": "$(globe)"
+      },
+      {
+        "command": "ropide.about",
+        "title": "RopIDE: About",
+        "icon": "$(info)"
       }
     ],
     "menus": {
@@ -98,6 +104,10 @@
         {
           "command": "ropide.openMarket",
           "when": "resourceExtname == .rop"
+        },
+        {
+          "command": "ropide.about",
+          "when": "true"
         }
       ]
     },
