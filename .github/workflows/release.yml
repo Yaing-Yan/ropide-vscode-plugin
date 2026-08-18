@@ -1,0 +1,44 @@
+name: Auto Build Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Get date / stamp
+        id: meta
+        run: |
+          echo "date=$(date +%Y%m%d)" >> "$GITHUB_OUTPUT"
+          echo "stamp=$(date +%Y%m%d-%H%M%S)" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Package VSIX
+        run: npx vsce package --out "ropide-vscode-plugin-${{ steps.meta.outputs.date }}.vsix"
+
+      - name: Create Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "auto-build-${{ steps.meta.outputs.stamp }}" \
+            "ropide-vscode-plugin-${{ steps.meta.outputs.date }}.vsix" \
+            --title "AUTO BUILD ${{ steps.meta.outputs.date }}" \
+            --notes "**AUTO BUILD**（自动构建，每次 push 自动生成，不覆盖历史版本）
+
+            构建日期：${{ steps.meta.outputs.date }}
+            提交：${{ github.sha }}"
