@@ -24,7 +24,8 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('ropide.openFile', () => openRopFile()),
     vscode.commands.registerCommand('ropide.compile', () => provider.postToActive('compile')),
     vscode.commands.registerCommand('ropide.showGadgets', () => provider.postToActive('show-gadgets')),
-    vscode.commands.registerCommand('ropide.openMarket', () => provider.postToActive('show-market'))
+    vscode.commands.registerCommand('ropide.openMarket', () => provider.postToActive('show-market')),
+    vscode.commands.registerCommand('ropide.gotoDefinition', () => provider.postToActive('goto-definition'))
   );
 }
 

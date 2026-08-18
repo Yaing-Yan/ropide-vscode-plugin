@@ -22,6 +22,7 @@
     const charPosInInputMap = [];
     const highlightLines = [];
     const constants = {};
+    const anchorSides = {};  // 锚点名 -> 'left' | 'right'
     let errorCount = 0;
     let hexChars = '';
     let posInInput = 0;
@@ -257,9 +258,11 @@
 
             let anchorName = line.substring(i + 1, j);
             let addrStart = parseInt(rightStartAddress || '0', 16);
+            let side = 'right';
             if (anchorName.startsWith('-')) {
               anchorName = anchorName.substring(1);
               addrStart = parseInt(leftStartAddress || '0', 16);
+              side = 'left';
             }
 
             let deferredBytesBeforeAnchor = 0;
@@ -271,6 +274,7 @@
             const addr =
               addrStart + Math.ceil(hexChars.length / 2) + deferredBytesBeforeAnchor;
             constants[anchorName] = addr;
+            anchorSides[anchorName] = side;
           } else {
             pushSpan('anchor', anchorContent);
           }
@@ -359,6 +363,7 @@
       errorCount,
       byteStartPositions,
       constants,
+      anchorSides,
       totalBytes: Math.floor(hexChars.length / 2),
     };
   }

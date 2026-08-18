@@ -508,6 +508,31 @@ body.vscode-dark .code-input::selection { background: rgba(255, 255, 255, 0.2); 
 .ac-item .ac-addr { color: var(--muted); font-size: 11px; font-style: italic; }
 .ac-item .ac-desc { margin-left: auto; color: var(--muted); font-size: 12px; }
 
+/* 值块内部的 $常量引用（悬停/跳转用，颜色与常量一致） */
+.const-ref { color: var(--s-constant-name); }
+
+/* 悬停提示 */
+.hover-tip {
+  position: fixed;
+  z-index: 300;
+  max-width: 420px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel-bg);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  font-size: 12px;
+  pointer-events: none;
+  line-height: 1.5;
+}
+.hover-tip[hidden] { display: none; }
+.ht-title { font-weight: 700; color: var(--fg); margin-bottom: 4px; }
+.ht-row { display: flex; gap: 8px; }
+.ht-label { color: var(--muted); flex: 0 0 auto; }
+.ht-mono { font-family: var(--font-mono); color: var(--fg); }
+.ht-tags { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px; }
+.ht-desc { margin-top: 4px; color: var(--fg); white-space: pre-wrap; word-break: break-word; }
+
 /* ---------- 程序广场 ---------- */
 .market-list { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; flex: 1 1 auto; min-height: 0; }
 .market-section {

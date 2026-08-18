@@ -272,6 +272,10 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
         }
         break;
       }
+      case 'hover-target': {
+        void vscode.commands.executeCommand('setContext', 'ropide.hoverTarget', !!message.has);
+        break;
+      }
       case 'gadgets:export': {
         const gadgets = Array.isArray(message.gadgets)
           ? (message.gadgets as RopDocumentData['gadgets'])
@@ -334,7 +338,7 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
   }
 
   /** 让某个面板执行动作（编译 / 显示 gadgets / 程序广场等）。 */
-  postToActive(type: 'compile' | 'show-gadgets' | 'show-market'): void {
+  postToActive(type: 'compile' | 'show-gadgets' | 'show-market' | 'goto-definition'): void {
     let session: EditorSession | undefined;
     if (this.lastActiveUri) {
       session = this.sessions.get(this.lastActiveUri);

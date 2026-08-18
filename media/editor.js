@@ -87,6 +87,7 @@
           <div class="highlight" id="highlight" aria-hidden="true"></div>
           <textarea class="code-input" id="input" spellcheck="false" wrap="off"></textarea>
           <div class="autocomplete" id="autocomplete" hidden></div>
+          <div class="hover-tip" id="hoverTip" hidden></div>
         </div>
         <div class="gutter right" id="gutterRight"><div class="gutter-inner"></div></div>
       </div>
@@ -201,6 +202,7 @@
     highlight: document.getElementById('highlight'),
     input: document.getElementById('input'),
     autocomplete: document.getElementById('autocomplete'),
+    hoverTip: document.getElementById('hoverTip'),
     bytesInfo: document.getElementById('bytesInfo'),
     cursorInfo: document.getElementById('cursorInfo'),
     sidepanel: document.getElementById('sidepanel'),
@@ -339,8 +341,26 @@
       let line = '';
       for (const span of spans) {
         const cls = span.type ? span.type.split(',').filter(Boolean).join(' ') : '';
-        const html = escapeHtml(span.content);
-        line += cls ? `<span class="${cls}">${html}</span>` : html;
+        let html = escapeHtml(span.content);
+        let attrs = '';
+        const type = span.type || '';
+
+        if (type.includes('gadget') && type.includes('closed')) {
+          const m = span.content.match(/^#-?([^;\s]+)/);
+          if (m) attrs = ` data-gadget="${escapeHtml(m[1])}"`;
+        } else if (type.includes('anchor') && type.includes('closed')) {
+          const m = span.content.match(/^<-?([^>\s]+)/);
+          if (m) attrs = ` data-anchor="${escapeHtml(m[1])}"`;
+        } else if (type.includes('constant') && type.includes('name')) {
+          const m = span.content.match(/^\$([A-Za-z0-9_-]+)/);
+          if (m) attrs = ` data-const="${escapeHtml(m[1])}"`;
+        } else if (type.includes('value') && type.includes('closed')) {
+          attrs = ' data-value-block';
+          html = html.replace(/(\$)([A-Za-z0-9_-]+)/g,
+            '<span class="const-ref" data-const="$2">$1$2</span>');
+        }
+
+        line += `<span class="${cls}"${attrs}>${html}</span>`;
       }
       out.push(line);
     }
@@ -843,6 +863,237 @@
     syncScroll();
   }
 
+  /* ---------------- 悬停提示 + 转到定义 ---------------- */
+  function hexByte(v) { return (v & 0xff).toString(16).toUpperCase().padStart(2, '0'); }
+
+  function escapeRegExp(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+  function evalExpr(inner) {
+    let value = 0;
+    let symbol = '+';
+    const parts = String(inner).split(' ').filter(Boolean);
+    for (const part of parts) {
+      if (part.startsWith('$')) {
+        const v = parsed ? parsed.constants[part.slice(1)] : undefined;
+        if (v === undefined) return null;
+        value += symbol === '-' ? -v : v;
+        symbol = '';
+      } else if (part === '+' || part === '-') {
+        symbol = part;
+      } else if (/^-?[0-9a-fA-F]+$/.test(part)) {
+        value += symbol === '-' ? -parseInt(part, 16) : parseInt(part, 16);
+        symbol = '';
+      } else {
+        return null;
+      }
+    }
+    if (symbol !== '') return null;
+    if (value < 0) value = 0xffff + value + 1;
+    return value & 0xffff;
+  }
+
+  function buildHoverInfoFromToken(token) {
+    if (!token) return null;
+    if (token.kind === 'gadget') {
+      const g = state.gadgets.find((x) => x.name === token.name);
+      if (!g) return null;
+      return { kind: 'gadget', name: g.name, addr: g.addr, desc: g.desc, tags: g.tags || [] };
+    }
+    if (token.kind === 'const') {
+      const name = token.name;
+      const val = parsed ? parsed.constants[name] : undefined;
+      const side = parsed ? parsed.anchorSides[name] : undefined;
+      if (side) return { kind: 'anchor-ref', name, addr: val, side };
+      return { kind: 'constant', name, value: val };
+    }
+    if (token.kind === 'anchor') {
+      const name = token.name;
+      const val = parsed ? parsed.constants[name] : undefined;
+      const side = (parsed && parsed.anchorSides[name]) || 'right';
+      return { kind: 'anchor-def', name, addr: val, side };
+    }
+    if (token.kind === 'value') {
+      const v = evalExpr(token.expr);
+      return { kind: 'value', expr: String(token.expr).trim(), value: v };
+    }
+    return null;
+  }
+
+  // 识别 offset 处（当前行内）的 token
+  function findTokenAt(offset) {
+    const text = state.input;
+    if (offset < 0 || offset >= text.length) return null;
+    const lineStart = text.lastIndexOf('\n', offset - 1) + 1;
+    const nl = text.indexOf('\n', offset);
+    const lineEnd = nl === -1 ? text.length : nl;
+    const line = text.slice(lineStart, lineEnd);
+    const col = offset - lineStart;
+
+    const pats = [
+      { kind: 'gadget', re: /#-?[A-Za-z0-9'[\]-]*/g, name: (s) => s.replace(/^#-?/, '') },
+      { kind: 'anchor', re: /<-?[A-Za-z0-9_-]*/g, name: (s) => s.replace(/^<-?/, '') },
+      { kind: 'const', re: /\$[A-Za-z0-9_-]*/g, name: (s) => s.slice(1) },
+    ];
+    for (const p of pats) {
+      p.re.lastIndex = 0;
+      let m;
+      while ((m = p.re.exec(line))) {
+        if (col >= m.index && col < m.index + m[0].length) {
+          return { kind: p.kind, name: p.name(m[0]), start: lineStart + m.index, end: lineStart + m.index + m[0].length };
+        }
+      }
+    }
+    const vb = /\[[^\]]*\]?/g;
+    let m2;
+    while ((m2 = vb.exec(line))) {
+      if (col >= m2.index && col < m2.index + m2[0].length) {
+        const expr = m2[0].slice(1).replace(/\]$/, '');
+        return { kind: 'value', expr, start: lineStart + m2.index, end: lineStart + m2.index + m2[0].length };
+      }
+    }
+    return null;
+  }
+
+  let measureEl = null;
+  function measureTextWidth(text) {
+    if (!measureEl) {
+      measureEl = document.createElement('div');
+      const cs = getComputedStyle(el.input);
+      ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'letterSpacing', 'wordSpacing', 'tabSize', 'fontVariantLigatures', 'fontFeatureSettings'].forEach((p) => { measureEl.style[p] = cs[p]; });
+      measureEl.style.position = 'absolute';
+      measureEl.style.visibility = 'hidden';
+      measureEl.style.whiteSpace = 'pre';
+      measureEl.style.left = '-9999px';
+      measureEl.style.top = '0';
+      document.body.appendChild(measureEl);
+    }
+    measureEl.textContent = text;
+    return measureEl.offsetWidth;
+  }
+
+  function charOffsetFromPoint(clientX, clientY) {
+    const cs = getComputedStyle(el.input);
+    const pad = parseFloat(cs.paddingLeft) || 12;
+    const lh = parseFloat(cs.lineHeight) || 21;
+    const rect = el.input.getBoundingClientRect();
+    const x = clientX - rect.left - pad + el.input.scrollLeft;
+    const y = clientY - rect.top - pad + el.input.scrollTop;
+
+    let lineIndex = Math.floor(y / lh);
+    if (lineIndex < 0) lineIndex = 0;
+    if (lineIndex >= lineStarts.length) lineIndex = lineStarts.length - 1;
+    const lineStart = lineStarts[lineIndex];
+    let lineEnd = (lineIndex + 1 < lineStarts.length) ? lineStarts[lineIndex + 1] : state.input.length;
+    if (lineEnd > lineStart && state.input.charCodeAt(lineEnd - 1) === 10) lineEnd--;
+
+    let lo = 0, hi = lineEnd - lineStart;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (measureTextWidth(state.input.slice(lineStart, lineStart + mid)) < x) lo = mid + 1;
+      else hi = mid;
+    }
+    return lineStart + lo;
+  }
+
+  function renderHoverHtml(info) {
+    if (!info) return '';
+    if (info.kind === 'gadget') {
+      const tags = (info.tags || []).map((t) => tagHtml(t)).join(' ');
+      return `<div class="ht-title">#${escapeHtml(info.name)};</div>`
+        + `<div class="ht-row"><span class="ht-label">地址</span><span class="ht-mono">${escapeHtml(info.addr || '')}</span></div>`
+        + (tags ? `<div class="ht-tags">${tags}</div>` : '')
+        + (info.desc ? `<div class="ht-desc">${escapeHtml(info.desc)}</div>` : '');
+    }
+    if (info.kind === 'constant') {
+      return `<div class="ht-title">常量 <span class="ht-mono">$${escapeHtml(info.name)}</span></div>`
+        + `<div class="ht-row"><span class="ht-label">值</span><span class="ht-mono">0x${hexAddr(info.value)}</span></div>`;
+    }
+    if (info.kind === 'anchor-ref' || info.kind === 'anchor-def') {
+      const label = info.kind === 'anchor-ref' ? '锚点' : '锚点定义';
+      return `<div class="ht-title">${label} <span class="ht-mono">&lt;${escapeHtml(info.name)}&gt;</span></div>`
+        + `<div class="ht-row"><span class="ht-label">地址</span><span class="ht-mono">0x${hexAddr(info.addr)}</span></div>`
+        + `<div class="ht-row"><span class="ht-label">性质</span><span class="ht-mono">${info.side === 'left' ? '左侧' : '右侧'}</span></div>`;
+    }
+    if (info.kind === 'value') {
+      return `<div class="ht-title">数值块</div>`
+        + `<div class="ht-row"><span class="ht-label">表达式</span><span class="ht-mono">${escapeHtml(info.expr)}</span></div>`
+        + `<div class="ht-row"><span class="ht-label">结果</span><span class="ht-mono">${info.value == null ? '—' : '0x' + hexAddr(info.value)}</span></div>`
+        + `<div class="ht-row"><span class="ht-label">小端</span><span class="ht-mono">${info.value == null ? '—' : hexByte(info.value) + ' ' + hexByte(info.value >> 8)}</span></div>`;
+    }
+    return '';
+  }
+
+  function showHover(info, x, y) {
+    if (!info) { hideHover(); return; }
+    el.hoverTip.innerHTML = renderHoverHtml(info);
+    el.hoverTip.hidden = false;
+    const w = el.hoverTip.offsetWidth;
+    const h = el.hoverTip.offsetHeight;
+    let left = x + 14;
+    let top = y + 14;
+    if (left + w > window.innerWidth - 8) left = x - w - 14;
+    if (top + h > window.innerHeight - 8) top = y - h - 14;
+    el.hoverTip.style.left = Math.max(4, left) + 'px';
+    el.hoverTip.style.top = Math.max(4, top) + 'px';
+  }
+
+  function hideHover() { el.hoverTip.hidden = true; }
+
+  let lastContextTarget = null;
+  let lastSentTargetKey = null;
+  function setContextTarget(info) {
+    const usable = info && (info.kind === 'gadget' || info.kind === 'constant' || info.kind === 'anchor-ref' || info.kind === 'anchor-def');
+    const key = usable ? (info.kind + ':' + info.name) : null;
+    if (key === lastSentTargetKey) return;
+    lastSentTargetKey = key;
+    lastContextTarget = usable ? { kind: info.kind, name: info.name } : null;
+    vscode.postMessage(usable
+      ? { type: 'hover-target', has: true, kind: info.kind, name: info.name }
+      : { type: 'hover-target', has: false });
+  }
+
+  function handlePointer(e) {
+    const offset = charOffsetFromPoint(e.clientX, e.clientY);
+    const info = buildHoverInfoFromToken(findTokenAt(offset));
+    if (info) {
+      if (e.type !== 'contextmenu') showHover(info, e.clientX, e.clientY);
+      setContextTarget(info);
+    } else {
+      hideHover();
+      setContextTarget(null);
+    }
+  }
+
+  el.input.addEventListener('mousemove', handlePointer);
+  el.input.addEventListener('mouseleave', () => { hideHover(); setContextTarget(null); });
+  el.input.addEventListener('contextmenu', handlePointer);
+
+  function gotoDefinition() {
+    if (!lastContextTarget) return;
+    const t = lastContextTarget;
+    if (t.kind === 'gadget') {
+      openPanel('gadgets');
+      el.gadgetSearch.value = '';
+      renderGadgetList();
+      const idx = state.gadgets.findIndex((g) => g.name === t.name);
+      if (idx >= 0) {
+        const card = el.gadgetList.querySelector(`.gadget-card[data-index="${idx}"]`);
+        if (card) card.scrollIntoView({ block: 'center' });
+      }
+      return;
+    }
+    // constant / anchor(-ref / -def) → 跳到定义处
+    const isAnchor = (t.kind === 'anchor-ref' || t.kind === 'anchor-def') || (t.kind === 'constant' && parsed && parsed.anchorSides[t.name]);
+    const re = isAnchor
+      ? new RegExp('<-?' + escapeRegExp(t.name) + '>')
+      : new RegExp('\\$' + escapeRegExp(t.name) + '\\s*=');
+    const m = state.input.match(re);
+    if (!m) { showToast('未找到定义', true); return; }
+    el.input.focus();
+    el.input.setSelectionRange(m.index, m.index + m[0].length);
+    scrollToInputPos(m.index);
+  }
+
   /* ---------------- 覆写模拟器（RAM / launcher） ---------------- */
   function showEmuStatus(msg, kind) {
     // kind: 'busy' | 'error' | ''（清空）
@@ -1268,6 +1519,9 @@
         } else {
           showToast('导出失败：' + msg.error, true);
         }
+        break;
+      case 'goto-definition':
+        gotoDefinition();
         break;
       default:
         break;
