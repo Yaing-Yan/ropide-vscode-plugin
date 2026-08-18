@@ -86,7 +86,7 @@
       "webview/context": [
         {
           "command": "ropide.gotoDefinition",
-          "when": "ropide.hoverTarget",
+          "when": "webviewId == 'ropide.rop' && ropide.hoverTarget",
           "group": "navigation@1"
         }
       ],

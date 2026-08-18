@@ -1040,16 +1040,14 @@
   function hideHover() { el.hoverTip.hidden = true; }
 
   let lastContextTarget = null;
-  let lastSentTargetKey = null;
-  function setContextTarget(info) {
+
+  function applyContext(info) {
     const usable = info && (info.kind === 'gadget' || info.kind === 'constant' || info.kind === 'anchor-ref' || info.kind === 'anchor-def');
-    const key = usable ? (info.kind + ':' + info.name) : null;
-    if (key === lastSentTargetKey) return;
-    lastSentTargetKey = key;
     lastContextTarget = usable ? { kind: info.kind, name: info.name } : null;
-    vscode.postMessage(usable
-      ? { type: 'hover-target', has: true, kind: info.kind, name: info.name }
-      : { type: 'hover-target', has: false });
+    // 原生右键菜单：通过 data-vscode-context 同步设置 context key（右键时由 VS Code 读取）
+    el.input.dataset.vscodeContext = usable
+      ? JSON.stringify({ 'ropide.hoverTarget': true })
+      : JSON.stringify({});
   }
 
   function handlePointer(e) {
@@ -1057,15 +1055,15 @@
     const info = buildHoverInfoFromToken(findTokenAt(offset));
     if (info) {
       if (e.type !== 'contextmenu') showHover(info, e.clientX, e.clientY);
-      setContextTarget(info);
+      applyContext(info);
     } else {
       hideHover();
-      setContextTarget(null);
+      applyContext(null);
     }
   }
 
   el.input.addEventListener('mousemove', handlePointer);
-  el.input.addEventListener('mouseleave', () => { hideHover(); setContextTarget(null); });
+  el.input.addEventListener('mouseleave', () => { hideHover(); applyContext(null); });
   el.input.addEventListener('contextmenu', handlePointer);
 
   function gotoDefinition() {
