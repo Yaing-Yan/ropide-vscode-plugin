@@ -4,6 +4,7 @@ import {
   parseRopDocument,
   serializeRopDocument,
   newRopDocument,
+  parseGadgetsJson,
 } from './rop';
 import { fetchMarketList, fetchMarketItem, fetchMarketChallenge, publishToMarket } from './market';
 import { emuWrite, parseHexBytes } from './emu';
@@ -114,6 +115,7 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
           error: session.error,
           injectAddress: this.context.globalState.get<string>('ropide.injectAddress', ''),
           launcher: this.context.globalState.get<string>('ropide.launcher', ''),
+          launcherAddr: this.context.globalState.get<string>('ropide.launcherAddr', 'D180'),
         });
         break;
       }
@@ -267,13 +269,48 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
       }
       case 'persist': {
         const key = String(message.key || '');
-        if (key === 'injectAddress' || key === 'launcher') {
+        if (key === 'injectAddress' || key === 'launcher' || key === 'launcherAddr') {
           void this.context.globalState.update(`ropide.${key}`, String(message.value ?? ''));
         }
         break;
       }
-      case 'hover-target': {
-        void vscode.commands.executeCommand('setContext', 'ropide.hoverTarget', !!message.has);
+      case 'gadgets:import': {
+        void (async () => {
+          const uris = await vscode.window.showOpenDialog({
+            canSelectMany: false,
+            filters: { 'Gadgets JSON': ['json'] },
+            title: '导入 gadgets',
+          });
+          if (!uris || uris.length === 0) {
+            session.panel.webview.postMessage({ type: 'gadgets:import-result', cancelled: true });
+            return;
+          }
+          try {
+            const bytes = await vscode.workspace.fs.readFile(uris[0]);
+            const text = Buffer.from(bytes).toString('utf8');
+            const r = parseGadgetsJson(text);
+            if (!r.ok) {
+              session.panel.webview.postMessage({ type: 'gadgets:import-result', ok: false, error: r.error });
+              return;
+            }
+            const mode = await vscode.window.showQuickPick(
+              ['覆盖（替换全部）', '补全（仅添加缺失的）'],
+              { placeHolder: '选择导入方式', title: '导入 gadgets' }
+            );
+            if (!mode) {
+              session.panel.webview.postMessage({ type: 'gadgets:import-result', cancelled: true });
+              return;
+            }
+            session.panel.webview.postMessage({
+              type: 'gadgets:import-result',
+              ok: true,
+              gadgets: r.gadgets,
+              mode: mode.startsWith('覆盖') ? 'replace' : 'merge',
+            });
+          } catch (e) {
+            session.panel.webview.postMessage({ type: 'gadgets:import-result', ok: false, error: (e as Error).message });
+          }
+        })();
         break;
       }
       case 'gadgets:export': {
@@ -338,7 +375,7 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
   }
 
   /** 让某个面板执行动作（编译 / 显示 gadgets / 程序广场等）。 */
-  postToActive(type: 'compile' | 'show-gadgets' | 'show-market' | 'goto-definition'): void {
+  postToActive(type: 'compile' | 'show-gadgets' | 'show-market'): void {
     let session: EditorSession | undefined;
     if (this.lastActiveUri) {
       session = this.sessions.get(this.lastActiveUri);

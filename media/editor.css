@@ -271,9 +271,9 @@ body.vscode-dark .code-input::selection { background: rgba(255, 255, 255, 0.2); 
 /* ---------- 右侧分栏 ---------- */
 .sidepanel {
   flex: 0 0 auto;
-  width: 42%;
-  min-width: 300px;
-  max-width: 620px;
+  width: 420px;
+  min-width: 240px;
+  max-width: 80vw;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -281,6 +281,16 @@ body.vscode-dark .code-input::selection { background: rgba(255, 255, 255, 0.2); 
   background: var(--panel-bg);
 }
 .sidepanel[hidden] { display: none; }
+
+.side-divider {
+  flex: 0 0 auto;
+  width: 5px;
+  cursor: col-resize;
+  background: transparent;
+  border-left: 1px solid var(--border);
+}
+.side-divider:hover, .side-divider.dragging { background: var(--accent); opacity: 0.4; }
+.side-divider[hidden] { display: none; }
 
 .sidepanel-tabs {
   display: flex;

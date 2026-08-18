@@ -28,13 +28,13 @@
     "ropide"
   ],
   "activationEvents": [
+    "onStartupFinished",
     "onCustomEditor:ropide.rop",
     "onCommand:ropide.newFile",
     "onCommand:ropide.openFile",
     "onCommand:ropide.compile",
     "onCommand:ropide.showGadgets",
-    "onCommand:ropide.openMarket",
-    "onCommand:ropide.gotoDefinition"
+    "onCommand:ropide.openMarket"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -75,21 +75,9 @@
         "command": "ropide.openMarket",
         "title": "RopIDE: Program Market",
         "icon": "$(globe)"
-      },
-      {
-        "command": "ropide.gotoDefinition",
-        "title": "RopIDE: Go to Definition",
-        "icon": "$(go-to-file)"
       }
     ],
     "menus": {
-      "webview/context": [
-        {
-          "command": "ropide.gotoDefinition",
-          "when": "webviewId == 'ropide.rop' && ropide.hoverTarget",
-          "group": "navigation@1"
-        }
-      ],
       "commandPalette": [
         {
           "command": "ropide.newFile",

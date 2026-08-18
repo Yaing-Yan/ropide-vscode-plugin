@@ -63,6 +63,7 @@
   let challengeLoading = false;
   let injectAddress = '';
   let launcher = '';
+  let launcherAddr = 'D180';
 
   /* ---------------- DOM ---------------- */
   document.getElementById('app').innerHTML = `
@@ -92,6 +93,8 @@
         <div class="gutter right" id="gutterRight"><div class="gutter-inner"></div></div>
       </div>
 
+      <div class="side-divider" id="sideDivider" hidden></div>
+
       <div class="sidepanel" id="sidepanel" hidden>
         <div class="sidepanel-tabs">
           <button class="sp-tab" data-tab="compile">编译</button>
@@ -112,6 +115,7 @@
                 <button class="icon-btn primary" id="btnWriteRam">覆写RAM</button>
               </div>
               <div class="emu-row">
+                <span class="field">地址 <input class="addr-input" id="launcherAddr" maxlength="5" value="D180" /></span>
                 <input class="text-input" id="launcher" placeholder="请输入 launcher（如 FD 24 E0 E9 8F 23 42）" />
                 <button class="icon-btn primary" id="btnWriteLauncher">覆写launcher</button>
               </div>
@@ -130,6 +134,7 @@
             <div class="panel-toolbar">
               <input class="search-input" id="gadgetSearch" type="text" placeholder="搜索 name / addr / desc / tag…" />
               <button class="icon-btn primary" id="btnAddGadget">${ICONS.plus}新增</button>
+              <button class="icon-btn" id="btnImportGadgets" title="导入 gadgets.json">${ICONS.globe}导入</button>
               <button class="icon-btn" id="btnExportGadgets" title="导出 gadgets.json">${ICONS.download}导出</button>
             </div>
             <div class="gadget-list" id="gadgetList"></div>
@@ -206,6 +211,7 @@
     bytesInfo: document.getElementById('bytesInfo'),
     cursorInfo: document.getElementById('cursorInfo'),
     sidepanel: document.getElementById('sidepanel'),
+    sideDivider: document.getElementById('sideDivider'),
     btnClosePanel: document.getElementById('btnClosePanel'),
     tabs: document.querySelectorAll('.sp-tab'),
     panelCompile: document.getElementById('panelCompile'),
@@ -214,11 +220,13 @@
     gadgetSearch: document.getElementById('gadgetSearch'),
     gadgetList: document.getElementById('gadgetList'),
     btnAddGadget: document.getElementById('btnAddGadget'),
+    btnImportGadgets: document.getElementById('btnImportGadgets'),
     btnExportGadgets: document.getElementById('btnExportGadgets'),
     leftAddrInput: document.getElementById('leftAddrInput'),
     rightAddrInput: document.getElementById('rightAddrInput'),
     injectAddress: document.getElementById('injectAddress'),
     launcher: document.getElementById('launcher'),
+    launcherAddr: document.getElementById('launcherAddr'),
     btnWriteRam: document.getElementById('btnWriteRam'),
     btnWriteLauncher: document.getElementById('btnWriteLauncher'),
     emuError: document.getElementById('emuError'),
@@ -533,6 +541,7 @@
   el.btnMarket.addEventListener('click', () => togglePanel('market'));
   el.btnClosePanel.addEventListener('click', () => {
     el.sidepanel.hidden = true;
+    el.sideDivider.hidden = true;
     activeTab = null;
   });
   el.tabs.forEach((t) => t.addEventListener('click', () => openPanel(t.dataset.tab)));
@@ -541,6 +550,7 @@
 
   function openPanel(tab) {
     el.sidepanel.hidden = false;
+    el.sideDivider.hidden = false;
     setActiveTab(tab);
     if (tab === 'compile') openCompile();
     else if (tab === 'gadgets') openGadgets();
@@ -550,6 +560,7 @@
   function togglePanel(tab) {
     if (!el.sidepanel.hidden && activeTab === tab) {
       el.sidepanel.hidden = true;
+      el.sideDivider.hidden = true;
       activeTab = null;
     } else {
       openPanel(tab);
@@ -563,6 +574,30 @@
     el.panelGadgets.hidden = tab !== 'gadgets';
     el.panelMarket.hidden = tab !== 'market';
   }
+
+  // 右侧分栏宽度可拖拽调整
+  let sideWidth = 0; // 0 = 用 CSS 默认值
+  function applySideWidth() {
+    el.sidepanel.style.width = (sideWidth || 420) + 'px';
+  }
+  el.sideDivider.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = el.sidepanel.getBoundingClientRect().width;
+    const onMove = (ev) => {
+      const w = Math.max(240, Math.min(startW - (ev.clientX - startX), Math.floor(window.innerWidth * 0.8)));
+      sideWidth = w;
+      applySideWidth();
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    document.body.style.cursor = 'col-resize';
+  });
 
   /* ---------------- Gadgets 面板 ---------------- */
   function openGadgets() {
@@ -583,6 +618,10 @@
 
   el.btnExportGadgets.addEventListener('click', () => {
     vscode.postMessage({ type: 'gadgets:export', gadgets: state.gadgets });
+  });
+
+  el.btnImportGadgets.addEventListener('click', () => {
+    vscode.postMessage({ type: 'gadgets:import' });
   });
 
   el.gadgetSearch.addEventListener('input', renderGadgetList);
@@ -774,6 +813,7 @@
     el.rightAddrInput.value = state.rightStartAddress;
     el.injectAddress.value = injectAddress || state.leftStartAddress;
     el.launcher.value = launcher;
+    el.launcherAddr.value = launcherAddr;
     el.emuError.hidden = true;
     renderCompile();
   }
@@ -865,8 +905,6 @@
 
   /* ---------------- 悬停提示 + 转到定义 ---------------- */
   function hexByte(v) { return (v & 0xff).toString(16).toUpperCase().padStart(2, '0'); }
-
-  function escapeRegExp(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 
   function evalExpr(inner) {
     let value = 0;
@@ -1039,58 +1077,15 @@
 
   function hideHover() { el.hoverTip.hidden = true; }
 
-  let lastContextTarget = null;
-
-  function applyContext(info) {
-    const usable = info && (info.kind === 'gadget' || info.kind === 'constant' || info.kind === 'anchor-ref' || info.kind === 'anchor-def');
-    lastContextTarget = usable ? { kind: info.kind, name: info.name } : null;
-    // 原生右键菜单：通过 data-vscode-context 同步设置 context key（右键时由 VS Code 读取）
-    el.input.dataset.vscodeContext = usable
-      ? JSON.stringify({ 'ropide.hoverTarget': true })
-      : JSON.stringify({});
-  }
-
-  function handlePointer(e) {
+  function handleHover(e) {
     const offset = charOffsetFromPoint(e.clientX, e.clientY);
     const info = buildHoverInfoFromToken(findTokenAt(offset));
-    if (info) {
-      if (e.type !== 'contextmenu') showHover(info, e.clientX, e.clientY);
-      applyContext(info);
-    } else {
-      hideHover();
-      applyContext(null);
-    }
+    if (info) showHover(info, e.clientX, e.clientY);
+    else hideHover();
   }
 
-  el.input.addEventListener('mousemove', handlePointer);
-  el.input.addEventListener('mouseleave', () => { hideHover(); applyContext(null); });
-  el.input.addEventListener('contextmenu', handlePointer);
-
-  function gotoDefinition() {
-    if (!lastContextTarget) return;
-    const t = lastContextTarget;
-    if (t.kind === 'gadget') {
-      openPanel('gadgets');
-      el.gadgetSearch.value = '';
-      renderGadgetList();
-      const idx = state.gadgets.findIndex((g) => g.name === t.name);
-      if (idx >= 0) {
-        const card = el.gadgetList.querySelector(`.gadget-card[data-index="${idx}"]`);
-        if (card) card.scrollIntoView({ block: 'center' });
-      }
-      return;
-    }
-    // constant / anchor(-ref / -def) → 跳到定义处
-    const isAnchor = (t.kind === 'anchor-ref' || t.kind === 'anchor-def') || (t.kind === 'constant' && parsed && parsed.anchorSides[t.name]);
-    const re = isAnchor
-      ? new RegExp('<-?' + escapeRegExp(t.name) + '>')
-      : new RegExp('\\$' + escapeRegExp(t.name) + '\\s*=');
-    const m = state.input.match(re);
-    if (!m) { showToast('未找到定义', true); return; }
-    el.input.focus();
-    el.input.setSelectionRange(m.index, m.index + m[0].length);
-    scrollToInputPos(m.index);
-  }
+  el.input.addEventListener('mousemove', handleHover);
+  el.input.addEventListener('mouseleave', hideHover);
 
   /* ---------------- 覆写模拟器（RAM / launcher） ---------------- */
   function showEmuStatus(msg, kind) {
@@ -1120,6 +1115,13 @@
     launcher = el.launcher.value;
     vscode.postMessage({ type: 'persist', key: 'launcher', value: launcher });
   });
+  el.launcherAddr.addEventListener('input', () => {
+    launcherAddr = el.launcherAddr.value;
+  });
+  el.launcherAddr.addEventListener('change', () => {
+    launcherAddr = el.launcherAddr.value.trim() || 'D180';
+    vscode.postMessage({ type: 'persist', key: 'launcherAddr', value: launcherAddr });
+  });
 
   el.btnWriteRam.addEventListener('click', () => {
     const raw = (injectAddress.trim() || state.leftStartAddress).toUpperCase().replace(/^0X/, '');
@@ -1142,8 +1144,13 @@
       showEmuStatus('请输入 launcher', 'error');
       return;
     }
+    const raw = (launcherAddr || 'D180').toUpperCase().replace(/^0X/, '');
+    if (!/^[0-9A-F]{1,5}$/.test(raw)) {
+      showEmuStatus('launcher 注入地址无效（1-5 位十六进制）', 'error');
+      return;
+    }
     showEmuStatus('覆写中…（首次定位 RAM 可能需要数十秒）', 'busy');
-    vscode.postMessage({ type: 'emu:write', address: 0xd180, hex });
+    vscode.postMessage({ type: 'emu:write', address: parseInt(raw, 16), hex });
   });
 
   /* ---------------- autocomplete（gadget / 常量补全） ---------------- */
@@ -1518,8 +1525,30 @@
           showToast('导出失败：' + msg.error, true);
         }
         break;
-      case 'goto-definition':
-        gotoDefinition();
+      case 'gadgets:import-result':
+        if (msg.ok) {
+          const list = Array.isArray(msg.gadgets) ? msg.gadgets : [];
+          if (msg.mode === 'replace') {
+            state.gadgets = list;
+          } else {
+            // 补全：按地址判重，地址重复（哪怕说明不同）保留原有
+            for (const g of list) {
+              const dup = g.addr
+                ? state.gadgets.some((x) => x.addr === g.addr)
+                : state.gadgets.some((x) => x.name === g.name);
+              if (!dup) state.gadgets.push(g);
+            }
+          }
+          editingGadgetIndex = -1;
+          editingGadget = null;
+          renderGadgetList();
+          markChanged();
+          showToast('已导入 gadgets');
+        } else if (msg.cancelled) {
+          showToast('已取消');
+        } else {
+          showToast('导入失败：' + msg.error, true);
+        }
         break;
       default:
         break;

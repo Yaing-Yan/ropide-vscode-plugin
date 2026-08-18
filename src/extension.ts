@@ -11,6 +11,7 @@ import {
   IDE_VERSION,
 } from './rop';
 import { VERF_GADGETS, VERC_GADGETS } from './presets';
+import { showWelcome } from './welcome';
 
 export function activate(context: vscode.ExtensionContext): void {
   const provider = new RopEditorProvider(context);
@@ -24,9 +25,14 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('ropide.openFile', () => openRopFile()),
     vscode.commands.registerCommand('ropide.compile', () => provider.postToActive('compile')),
     vscode.commands.registerCommand('ropide.showGadgets', () => provider.postToActive('show-gadgets')),
-    vscode.commands.registerCommand('ropide.openMarket', () => provider.postToActive('show-market')),
-    vscode.commands.registerCommand('ropide.gotoDefinition', () => provider.postToActive('goto-definition'))
+    vscode.commands.registerCommand('ropide.openMarket', () => provider.postToActive('show-market'))
   );
+
+  // 首次安装 / 重装（globalState 被清除）时显示欢迎页
+  if (!context.globalState.get<boolean>('ropide.welcomeShown')) {
+    void context.globalState.update('ropide.welcomeShown', true);
+    showWelcome(context);
+  }
 }
 
 export function deactivate(): void {}
