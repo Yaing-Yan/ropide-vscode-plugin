@@ -973,8 +973,8 @@
     const col = offset - lineStart;
 
     const pats = [
-      { kind: 'gadget', re: /#-?[A-Za-z0-9'[\]-]*/g, name: (s) => s.replace(/^#-?/, '') },
-      { kind: 'anchor', re: /<-?[A-Za-z0-9_-]*/g, name: (s) => s.replace(/^<-?/, '') },
+      { kind: 'gadget', re: /#[^;\s]*/g, name: (s) => s.replace(/^#-?/, '') },
+      { kind: 'anchor', re: /<-?[^>\s]*/g, name: (s) => s.replace(/^<-?/, '') },
       { kind: 'const', re: /\$[A-Za-z0-9_-]*/g, name: (s) => s.slice(1) },
     ];
     for (const p of pats) {
