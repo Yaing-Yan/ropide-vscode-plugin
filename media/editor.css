@@ -180,9 +180,12 @@ body {
   margin: 0;
   border: 0;
   padding: var(--pad);
+  box-sizing: border-box;
   font-family: var(--font-mono);
   font-size: var(--font-size);
   line-height: var(--line-height);
+  font-weight: normal;
+  font-style: normal;
   letter-spacing: normal;
   word-spacing: normal;
   tab-size: 4;
@@ -190,6 +193,8 @@ body {
   /* 关闭连字，保证 textarea 与高亮层文本宽度一致，避免光标错位 */
   font-variant-ligatures: none;
   font-feature-settings: "liga" 0, "clig" 0;
+  /* 始终预留滚动条空间，避免一边出现滚动条、一边没有而导致的水平错位 */
+  scrollbar-gutter: stable;
 }
 
 .highlight {
@@ -204,6 +209,7 @@ body {
   overflow: auto;
   background: transparent;
   color: transparent;
+  -webkit-text-fill-color: transparent;
   caret-color: var(--fg);
   resize: none;
   outline: none;
@@ -212,7 +218,7 @@ body {
 body.vscode-dark .code-input::selection { background: rgba(255, 255, 255, 0.2); }
 
 /* 语法高亮 span */
-.highlight .comment { color: var(--s-comment); font-style: italic; }
+.highlight .comment { color: var(--s-comment); }
 .highlight .constant.name { color: var(--s-constant-name); }
 .highlight .constant.equal { color: var(--s-constant-equal); }
 .highlight .constant.value { color: var(--s-constant-value); }
@@ -237,7 +243,7 @@ body.vscode-dark .code-input::selection { background: rgba(255, 255, 255, 0.2); 
   outline: 1px solid var(--s-anchor-closed-outline);
   border-radius: 8px;
 }
-.highlight .hex { color: var(--s-hex); font-weight: 500; }
+.highlight .hex { color: var(--s-hex); }
 .highlight .other { color: var(--s-other); }
 .highlight .warning { text-decoration: underline wavy var(--s-warn-underline); }
 
