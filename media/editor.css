@@ -202,6 +202,12 @@ body {
   pointer-events: none;
   color: var(--fg);
   z-index: 1;
+  white-space: normal; /* 块级容器，行由 .hl-line 决定 */
+}
+
+.hl-line {
+  white-space: pre;      /* 保留行内空格/制表符，不换行 */
+  min-height: var(--line-height);
 }
 
 .code-input {

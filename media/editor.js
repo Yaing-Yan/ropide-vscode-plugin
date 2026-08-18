@@ -84,7 +84,7 @@
       <div class="editor">
         <div class="gutter" id="gutterLeft"><div class="gutter-inner"></div></div>
         <div class="code-wrap" id="codeWrap">
-          <pre class="highlight" id="highlight" aria-hidden="true"></pre>
+          <div class="highlight" id="highlight" aria-hidden="true"></div>
           <textarea class="code-input" id="input" spellcheck="false" wrap="off"></textarea>
           <div class="autocomplete" id="autocomplete" hidden></div>
         </div>
@@ -344,7 +344,8 @@
       }
       out.push(line);
     }
-    el.highlight.innerHTML = out.join('\n');
+    // 每行一个块级 div，行数与 textarea 完全一致（避免 pre + 换行符的尾行歧义导致整体偏移一行）
+    el.highlight.innerHTML = out.map((l) => `<div class="hl-line">${l}</div>`).join('');
   }
 
   function renderGutters() {
