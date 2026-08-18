@@ -156,7 +156,17 @@
 
     <div class="footer">
       <span id="bytesInfo">0 bytes · 0 errors</span>
-      <span id="cursorInfo"></span>
+      <div class="footer-right">
+        <div class="footer-jump">
+          <span class="jump-label">光标移动到地址</span>
+          <select class="jump-side" id="jumpSide" title="地址基准（左侧/右侧起始地址）">
+            <option value="left">左侧</option>
+            <option value="right">右侧</option>
+          </select>
+          <input class="jump-addr" id="jumpAddr" placeholder="如 E9E0" maxlength="5" spellcheck="false" autocomplete="off" />
+        </div>
+        <span id="cursorInfo"></span>
+      </div>
     </div>
 
     <div class="overlay" id="publishOverlay" hidden>
@@ -214,6 +224,8 @@
     hoverTip: document.getElementById('hoverTip'),
     bytesInfo: document.getElementById('bytesInfo'),
     cursorInfo: document.getElementById('cursorInfo'),
+    jumpAddr: document.getElementById('jumpAddr'),
+    jumpSide: document.getElementById('jumpSide'),
     sidepanel: document.getElementById('sidepanel'),
     sideDivider: document.getElementById('sideDivider'),
     btnClosePanel: document.getElementById('btnClosePanel'),
@@ -907,6 +919,46 @@
     el.input.scrollTop = Math.max(0, lineIndex * lh - el.input.clientHeight / 2);
     syncScroll();
   }
+
+  /* ---------------- 跳转到地址 ---------------- */
+  function jumpToAddress() {
+    const raw = el.jumpAddr.value.trim().replace(/^0[xX]/, '');
+    if (!/^[0-9A-Fa-f]{1,5}$/.test(raw)) {
+      showToast('请输入 1–5 位十六进制地址', true);
+      el.jumpAddr.focus();
+      return;
+    }
+    const addr = parseInt(raw, 16);
+    const base = el.jumpSide.value === 'left'
+      ? parseBase(state.leftStartAddress)
+      : parseBase(state.rightStartAddress);
+    const total = parsed ? parsed.totalBytes : 0;
+    if (total === 0) {
+      showToast('当前还没有可跳转的字节', true);
+      return;
+    }
+    const byteIndex = addr - base;
+    if (byteIndex < 0 || byteIndex >= total) {
+      showToast(`地址需在 0x${hexAddr(base)} ~ 0x${hexAddr(base + total - 1)} 之间`, true);
+      return;
+    }
+    openPanel('compile');
+    selectByte(byteIndex);
+    updateByteHighlight();
+  }
+
+  el.jumpAddr.addEventListener('input', () => {
+    el.jumpAddr.value = el.jumpAddr.value.replace(/[^0-9a-fA-F]/g, '').slice(0, 5);
+  });
+  el.jumpAddr.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      jumpToAddress();
+    }
+  });
+  el.jumpSide.addEventListener('change', () => {
+    if (el.jumpAddr.value.trim()) jumpToAddress();
+  });
 
   /* ---------------- 悬停提示 + 转到定义 ---------------- */
   function hexByte(v) { return (v & 0xff).toString(16).toUpperCase().padStart(2, '0'); }
