@@ -720,8 +720,9 @@
   }
 
   function renderFooter() {
-    el.bytesInfo.textContent = `${parsed.totalBytes} bytes · ${parsed.errorCount} errors`;
-    el.bytesInfo.classList.toggle('err', parsed.errorCount > 0);
+    const p = parsed || { totalBytes: 0, errorCount: 0 };
+    el.bytesInfo.textContent = `${p.totalBytes} bytes · ${p.errorCount} errors`;
+    el.bytesInfo.classList.toggle('err', p.errorCount > 0);
     el.gadgetCount.textContent = state.gadgets.length;
   }
 
@@ -2047,6 +2048,6 @@
   });
 
   // 就绪后向宿主请求初始数据
-  applyStaticI18n();
+  try { applyStaticI18n(); } catch (e) { /* 静态文案异常不得阻塞初始化握手 */ }
   vscode.postMessage({ type: 'ready' });
 })();
