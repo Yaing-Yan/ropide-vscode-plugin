@@ -35,6 +35,46 @@ export const DEFAULT_LEFT_ADDRESS = 'E9E0';
 export const DEFAULT_RIGHT_ADDRESS = 'D710';
 export const IDE_VERSION = 100;
 
+/** 支持的语言列表 / Supported UI languages */
+export const LANGUAGES = [
+  { value: 'zh-CN', label: '简体中文' },
+  { value: 'en', label: 'English' },
+] as const;
+export type RopLanguage = (typeof LANGUAGES)[number]['value'];
+
+/** 解析 _disas 文本，建立地址（数字）-> 各行反汇编列表的映射。 */
+export function parseDisas(text: string): Map<number, string[]> {
+  const map = new Map<number, string[]>();
+  for (const line of text.split(/\r?\n/)) {
+    const m = /^([0-9A-Fa-f]{4,6})\s{2,}/.exec(line);
+    if (m) {
+      const addr = parseInt(m[1], 16);
+      const arr = map.get(addr) ?? [];
+      arr.push(line.replace(/\s+$/, ''));
+      map.set(addr, arr);
+    }
+  }
+  return map;
+}
+
+/**
+ * 从地址起截取反汇编片段，直到包含 POP PC / RET / RT 的行为止。
+ * 若无终止指令，最多截取 maxLines 行。
+ */
+export function disasSnippet(map: Map<number, string[]>, addr: number, maxLines = 40): string[] | null {
+  if (!map.has(addr)) return null;
+  const lines: string[] = [];
+  const addrs = [...map.keys()].filter((a) => a >= addr).sort((a, b) => a - b);
+  for (const a of addrs) {
+    for (const line of map.get(a) as string[]) {
+      lines.push(line);
+      if (/\bPOP\s+PC\b|\bRT\b|\bRET\b/i.test(line)) return lines;
+      if (lines.length >= maxLines) return lines;
+    }
+  }
+  return lines;
+}
+
 export type RopParseResult = { ok: true; data: RopDocumentData } | { ok: false; error: string };
 
 function normalizeGadget(raw: unknown): RopGadget {

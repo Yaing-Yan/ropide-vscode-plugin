@@ -5,6 +5,8 @@ import {
   serializeRopDocument,
   newRopDocument,
   parseGadgetsJson,
+  parseDisas,
+  disasSnippet,
 } from './rop';
 import { fetchMarketList, fetchMarketItem, fetchMarketChallenge, publishToMarket } from './market';
 import { emuWrite, parseHexBytes } from './emu';
@@ -31,6 +33,8 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
   private readonly sessions = new Map<string, EditorSession>();
   private readonly statusBar: vscode.StatusBarItem;
   private lastActiveUri: string | undefined;
+  private disasMap: Map<number, string[]> | null = null;
+  private disasFile = '';
 
   constructor(private readonly context: vscode.ExtensionContext) {
     this.statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
@@ -39,6 +43,29 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
     this.statusBar.tooltip = '光标处的左/右地址（由 RopIDE 计算）';
     this.statusBar.show();
     context.subscriptions.push(this.statusBar);
+
+    // VS Code 设置变化 → 同步到所有打开的编辑器 Webview
+    context.subscriptions.push(
+      vscode.workspace.onDidChangeConfiguration((e) => {
+        if (e.affectsConfiguration('ropide.showGadgetDisasm') || e.affectsConfiguration('ropide.language')) {
+          this.pushSettingsToAll();
+        }
+      })
+    );
+  }
+
+  private currentSettings(): { language: string; showGadgetDisasm: boolean; disasFile: string; disasLoaded: boolean } {
+    const cfg = vscode.workspace.getConfiguration('ropide');
+    const showGadgetDisasm = cfg.get<boolean>('showGadgetDisasm', false);
+    const language = cfg.get<string>('language', 'zh-CN');
+    return { language, showGadgetDisasm, disasFile: this.disasFile, disasLoaded: this.disasMap !== null };
+  }
+
+  private pushSettingsToAll(): void {
+    const settings = this.currentSettings();
+    for (const s of this.sessions.values()) {
+      s.panel.webview.postMessage({ type: 'settings', ...settings });
+    }
   }
 
   async resolveCustomTextEditor(
@@ -117,6 +144,7 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
           injectAddress: this.context.globalState.get<string>('ropide.injectAddress', ''),
           launcher: this.context.globalState.get<string>('ropide.launcher', ''),
           launcherAddr: this.context.globalState.get<string>('ropide.launcherAddr', 'D180'),
+          settings: this.currentSettings(),
         });
         break;
       }
@@ -273,6 +301,74 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
         if (key === 'injectAddress' || key === 'launcher' || key === 'launcherAddr') {
           void this.context.globalState.update(`ropide.${key}`, String(message.value ?? ''));
         }
+        break;
+      }
+      case 'settings:set': {
+        const key = String(message.key || '');
+        const value = message.value;
+        void (async () => {
+          const cfg = vscode.workspace.getConfiguration('ropide');
+          if (key === 'showGadgetDisasm') {
+            await cfg.update('showGadgetDisasm', !!value, vscode.ConfigurationTarget.Global);
+          } else if (key === 'language') {
+            await cfg.update('language', String(value), vscode.ConfigurationTarget.Global);
+          }
+          this.pushSettingsToAll();
+        })();
+        break;
+      }
+      case 'disas:choose': {
+        void (async () => {
+          const uris = await vscode.window.showOpenDialog({
+            canSelectMany: false,
+            filters: { 'Disassembly (_disas)': ['txt', 'disas', 'asm', '*'] },
+            title: '选择 _disas 反汇编文件',
+          });
+          if (!uris || uris.length === 0) {
+            session.panel.webview.postMessage({ type: 'disas:load-result', cancelled: true });
+            return;
+          }
+          try {
+            const bytes = await vscode.workspace.fs.readFile(uris[0]);
+            const text = Buffer.from(bytes).toString('utf8');
+            this.disasMap = parseDisas(text);
+            this.disasFile = uris[0].fsPath.split(/[\\/]/).pop() || uris[0].fsPath;
+            await vscode.workspace
+              .getConfiguration('ropide')
+              .update('disasPath', uris[0].fsPath, vscode.ConfigurationTarget.Global);
+            this.pushSettingsToAll();
+            session.panel.webview.postMessage({
+              type: 'disas:load-result',
+              ok: true,
+              file: this.disasFile,
+            });
+          } catch (e) {
+            session.panel.webview.postMessage({
+              type: 'disas:load-result',
+              ok: false,
+              error: (e as Error).message,
+            });
+          }
+        })();
+        break;
+      }
+      case 'gadgets:disasm': {
+        const addrStr = String(message.addr || '').replace(/^0x/i, '');
+        const addr = parseInt(addrStr, 16);
+        if (!this.disasMap || !Number.isFinite(addr)) {
+          session.panel.webview.postMessage({
+            type: 'gadgets:disasm-result',
+            addr: addrStr,
+            error: this.disasMap ? '地址无效' : '尚未加载 _disas 文件',
+          });
+          return;
+        }
+        const lines = disasSnippet(this.disasMap, addr);
+        session.panel.webview.postMessage(
+          lines
+            ? { type: 'gadgets:disasm-result', addr: addrStr, lines }
+            : { type: 'gadgets:disasm-result', addr: addrStr, error: '该地址没有反汇编记录' }
+        );
         break;
       }
       case 'about': {

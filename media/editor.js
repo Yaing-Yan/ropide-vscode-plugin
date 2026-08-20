@@ -10,6 +10,267 @@
   'use strict';
   const vscode = acquireVsCodeApi();
 
+  /* ---------------- 语言 / i18n ---------------- */
+  const STR = {
+    'zh-CN': {
+      injectAddr: '注入地址',
+      writeRam: '覆写RAM',
+      writeRamTitle: '把编译结果写入模拟器 RAM（注入地址，默认左地址）',
+      addr: '地址',
+      launcherPh: 'launcher（如 FD 24 E0 E9 8F 23 42）',
+      writeLauncher: '覆写launcher',
+      writeLauncherTitle: '把 launcher 写入模拟器指定地址',
+      newFileTitle: '新建 .rop 文件',
+      gadgetsTitle: '查看 / 编辑 gadgets',
+      compile: '编译',
+      market: '程序广场',
+      aboutTitle: '关于',
+      closePanelTitle: '关闭分栏',
+      leftAddr: '左地址',
+      rightAddr: '右地址',
+      copyHex: '复制 hex 串',
+      copyDump: '复制 hexdump',
+      compileHint: '点击任意字节 → 左下角显示左右地址，并高亮输入区对应位置',
+      gadgetSearchPh: '搜索 name / addr / desc / tag…',
+      add: '新增',
+      import: '导入',
+      export: '导出',
+      importTitle: '导入 gadgets.json',
+      exportTitle: '导出 gadgets.json',
+      marketSearchPh: '搜索 name / author / model / desc…',
+      publish: '发布',
+      jumpLabel: '光标移动到地址',
+      jumpSideTitle: '地址基准（左侧/右侧起始地址）',
+      left: '左侧',
+      right: '右侧',
+      jumpPh: '如 E9E0',
+      settings: '设置',
+      lang: '语言',
+      disasmExp: '【实验性】gadgets 展示汇编',
+      disasmHint: '在 Gadgets 面板中显示每个 gadget 的反汇编片段（需要提供 _disas 文件）',
+      disasmProvide: '请提供 _disas',
+      chooseFile: '选择文件',
+      disasmLoaded: '已加载：',
+      publishTitle: '发布到程序广场',
+      progName: '程序名 *',
+      progNamePh: '例如 tetris',
+      author: '作者 *',
+      authorPh: '你的昵称',
+      model: '机型 *',
+      modelSel: '选择机型',
+      other: '其它',
+      otherModel: '其它机型 *',
+      otherModelPh: '输入机型',
+      desc: '描述 *',
+      descPh: '程序说明…',
+      challenge: '内行验证 *',
+      challengePh: '两字节十六进制（如 1A2B）',
+      cancel: '取消',
+      copied: '已复制',
+      unnamed: '(未命名)',
+      loading: '加载中…',
+      loadFail: '加载失败：',
+      noGadgetMatch: '没有匹配的 gadget。',
+      noGadgets: '还没有 gadgets。点击右上角「新增」添加一个。',
+      noBytes: '（暂无字节）',
+      edit: '编辑',
+      delete: '删除',
+      name: '名称',
+      addrHex: '地址（十六进制）',
+      tag: '标签',
+      tagNamePh: '标签名',
+      addTag: '添加标签',
+      save: '保存',
+      showDisasm: '汇编',
+      disasmLoading: '加载反汇编…',
+      disasmFail: '没有该地址的反汇编',
+      invalidAddr: '注入地址无效（1-5 位十六进制）',
+      noCompileResult: '没有可写入的编译结果',
+      writingEmu: '覆写中…（首次定位 RAM 可能需要数十秒）',
+      needLauncher: '请输入 launcher',
+      invalidLauncherAddr: 'launcher 注入地址无效（1-5 位十六进制）',
+      invalidJumpAddr: '请输入 1–5 位十六进制地址',
+      noJumpBytes: '当前还没有可跳转的字节',
+      written: '已写入',
+      writeFail: '写入失败',
+      exported: '已导出 gadgets.json',
+      exportFail: '导出失败：',
+      imported: '已导入 gadgets',
+      importFail: '导入失败：',
+      cancelled: '已取消',
+      savedOpened: '已保存并打开',
+      downloadFail: '下载失败：',
+      published: '发布成功',
+      publishFail: '发布失败：',
+      challengeLoading: '正在获取验证题目…',
+      challengeWait: '验证题目加载中，请稍候',
+      challengeRetry: '验证题目加载失败，正在重试',
+      challengeFail: '获取验证题目失败：',
+      challengeRetryLater: '请稍后重试',
+      challengeWrong: '验证失败：字节错误，已更换新题目',
+      challengeExpired: '验证题目已过期，已更换新题目',
+      needName: '请填写程序名',
+      needAuthor: '请填写作者',
+      needModel: '请选择 / 填写机型',
+      needDesc: '请填写描述',
+      needAnswer: '请输入 4 位十六进制的两字节答案',
+      noMarketMatch: '没有匹配的程序',
+      marketEmpty: '程序广场空空如也',
+      downloading: '下载中…',
+      download: '下载',
+      featured: '精选',
+      all: '全部',
+      byAuthor: '作者：',
+      byModel: '机型：',
+      invalidRop: '这不是合法的 .rop（JSON）文件。',
+      constAnchor: '常量 / 锚点',
+      htAddr: '地址',
+      htValue: '值',
+      htSide: '性质',
+      htExpr: '表达式',
+      htResult: '结果',
+      htLE: '小端',
+      htConst: '常量',
+      htAnchor: '锚点',
+      htAnchorDef: '锚点定义',
+      htValueBlock: '数值块',
+    },
+    en: {
+      injectAddr: 'Inject Addr',
+      writeRam: 'Write RAM',
+      writeRamTitle: 'Write the compiled bytes into emulator RAM (inject address, defaults to left)',
+      addr: 'Address',
+      launcherPh: 'launcher (e.g. FD 24 E0 E9 8F 23 42)',
+      writeLauncher: 'Write launcher',
+      writeLauncherTitle: 'Write launcher bytes to the given emulator address',
+      newFileTitle: 'New .rop file',
+      gadgetsTitle: 'View / edit gadgets',
+      compile: 'Compile',
+      market: 'Market',
+      aboutTitle: 'About',
+      closePanelTitle: 'Close panel',
+      leftAddr: 'Left addr',
+      rightAddr: 'Right addr',
+      copyHex: 'Copy hex',
+      copyDump: 'Copy hexdump',
+      compileHint: 'Click any byte → L/R addresses shown in the status bar, source position highlighted',
+      gadgetSearchPh: 'Search name / addr / desc / tag…',
+      add: 'Add',
+      import: 'Import',
+      export: 'Export',
+      importTitle: 'Import gadgets.json',
+      exportTitle: 'Export gadgets.json',
+      marketSearchPh: 'Search name / author / model / desc…',
+      publish: 'Publish',
+      jumpLabel: 'Move cursor to address',
+      jumpSideTitle: 'Address base (left / right start address)',
+      left: 'Left',
+      right: 'Right',
+      jumpPh: 'e.g. E9E0',
+      settings: 'Settings',
+      lang: 'Language',
+      disasmExp: '[Experimental] Show gadget disassembly',
+      disasmHint: 'Show disassembly snippets for each gadget in the Gadgets panel (requires a _disas file)',
+      disasmProvide: 'Please provide _disas',
+      chooseFile: 'Choose file',
+      disasmLoaded: 'Loaded: ',
+      publishTitle: 'Publish to Market',
+      progName: 'Name *',
+      progNamePh: 'e.g. tetris',
+      author: 'Author *',
+      authorPh: 'Your nickname',
+      model: 'Model *',
+      modelSel: 'Select model',
+      other: 'Other',
+      otherModel: 'Other model *',
+      otherModelPh: 'Enter model',
+      desc: 'Description *',
+      descPh: 'Program description…',
+      challenge: 'Expert check *',
+      challengePh: 'Two bytes in hex (e.g. 1A2B)',
+      cancel: 'Cancel',
+      copied: 'Copied',
+      unnamed: '(unnamed)',
+      loading: 'Loading…',
+      loadFail: 'Load failed: ',
+      noGadgetMatch: 'No matching gadget.',
+      noGadgets: 'No gadgets yet. Click "Add" at the top right.',
+      noBytes: '(no bytes yet)',
+      edit: 'Edit',
+      delete: 'Delete',
+      name: 'Name',
+      addrHex: 'Address (hex)',
+      tag: 'Tags',
+      tagNamePh: 'Tag name',
+      addTag: 'Add tag',
+      save: 'Save',
+      showDisasm: 'ASM',
+      disasmLoading: 'Loading disassembly…',
+      disasmFail: 'No disassembly at this address',
+      invalidAddr: 'Invalid inject address (1-5 hex digits)',
+      noCompileResult: 'Nothing compiled to write',
+      writingEmu: 'Writing… (locating RAM may take tens of seconds the first time)',
+      needLauncher: 'Please enter a launcher',
+      invalidLauncherAddr: 'Invalid launcher address (1-5 hex digits)',
+      invalidJumpAddr: 'Enter a 1–5 digit hex address',
+      noJumpBytes: 'No bytes to jump to yet',
+      written: 'Written',
+      writeFail: 'Write failed',
+      exported: 'Exported gadgets.json',
+      exportFail: 'Export failed: ',
+      imported: 'Gadgets imported',
+      importFail: 'Import failed: ',
+      cancelled: 'Cancelled',
+      savedOpened: 'Saved & opened',
+      downloadFail: 'Download failed: ',
+      published: 'Published',
+      publishFail: 'Publish failed: ',
+      challengeLoading: 'Fetching challenge…',
+      challengeWait: 'Challenge is loading, please wait',
+      challengeRetry: 'Challenge failed to load, retrying',
+      challengeFail: 'Failed to fetch challenge: ',
+      challengeRetryLater: 'please retry later',
+      challengeWrong: 'Check failed: wrong bytes, a new challenge was issued',
+      challengeExpired: 'Challenge expired, a new one was issued',
+      needName: 'Please enter a program name',
+      needAuthor: 'Please enter the author',
+      needModel: 'Please select / enter a model',
+      needDesc: 'Please enter a description',
+      needAnswer: 'Enter the two-byte answer as 4 hex digits',
+      noMarketMatch: 'No matching programs',
+      marketEmpty: 'The market is empty',
+      downloading: 'Downloading…',
+      download: 'Download',
+      featured: 'Featured',
+      all: 'All',
+      byAuthor: 'Author: ',
+      byModel: 'Model: ',
+      invalidRop: 'This is not a valid .rop (JSON) file.',
+      constAnchor: 'Constant / anchor',
+      htAddr: 'Address',
+      htValue: 'Value',
+      htSide: 'Side',
+      htExpr: 'Expression',
+      htResult: 'Result',
+      htLE: 'Little-endian',
+      htConst: 'Constant',
+      htAnchor: 'Anchor',
+      htAnchorDef: 'Anchor definition',
+      htValueBlock: 'Value block',
+    },
+  };
+  let lang = 'zh-CN';
+  function t(key) {
+    const pack = STR[lang] || STR['zh-CN'];
+    return pack[key] !== undefined ? pack[key] : (STR['zh-CN'][key] || key);
+  }
+
+  // 设置状态（由宿主推送）
+  let showGadgetDisasm = false;
+  let disasFile = '';
+  let disasLoaded = false;
+  const disasmCache = new Map(); // addr -> { lines } | { error }
+
   /* ---------------- 图标（feather 风格 SVG） ---------------- */
   const ICONS = {
     'new-file':
@@ -36,6 +297,10 @@
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
     info:
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
+    gear:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+    code:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>',
   };
 
   /* ---------------- 状态 ---------------- */
@@ -66,6 +331,7 @@
   let injectAddress = '';
   let launcher = '';
   let launcherAddr = 'D180';
+  let activeTab = null; // 侧栏当前 tab：compile / gadgets / market / settings
 
   /* ---------------- DOM ---------------- */
   document.getElementById('app').innerHTML = `
@@ -73,20 +339,21 @@
     <div class="toolbar">
       <div class="tb-left">
         <div class="tb-emu">
-          <span class="tb-field"><label for="injectAddress">注入地址</label><input class="addr-input" id="injectAddress" maxlength="5" spellcheck="false" /></span>
-          <button class="tb-btn primary" id="btnWriteRam" title="把编译结果写入模拟器 RAM（注入地址，默认左地址）">${ICONS.play}覆写RAM</button>
-          <span class="tb-field"><label for="launcherAddr">地址</label><input class="addr-input" id="launcherAddr" maxlength="5" value="D180" spellcheck="false" /></span>
-          <input class="text-input tb-launcher" id="launcher" placeholder="launcher（如 FD 24 E0 E9 8F 23 42）" spellcheck="false" />
-          <button class="tb-btn primary" id="btnWriteLauncher" title="把 launcher 写入模拟器指定地址">${ICONS.play}覆写launcher</button>
+          <span class="tb-field"><label for="injectAddress" data-i18n="injectAddr"></label><input class="addr-input" id="injectAddress" maxlength="5" spellcheck="false" /></span>
+          <button class="tb-btn primary" id="btnWriteRam" data-i18n-title="writeRamTitle">${ICONS.play}<span data-i18n="writeRam"></span></button>
+          <span class="tb-field"><label for="launcherAddr" data-i18n="addr"></label><input class="addr-input" id="launcherAddr" maxlength="5" value="D180" spellcheck="false" /></span>
+          <input class="text-input tb-launcher" id="launcher" data-i18n-ph="launcherPh" spellcheck="false" />
+          <button class="tb-btn primary" id="btnWriteLauncher" data-i18n-title="writeLauncherTitle">${ICONS.play}<span data-i18n="writeLauncher"></span></button>
           <span class="emu-status" id="emuError" hidden></span>
         </div>
       </div>
       <div class="tb-right">
-        <button class="tb-btn" id="btnNew" title="新建 .rop 文件">${ICONS['new-file']}</button>
-        <button class="tb-btn" id="btnGadgets" title="查看 / 编辑 gadgets">${ICONS.list}<span class="tb-badge" id="gadgetCount">0</span></button>
-        <button class="tb-btn" id="btnCompile" title="编译">${ICONS.play}</button>
-        <button class="tb-btn" id="btnMarket" title="程序广场">${ICONS.globe}</button>
-        <button class="tb-btn" id="btnAbout" title="关于">${ICONS.info}</button>
+        <button class="tb-btn" id="btnNew" data-i18n-title="newFileTitle">${ICONS['new-file']}</button>
+        <button class="tb-btn" id="btnGadgets" data-i18n-title="gadgetsTitle">${ICONS.list}<span class="tb-badge" id="gadgetCount">0</span></button>
+        <button class="tb-btn" id="btnCompile" data-i18n-title="compile">${ICONS.play}</button>
+        <button class="tb-btn" id="btnMarket" data-i18n-title="market">${ICONS.globe}</button>
+        <button class="tb-btn" id="btnSettings" data-i18n-title="settings">${ICONS.gear}</button>
+        <button class="tb-btn" id="btnAbout" data-i18n-title="aboutTitle">${ICONS.info}</button>
       </div>
     </div>
 
@@ -106,43 +373,70 @@
 
       <div class="sidepanel" id="sidepanel" hidden>
         <div class="sidepanel-tabs">
-          <button class="sp-tab" data-tab="compile">编译</button>
+          <button class="sp-tab" data-tab="compile" data-i18n="compile"></button>
           <button class="sp-tab" data-tab="gadgets">Gadgets</button>
-          <button class="sp-tab" data-tab="market">程序广场</button>
+          <button class="sp-tab" data-tab="market" data-i18n="market"></button>
+          <button class="sp-tab" data-tab="settings" data-i18n="settings"></button>
           <div class="spacer"></div>
-          <button class="sp-close" id="btnClosePanel" title="关闭分栏">${ICONS.close}</button>
+          <button class="sp-close" id="btnClosePanel" data-i18n-title="closePanelTitle">${ICONS.close}</button>
         </div>
         <div class="sidepanel-body">
           <div class="tab-content" id="panelCompile" hidden>
             <div class="compile-setting">
-              <span class="field">左地址 <input class="addr-input" id="leftAddrInput" maxlength="5" /></span>
-              <span class="field">右地址 <input class="addr-input" id="rightAddrInput" maxlength="5" /></span>
+              <span class="field"><span data-i18n="leftAddr"></span> <input class="addr-input" id="leftAddrInput" maxlength="5" /></span>
+              <span class="field"><span data-i18n="rightAddr"></span> <input class="addr-input" id="rightAddrInput" maxlength="5" /></span>
             </div>
             <div class="compile-actions">
-              <button class="icon-btn" id="btnCopyHex">${ICONS.copy}复制 hex 串</button>
-              <button class="icon-btn" id="btnCopyDump">${ICONS.copy}复制 hexdump</button>
+              <button class="icon-btn" id="btnCopyHex">${ICONS.copy}<span data-i18n="copyHex"></span></button>
+              <button class="icon-btn" id="btnCopyDump">${ICONS.copy}<span data-i18n="copyDump"></span></button>
             </div>
             <div class="compile-info" id="compileInfo"></div>
-            <div class="compile-hint">点击任意字节 → 左下角显示左右地址，并高亮输入区对应位置</div>
+            <div class="compile-hint" data-i18n="compileHint"></div>
             <div class="hexdump" id="hexdump"></div>
           </div>
 
           <div class="tab-content" id="panelGadgets" hidden>
             <div class="panel-toolbar">
-              <input class="search-input" id="gadgetSearch" type="text" placeholder="搜索 name / addr / desc / tag…" />
-              <button class="icon-btn primary" id="btnAddGadget">${ICONS.plus}新增</button>
-              <button class="icon-btn" id="btnImportGadgets" title="导入 gadgets.json">${ICONS.globe}导入</button>
-              <button class="icon-btn" id="btnExportGadgets" title="导出 gadgets.json">${ICONS.download}导出</button>
+              <input class="search-input" id="gadgetSearch" type="text" data-i18n-ph="gadgetSearchPh" />
+              <button class="icon-btn primary" id="btnAddGadget">${ICONS.plus}<span data-i18n="add"></span></button>
+              <button class="icon-btn" id="btnImportGadgets" data-i18n-title="importTitle">${ICONS.globe}<span data-i18n="import"></span></button>
+              <button class="icon-btn" id="btnExportGadgets" data-i18n-title="exportTitle">${ICONS.download}<span data-i18n="export"></span></button>
             </div>
             <div class="gadget-list" id="gadgetList"></div>
           </div>
 
           <div class="tab-content" id="panelMarket" hidden>
             <div class="panel-toolbar">
-              <input class="search-input" id="marketSearch" type="text" placeholder="搜索 name / author / model / desc…" />
-              <button class="icon-btn primary" id="btnPublish">${ICONS.plus}发布</button>
+              <input class="search-input" id="marketSearch" type="text" data-i18n-ph="marketSearchPh" />
+              <button class="icon-btn primary" id="btnPublish">${ICONS.plus}<span data-i18n="publish"></span></button>
             </div>
             <div class="market-list" id="marketList"></div>
+          </div>
+
+          <div class="tab-content" id="panelSettings" hidden>
+            <div class="settings-body">
+              <div class="form-row">
+                <label data-i18n="lang"></label>
+                <select class="tag-select" id="selLanguage">
+                  <option value="zh-CN">简体中文</option>
+                  <option value="en">English</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <label class="switch-row">
+                  <input type="checkbox" id="chkDisasm" />
+                  <span data-i18n="disasmExp"></span>
+                </label>
+                <div class="settings-hint" data-i18n="disasmHint"></div>
+              </div>
+              <div class="form-row" id="disasRow" hidden>
+                <label><span data-i18n="disasmProvide"></span></label>
+                <div class="disas-picker">
+                  <button class="icon-btn" id="btnChooseDisas">${ICONS.download}<span data-i18n="chooseFile"></span></button>
+                  <span class="disas-file" id="disasFile"></span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -152,12 +446,12 @@
       <span id="bytesInfo">0 bytes · 0 errors</span>
       <div class="footer-right">
         <div class="footer-jump">
-          <span class="jump-label">光标移动到地址</span>
-          <select class="jump-side" id="jumpSide" title="地址基准（左侧/右侧起始地址）">
-            <option value="left">左侧</option>
-            <option value="right">右侧</option>
+          <span class="jump-label" data-i18n="jumpLabel"></span>
+          <select class="jump-side" id="jumpSide" data-i18n-title="jumpSideTitle">
+            <option value="left" data-i18n="left"></option>
+            <option value="right" data-i18n="right"></option>
           </select>
-          <input class="jump-addr" id="jumpAddr" placeholder="如 E9E0" maxlength="5" spellcheck="false" autocomplete="off" />
+          <input class="jump-addr" id="jumpAddr" data-i18n-ph="jumpPh" maxlength="5" spellcheck="false" autocomplete="off" />
         </div>
         <span id="cursorInfo"></span>
       </div>
@@ -166,31 +460,31 @@
     <div class="overlay" id="publishOverlay" hidden>
       <div class="panel">
         <div class="panel-header">
-          <h2>发布到程序广场</h2>
+          <h2 data-i18n="publishTitle"></h2>
           <div class="spacer"></div>
           <button class="icon-btn" id="btnClosePublish">${ICONS.close}</button>
         </div>
         <div class="panel-body">
-          <div class="form-row"><label>程序名 *</label><input class="text-input" id="publishName" placeholder="例如 tetris" /></div>
-          <div class="form-row"><label>作者 *</label><input class="text-input" id="publishAuthor" placeholder="你的昵称" /></div>
-          <div class="form-row"><label>机型 *</label>
+          <div class="form-row"><label data-i18n="progName"></label><input class="text-input" id="publishName" data-i18n-ph="progNamePh" /></div>
+          <div class="form-row"><label data-i18n="author"></label><input class="text-input" id="publishAuthor" data-i18n-ph="authorPh" /></div>
+          <div class="form-row"><label data-i18n="model"></label>
             <select class="tag-select" id="publishModel" style="width:100%">
-              <option value="">选择机型</option>
+              <option value="" data-i18n="modelSel"></option>
               <option value="fx-991CNX (VerC)">fx-991CNX (VerC)</option>
               <option value="fx-991CNX (VerF)">fx-991CNX (VerF)</option>
-              <option value="other">其它</option>
+              <option value="other" data-i18n="other"></option>
             </select>
           </div>
-          <div class="form-row" id="publishOtherRow" hidden><label>其它机型 *</label><input class="text-input" id="publishOtherModel" placeholder="输入机型" /></div>
-          <div class="form-row"><label>描述 *</label><textarea class="text-input" id="publishDescription" rows="6" placeholder="程序说明…"></textarea></div>
+          <div class="form-row" id="publishOtherRow" hidden><label data-i18n="otherModel"></label><input class="text-input" id="publishOtherModel" data-i18n-ph="otherModelPh" /></div>
+          <div class="form-row"><label data-i18n="desc"></label><textarea class="text-input" id="publishDescription" rows="6" data-i18n-ph="descPh"></textarea></div>
           <div class="form-row">
-            <label>内行验证 *</label>
-            <div class="challenge-hint" id="challengeHint">正在获取验证题目…</div>
-            <input class="text-input" id="challengeAnswer" maxlength="9" placeholder="两字节十六进制（如 1A2B）" disabled />
+            <label data-i18n="challenge"></label>
+            <div class="challenge-hint" id="challengeHint" data-i18n="challengeLoading"></div>
+            <input class="text-input" id="challengeAnswer" maxlength="9" data-i18n-ph="challengePh" disabled />
           </div>
           <div class="market-actions">
-            <button class="icon-btn" id="btnCancelPublish">取消</button>
-            <button class="icon-btn primary" id="btnConfirmPublish">发布</button>
+            <button class="icon-btn" id="btnCancelPublish" data-i18n="cancel"></button>
+            <button class="icon-btn primary" id="btnConfirmPublish" data-i18n="publish"></button>
           </div>
         </div>
       </div>
@@ -205,6 +499,7 @@
     btnGadgets: document.getElementById('btnGadgets'),
     btnCompile: document.getElementById('btnCompile'),
     btnMarket: document.getElementById('btnMarket'),
+    btnSettings: document.getElementById('btnSettings'),
     btnAbout: document.getElementById('btnAbout'),
     gadgetCount: document.getElementById('gadgetCount'),
     gutterLeft: document.getElementById('gutterLeft'),
@@ -225,6 +520,12 @@
     panelCompile: document.getElementById('panelCompile'),
     panelGadgets: document.getElementById('panelGadgets'),
     panelMarket: document.getElementById('panelMarket'),
+    panelSettings: document.getElementById('panelSettings'),
+    selLanguage: document.getElementById('selLanguage'),
+    chkDisasm: document.getElementById('chkDisasm'),
+    disasRow: document.getElementById('disasRow'),
+    btnChooseDisas: document.getElementById('btnChooseDisas'),
+    disasFileLabel: document.getElementById('disasFile'),
     gadgetSearch: document.getElementById('gadgetSearch'),
     gadgetList: document.getElementById('gadgetList'),
     btnAddGadget: document.getElementById('btnAddGadget'),
@@ -259,6 +560,24 @@
     btnConfirmPublish: document.getElementById('btnConfirmPublish'),
     toast: document.getElementById('toast'),
   };
+
+  /* ---------------- i18n：应用静态文案 ---------------- */
+  function applyStaticI18n() {
+    document.querySelectorAll('[data-i18n]').forEach((node) => {
+      node.textContent = t(node.dataset.i18n);
+    });
+    document.querySelectorAll('[data-i18n-ph]').forEach((node) => {
+      node.placeholder = t(node.dataset.i18nPh);
+    });
+    document.querySelectorAll('[data-i18n-title]').forEach((node) => {
+      node.title = t(node.dataset.i18nTitle);
+    });
+    // 带图标按钮的文字 span 已在 data-i18n 中处理
+    renderFooter();
+    if (activeTab === 'gadgets') renderGadgetList();
+    if (activeTab === 'market') renderMarketList();
+    if (activeTab === 'settings') syncSettingsUI();
+  }
 
   /* ---------------- 工具函数 ---------------- */
   function escapeHtml(s) {
@@ -314,7 +633,7 @@
 
   function flashCopy(btn, originalLabel) {
     const prev = btn.innerHTML;
-    btn.innerHTML = ICONS.check + '已复制';
+    btn.innerHTML = ICONS.check + t('copied');
     setTimeout(() => { btn.innerHTML = prev; }, 1400);
   }
 
@@ -396,6 +715,8 @@
     }
     el.gutterLeft.firstElementChild.innerHTML = l;
     el.gutterRight.firstElementChild.innerHTML = r;
+    curLineIdx = -1;
+    updateGutterCurrentLine(el.input.selectionStart || 0);
   }
 
   function renderFooter() {
@@ -404,6 +725,7 @@
     el.gadgetCount.textContent = state.gadgets.length;
   }
 
+  let curLineIdx = -1;
   function updateCursor() {
     const pos = el.input.selectionStart;
     const off = byteOffsetAt(pos);
@@ -412,6 +734,27 @@
     el.cursorInfo.textContent = `L:${left}  R:${right}`;
     vscode.postMessage({ type: 'cursor', left, right });
     updateByteHighlight();
+    updateGutterCurrentLine(pos);
+  }
+
+  // 高亮光标所在行的左右地址栏行号
+  function updateGutterCurrentLine(pos) {
+    let lo = 0, hi = lineStarts.length;
+    while (lo + 1 < hi) {
+      const mid = (lo + hi) >> 1;
+      if (lineStarts[mid] <= pos) lo = mid;
+      else hi = mid;
+    }
+    if (lo === curLineIdx) return;
+    const lg = el.gutterLeft.firstElementChild;
+    const rg = el.gutterRight.firstElementChild;
+    if (curLineIdx >= 0) {
+      if (lg.children[curLineIdx]) lg.children[curLineIdx].classList.remove('cur');
+      if (rg.children[curLineIdx]) rg.children[curLineIdx].classList.remove('cur');
+    }
+    curLineIdx = lo;
+    if (lg.children[lo]) lg.children[lo].classList.add('cur');
+    if (rg.children[lo]) rg.children[lo].classList.add('cur');
   }
 
   // 找到光标处对应的字节索引（一个 token 可能对应多个字节，如 gadget 4 字节）
@@ -548,6 +891,7 @@
   el.btnGadgets.addEventListener('click', () => togglePanel('gadgets'));
   el.btnCompile.addEventListener('click', () => togglePanel('compile'));
   el.btnMarket.addEventListener('click', () => togglePanel('market'));
+  el.btnSettings.addEventListener('click', () => togglePanel('settings'));
   el.btnAbout.addEventListener('click', () => vscode.postMessage({ type: 'about' }));
   el.btnClosePanel.addEventListener('click', () => {
     el.sidepanel.hidden = true;
@@ -556,8 +900,6 @@
   });
   el.tabs.forEach((t) => t.addEventListener('click', () => openPanel(t.dataset.tab)));
 
-  let activeTab = null;
-
   function openPanel(tab) {
     el.sidepanel.hidden = false;
     el.sideDivider.hidden = false;
@@ -565,6 +907,7 @@
     if (tab === 'compile') openCompile();
     else if (tab === 'gadgets') openGadgets();
     else if (tab === 'market') openMarket();
+    else if (tab === 'settings') syncSettingsUI();
   }
 
   function togglePanel(tab) {
@@ -583,6 +926,7 @@
     el.panelCompile.hidden = tab !== 'compile';
     el.panelGadgets.hidden = tab !== 'gadgets';
     el.panelMarket.hidden = tab !== 'market';
+    el.panelSettings.hidden = tab !== 'settings';
   }
 
   // 右侧分栏宽度可拖拽调整
@@ -667,11 +1011,11 @@
     const list = filteredGadgets();
 
     if (list.length === 0 && state.gadgets.length === 0) {
-      el.gadgetList.innerHTML = '<div class="empty-hint">还没有 gadgets。点击右上角「新增」添加一个。</div>';
+      el.gadgetList.innerHTML = '<div class="empty-hint">' + t('noGadgets') + '</div>';
       return;
     }
     if (list.length === 0) {
-      el.gadgetList.innerHTML = '<div class="empty-hint">没有匹配的 gadget。</div>';
+      el.gadgetList.innerHTML = '<div class="empty-hint">' + t('noGadgetMatch') + '</div>';
       return;
     }
 
@@ -684,22 +1028,50 @@
       }
     }
     el.gadgetList.innerHTML = html;
+    if (showGadgetDisasm && disasLoaded) {
+      el.gadgetList.querySelectorAll('[data-disasm-addr]').forEach((pre) => {
+        const addr = pre.dataset.disasmAddr;
+        if (disasmCache.has(addr)) {
+          fillDisasm(pre, disasmCache.get(addr));
+        } else {
+          pre.textContent = t('disasmLoading');
+          vscode.postMessage({ type: 'gadgets:disasm', addr });
+        }
+      });
+    }
+  }
+
+  function fillDisasm(pre, result) {
+    if (!pre.isConnected) return;
+    if (result && result.lines) {
+      pre.textContent = result.lines.join('\n');
+      pre.classList.remove('err');
+    } else {
+      pre.textContent = t('disasmFail');
+      pre.classList.add('err');
+    }
   }
 
   function gadgetViewHtml(i, g) {
     const tags = (g.tags || []).map((t) => tagHtml(t)).join(' ');
+    const addrNorm = (g.addr || '').replace(/^0x/i, '').toUpperCase();
+    const disasmHtml =
+      showGadgetDisasm && disasLoaded && addrNorm
+        ? `<pre class="gadget-disasm" data-disasm-addr="${escapeHtml(addrNorm)}"></pre>`
+        : '';
     return `
       <div class="gadget-card" data-index="${i}">
         <div class="gadget-card-header">
-          <span class="gadget-name">${escapeHtml(g.name || '(未命名)')}</span>
+          <span class="gadget-name">${escapeHtml(g.name || t('unnamed'))}</span>
           ${tags}
           <div class="gadget-actions">
-            <button class="icon-btn" data-action="edit" data-index="${i}" title="编辑">${ICONS.edit}</button>
-            <button class="icon-btn" data-action="delete" data-index="${i}" title="删除">${ICONS.trash}</button>
+            <button class="icon-btn" data-action="edit" data-index="${i}" title="${t('edit')}">${ICONS.edit}</button>
+            <button class="icon-btn" data-action="delete" data-index="${i}" title="${t('delete')}">${ICONS.trash}</button>
           </div>
         </div>
         <span class="gadget-addr">${escapeHtml(g.addr || '')}</span>
         <p class="gadget-desc">${escapeHtml(g.desc || '')}</p>
+        ${disasmHtml}
       </div>`;
   }
 
@@ -710,21 +1082,21 @@
     ).join('');
     return `
       <div class="gadget-card highlighted" data-index="${i}">
-        <div class="form-row"><label>名称</label>
+        <div class="form-row"><label>${t('name')}</label>
           <input class="text-input" data-field="name" value="${escapeHtml(g.name)}" placeholder="pop-xr12" /></div>
-        <div class="form-row"><label>地址（十六进制）</label>
+        <div class="form-row"><label>${t('addrHex')}</label>
           <input class="text-input" data-field="addr" value="${escapeHtml(g.addr)}" placeholder="1D52C" /></div>
-        <div class="form-row"><label>描述</label>
-          <textarea class="text-input" data-field="desc" rows="3" placeholder="赋值 XR12">${escapeHtml(g.desc)}</textarea></div>
-        <div class="form-row"><label>标签</label>
+        <div class="form-row"><label>${t('desc')}</label>
+          <textarea class="text-input" data-field="desc" rows="3" placeholder="">${escapeHtml(g.desc)}</textarea></div>
+        <div class="form-row"><label>${t('tag')}</label>
           <div class="tags-editor">${tags}
-            <input class="text-input tag-input" data-field="tagName" placeholder="标签名" />
+            <input class="text-input tag-input" data-field="tagName" placeholder="${t('tagNamePh')}" />
             <select class="tag-select" data-field="tagColor">${colorOptions}</select>
-            <button class="icon-btn" data-action="add-tag" data-index="${i}" title="添加标签">${ICONS.plus}</button>
+            <button class="icon-btn" data-action="add-tag" data-index="${i}" title="${t('addTag')}">${ICONS.plus}</button>
           </div></div>
         <div class="gadget-actions">
-          <button class="icon-btn primary" data-action="save" data-index="${i}" title="保存">${ICONS.check}保存</button>
-          <button class="icon-btn" data-action="cancel" title="取消">${ICONS.close}</button>
+          <button class="icon-btn primary" data-action="save" data-index="${i}" title="${t('save')}">${ICONS.check}${t('save')}</button>
+          <button class="icon-btn" data-action="cancel" title="${t('cancel')}">${ICONS.close}</button>
         </div>
       </div>`;
   }
@@ -808,7 +1180,7 @@
 
   /* ---------------- 无效文件提示 ---------------- */
   function showError(message) {
-    el.errorBanner.textContent = '⚠ ' + (message || '这不是合法的 .rop（JSON）文件。');
+    el.errorBanner.textContent = '⚠ ' + (message || t('invalidRop'));
     el.errorBanner.hidden = false;
     el.input.readOnly = true;
   }
@@ -856,11 +1228,11 @@
         + `<span class="hex-addr right">${hexAddr(rightBase + row * 16)}</span>`
         + `</div>`;
     }
-    if (bytes.length === 0) html = '<div class="empty-hint">（暂无字节）</div>';
+    if (bytes.length === 0) html = '<div class="empty-hint">' + t('noBytes') + '</div>';
     el.hexdump.innerHTML = html;
 
     const errClass = parsed && parsed.errorCount > 0 ? ' class="err"' : '';
-    el.compileInfo.innerHTML = `共 <b>${parsed ? parsed.totalBytes : 0}</b> bytes，`
+    el.compileInfo.innerHTML = `<b>${parsed ? parsed.totalBytes : 0}</b> bytes · `
       + `<span${errClass}>${parsed ? parsed.errorCount : 0} errors</span>`;
 
     updateByteHighlight();
@@ -890,7 +1262,7 @@
   function selectByte(byteIndex) {
     const left = hexAddr(parseBase(state.leftStartAddress) + byteIndex);
     const right = hexAddr(parseBase(state.rightStartAddress) + byteIndex);
-    el.cursorInfo.textContent = `字节 #${byteIndex}  L:${left}  R:${right}`;
+    el.cursorInfo.textContent = `#${byteIndex}  L:${left}  R:${right}`;
     vscode.postMessage({ type: 'cursor', left, right });
 
     const map = parsed ? parsed.charPosInInputMap : [];
@@ -913,7 +1285,7 @@
   function jumpToAddress() {
     const raw = el.jumpAddr.value.trim().replace(/^0[xX]/, '');
     if (!/^[0-9A-Fa-f]{1,5}$/.test(raw)) {
-      showToast('请输入 1–5 位十六进制地址', true);
+      showToast(t('invalidJumpAddr'), true);
       el.jumpAddr.focus();
       return;
     }
@@ -923,12 +1295,12 @@
       : parseBase(state.rightStartAddress);
     const total = parsed ? parsed.totalBytes : 0;
     if (total === 0) {
-      showToast('当前还没有可跳转的字节', true);
+      showToast(t('noJumpBytes'), true);
       return;
     }
     const byteIndex = addr - base;
     if (byteIndex < 0 || byteIndex >= total) {
-      showToast(`地址需在 0x${hexAddr(base)} ~ 0x${hexAddr(base + total - 1)} 之间`, true);
+      showToast(`0x${hexAddr(base)} ~ 0x${hexAddr(base + total - 1)}`, true);
       return;
     }
     openPanel('compile');
@@ -1084,25 +1456,25 @@
     if (info.kind === 'gadget') {
       const tags = (info.tags || []).map((t) => tagHtml(t)).join(' ');
       return `<div class="ht-title">#${escapeHtml(info.name)};</div>`
-        + `<div class="ht-row"><span class="ht-label">地址</span><span class="ht-mono">${escapeHtml(info.addr || '')}</span></div>`
+        + `<div class="ht-row"><span class="ht-label">${t('htAddr')}</span><span class="ht-mono">${escapeHtml(info.addr || '')}</span></div>`
         + (tags ? `<div class="ht-tags">${tags}</div>` : '')
         + (info.desc ? `<div class="ht-desc">${escapeHtml(info.desc)}</div>` : '');
     }
     if (info.kind === 'constant') {
-      return `<div class="ht-title">常量 <span class="ht-mono">$${escapeHtml(info.name)}</span></div>`
-        + `<div class="ht-row"><span class="ht-label">值</span><span class="ht-mono">0x${hexAddr(info.value)}</span></div>`;
+      return `<div class="ht-title">${t('htConst')} <span class="ht-mono">$${escapeHtml(info.name)}</span></div>`
+        + `<div class="ht-row"><span class="ht-label">${t('htValue')}</span><span class="ht-mono">0x${hexAddr(info.value)}</span></div>`;
     }
     if (info.kind === 'anchor-ref' || info.kind === 'anchor-def') {
-      const label = info.kind === 'anchor-ref' ? '锚点' : '锚点定义';
+      const label = info.kind === 'anchor-ref' ? t('htAnchor') : t('htAnchorDef');
       return `<div class="ht-title">${label} <span class="ht-mono">&lt;${escapeHtml(info.name)}&gt;</span></div>`
-        + `<div class="ht-row"><span class="ht-label">地址</span><span class="ht-mono">0x${hexAddr(info.addr)}</span></div>`
-        + `<div class="ht-row"><span class="ht-label">性质</span><span class="ht-mono">${info.side === 'left' ? '左侧' : '右侧'}</span></div>`;
+        + `<div class="ht-row"><span class="ht-label">${t('htAddr')}</span><span class="ht-mono">0x${hexAddr(info.addr)}</span></div>`
+        + `<div class="ht-row"><span class="ht-label">${t('htSide')}</span><span class="ht-mono">${info.side === 'left' ? t('left') : t('right')}</span></div>`;
     }
     if (info.kind === 'value') {
-      return `<div class="ht-title">数值块</div>`
-        + `<div class="ht-row"><span class="ht-label">表达式</span><span class="ht-mono">${escapeHtml(info.expr)}</span></div>`
-        + `<div class="ht-row"><span class="ht-label">结果</span><span class="ht-mono">${info.value == null ? '—' : '0x' + hexAddr(info.value)}</span></div>`
-        + `<div class="ht-row"><span class="ht-label">小端</span><span class="ht-mono">${info.value == null ? '—' : hexByte(info.value) + ' ' + hexByte(info.value >> 8)}</span></div>`;
+      return `<div class="ht-title">${t('htValueBlock')}</div>`
+        + `<div class="ht-row"><span class="ht-label">${t('htExpr')}</span><span class="ht-mono">${escapeHtml(info.expr)}</span></div>`
+        + `<div class="ht-row"><span class="ht-label">${t('htResult')}</span><span class="ht-mono">${info.value == null ? '—' : '0x' + hexAddr(info.value)}</span></div>`
+        + `<div class="ht-row"><span class="ht-label">${t('htLE')}</span><span class="ht-mono">${info.value == null ? '—' : hexByte(info.value) + ' ' + hexByte(info.value >> 8)}</span></div>`;
     }
     return '';
   }
@@ -1193,30 +1565,30 @@
   el.btnWriteRam.addEventListener('click', () => {
     const raw = (injectAddress.trim() || state.leftStartAddress).toUpperCase().replace(/^0X/, '');
     if (!/^[0-9A-F]{1,5}$/.test(raw)) {
-      showEmuStatus('注入地址无效（1-5 位十六进制）', 'error');
+      showEmuStatus(t('invalidAddr'), 'error');
       return;
     }
     const hex = parsed ? parsed.hexChars : '';
     if (!hex) {
-      showEmuStatus('没有可写入的编译结果', 'error');
+      showEmuStatus(t('noCompileResult'), 'error');
       return;
     }
-    showEmuStatus('覆写中…（首次定位 RAM 可能需要数十秒）', 'busy');
+    showEmuStatus(t('writingEmu'), 'busy');
     vscode.postMessage({ type: 'emu:write', address: parseInt(raw, 16), hex });
   });
 
   el.btnWriteLauncher.addEventListener('click', () => {
     const hex = el.launcher.value.trim();
     if (!hex) {
-      showEmuStatus('请输入 launcher', 'error');
+      showEmuStatus(t('needLauncher'), 'error');
       return;
     }
     const raw = (launcherAddr || 'D180').toUpperCase().replace(/^0X/, '');
     if (!/^[0-9A-F]{1,5}$/.test(raw)) {
-      showEmuStatus('launcher 注入地址无效（1-5 位十六进制）', 'error');
+      showEmuStatus(t('invalidLauncherAddr'), 'error');
       return;
     }
-    showEmuStatus('覆写中…（首次定位 RAM 可能需要数十秒）', 'busy');
+    showEmuStatus(t('writingEmu'), 'busy');
     vscode.postMessage({ type: 'emu:write', address: parseInt(raw, 16), hex });
   });
 
@@ -1277,7 +1649,7 @@
     el.autocomplete.innerHTML = acItems
       .map((it, i) => {
         const addr = acKind === 'constant' ? hexAddr(it.value) : (it.addr || '');
-        const desc = acKind === 'constant' ? '常量 / 锚点' : (it.desc || '').split('\n')[0];
+        const desc = acKind === 'constant' ? t('constAnchor') : (it.desc || '').split('\n')[0];
         return `
         <div class="ac-item ${i === acSelected ? 'selected' : ''}" data-ac="${i}">
           <span class="ac-name">${escapeHtml(it.name)}</span>
@@ -1337,6 +1709,35 @@
     hideAutocomplete();
   }
 
+  /* ---------------- 设置页 ---------------- */
+  function applySettings(s) {
+    const oldLang = lang;
+    if (typeof s.language === 'string' && STR[s.language]) lang = s.language;
+    showGadgetDisasm = !!s.showGadgetDisasm;
+    disasFile = typeof s.disasFile === 'string' ? s.disasFile : '';
+    disasLoaded = !!s.disasLoaded;
+    if (lang !== oldLang) applyStaticI18n();
+    if (activeTab === 'settings') syncSettingsUI();
+    if (activeTab === 'gadgets') renderGadgetList();
+  }
+
+  function syncSettingsUI() {
+    el.selLanguage.value = lang;
+    el.chkDisasm.checked = showGadgetDisasm;
+    el.disasRow.hidden = !showGadgetDisasm;
+    el.disasFileLabel.textContent = disasFile ? t('disasmLoaded') + disasFile : '';
+  }
+
+  el.selLanguage.addEventListener('change', () => {
+    vscode.postMessage({ type: 'settings:set', key: 'language', value: el.selLanguage.value });
+  });
+  el.chkDisasm.addEventListener('change', () => {
+    vscode.postMessage({ type: 'settings:set', key: 'showGadgetDisasm', value: el.chkDisasm.checked });
+  });
+  el.btnChooseDisas.addEventListener('click', () => {
+    vscode.postMessage({ type: 'disas:choose' });
+  });
+
   /* ---------------- 程序广场 ---------------- */
   el.marketSearch.addEventListener('input', renderMarketList);
   el.btnPublish.addEventListener('click', openPublish);
@@ -1381,7 +1782,7 @@
     challengeLoading = true;
     el.challengeAnswer.value = '';
     el.challengeAnswer.disabled = true;
-    el.challengeHint.textContent = '正在获取验证题目…';
+    el.challengeHint.textContent = t('challengeLoading');
     vscode.postMessage({ type: 'market:challenge' });
   }
 
@@ -1390,19 +1791,19 @@
     const author = el.publishAuthor.value.trim();
     const model = el.publishModel.value === 'other' ? el.publishOtherModel.value.trim() : el.publishModel.value;
     const description = el.publishDescription.value.trim();
-    if (!name) { showToast('请填写程序名', true); return; }
-    if (!author) { showToast('请填写作者', true); return; }
-    if (!model) { showToast('请选择 / 填写机型', true); return; }
-    if (!description) { showToast('请填写描述', true); return; }
+    if (!name) { showToast(t('needName'), true); return; }
+    if (!author) { showToast(t('needAuthor'), true); return; }
+    if (!model) { showToast(t('needModel'), true); return; }
+    if (!description) { showToast(t('needDesc'), true); return; }
 
     const answer = el.challengeAnswer.value.replace(/[^0-9a-fA-F]/g, '').toLowerCase();
     if (!challenge) {
-      if (challengeLoading) showToast('验证题目加载中，请稍候', true);
-      else { showToast('验证题目加载失败，正在重试', true); fetchChallenge(); }
+      if (challengeLoading) showToast(t('challengeWait'), true);
+      else { showToast(t('challengeRetry'), true); fetchChallenge(); }
       return;
     }
     if (!/^[0-9a-f]{4}$/.test(answer)) {
-      showToast('请输入 4 位十六进制的两字节答案', true);
+      showToast(t('needAnswer'), true);
       return;
     }
     el.btnConfirmPublish.disabled = true;
@@ -1426,11 +1827,11 @@
 
   function renderMarketList() {
     if (marketLoading) {
-      el.marketList.innerHTML = '<div class="empty-hint">加载中…</div>';
+      el.marketList.innerHTML = '<div class="empty-hint">' + t('loading') + '</div>';
       return;
     }
     if (marketError) {
-      el.marketList.innerHTML = '<div class="empty-hint">加载失败：' + escapeHtml(marketError) + '</div>';
+      el.marketList.innerHTML = '<div class="empty-hint">' + t('loadFail') + escapeHtml(marketError) + '</div>';
       return;
     }
 
@@ -1445,7 +1846,7 @@
     const normal = items.filter((it) => !it.featured);
 
     if (items.length === 0) {
-      el.marketList.innerHTML = '<div class="empty-hint">' + (q ? '没有匹配的程序' : '程序广场空空如也') + '</div>';
+      el.marketList.innerHTML = '<div class="empty-hint">' + (q ? t('noMarketMatch') : t('marketEmpty')) + '</div>';
       return;
     }
 
@@ -1455,24 +1856,24 @@
       return `
       <div class="market-card ${isFeatured ? 'featured' : ''}">
         <div class="market-card-info">
-          <div class="market-card-title">${escapeHtml(it.name || '(未命名)')}${isFeatured ? ' <span class="market-star">★</span>' : ''}</div>
+          <div class="market-card-title">${escapeHtml(it.name || t('unnamed'))}${isFeatured ? ' <span class="market-star">★</span>' : ''}</div>
           <div class="market-card-meta">
-            <span>作者：${escapeHtml(it.author || '-')}</span>
-            <span>机型：${escapeHtml(it.model || '-')}</span>
+            <span>${t('byAuthor')}${escapeHtml(it.author || '-')}</span>
+            <span>${t('byModel')}${escapeHtml(it.model || '-')}</span>
           </div>
           ${it.description ? `<div class="market-card-desc">${escapeHtml(it.description)}</div>` : ''}
         </div>
-        <button class="icon-btn primary market-dl" data-download="${escapeHtml(idStr)}" ${busy ? 'disabled' : ''}>${busy ? '下载中…' : ICONS.download + '下载'}</button>
+        <button class="icon-btn primary market-dl" data-download="${escapeHtml(idStr)}" ${busy ? 'disabled' : ''}>${busy ? t('downloading') : ICONS.download + t('download')}</button>
       </div>`;
     };
 
     let html = '';
     if (featured.length) {
-      html += `<div class="market-section">精选 <span class="tb-badge">${featured.length}</span></div>`;
+      html += `<div class="market-section">${t('featured')} <span class="tb-badge">${featured.length}</span></div>`;
       html += featured.map((it) => card(it, true)).join('');
     }
     if (normal.length) {
-      if (featured.length) html += `<div class="market-section">全部</div>`;
+      if (featured.length) html += `<div class="market-section">${t('all')}</div>`;
       html += normal.map((it) => card(it, false)).join('');
     }
     el.marketList.innerHTML = html;
@@ -1487,8 +1888,11 @@
         if (typeof msg.fileName === 'string') {
           fileName = msg.fileName;
         }
+        if (msg.settings && typeof msg.settings === 'object') {
+          applySettings(msg.settings);
+        }
         if (msg.valid === false) {
-          showError(msg.error || '这不是合法的 .rop（JSON）文件。');
+          showError(msg.error || t('invalidRop'));
         } else {
           clearError();
         }
@@ -1508,8 +1912,27 @@
         render();
         break;
       }
+      case 'settings':
+        applySettings(msg);
+        break;
+      case 'disas:load-result':
+        if (msg.ok) {
+          showToast(t('disasmLoaded') + (msg.file || ''));
+        } else if (!msg.cancelled) {
+          showToast(t('loadFail') + (msg.error || ''), true);
+        }
+        break;
+      case 'gadgets:disasm-result': {
+        const addrKey = String(msg.addr || '').toUpperCase();
+        const result = msg.lines ? { lines: msg.lines } : { error: msg.error || '' };
+        disasmCache.set(addrKey, result);
+        el.gadgetList
+          .querySelectorAll(`[data-disasm-addr="${addrKey}"]`)
+          .forEach((pre) => fillDisasm(pre, result));
+        break;
+      }
       case 'invalid':
-        showError(msg.error || '这不是合法的 .rop（JSON）文件。');
+        showError(msg.error || t('invalidRop'));
         break;
       case 'compile':
         openPanel('compile');
@@ -1534,11 +1957,11 @@
       case 'market:get-result':
         downloadingId = null;
         if (msg.error) {
-          showToast('下载失败：' + msg.error, true);
+          showToast(t('downloadFail') + msg.error, true);
         } else if (msg.cancelled) {
-          showToast('已取消');
+          showToast(t('cancelled'));
         } else {
-          showToast('已保存并打开');
+          showToast(t('savedOpened'));
         }
         renderMarketList();
         break;
@@ -1547,18 +1970,19 @@
         if (msg.ok) {
           challenge = { token: msg.token, offset: msg.offset };
           el.challengeAnswer.disabled = false;
-          el.challengeHint.textContent =
-            '请输入 fx-991CNX VerF ROM 中 0x' + hexAddr(msg.offset) + ' 处的两个字节（如 1A2B）。';
+          el.challengeHint.textContent = lang === 'en'
+            ? 'Enter the two bytes at 0x' + hexAddr(msg.offset) + ' in the fx-991CNX VerF ROM (e.g. 1A2B).'
+            : '请输入 fx-991CNX VerF ROM 中 0x' + hexAddr(msg.offset) + ' 处的两个字节（如 1A2B）。';
         } else {
           challenge = null;
           el.challengeAnswer.disabled = true;
-          el.challengeHint.textContent = '获取验证题目失败：' + (msg.error || '请稍后重试');
+          el.challengeHint.textContent = t('challengeFail') + (msg.error || t('challengeRetryLater'));
         }
         break;
       case 'market:publish-result':
         el.btnConfirmPublish.disabled = false;
         if (msg.ok) {
-          showToast('发布成功');
+          showToast(t('published'));
           closePublish();
           marketItems = [];
           marketError = '';
@@ -1566,30 +1990,30 @@
           renderMarketList();
           vscode.postMessage({ type: 'market:list' });
         } else if (msg.code === 'wrong') {
-          showToast('验证失败：字节错误，已更换新题目', true);
+          showToast(t('challengeWrong'), true);
           fetchChallenge();
         } else if (msg.code === 'expired') {
-          showToast('验证题目已过期，已更换新题目', true);
+          showToast(t('challengeExpired'), true);
           fetchChallenge();
         } else {
-          showToast('发布失败：' + msg.error, true);
+          showToast(t('publishFail') + msg.error, true);
         }
         break;
       case 'emu:write-result':
         if (msg.ok) {
           showEmuStatus('', '');
-          showToast('已写入');
+          showToast(t('written'));
         } else {
-          showEmuStatus(msg.error || '写入失败', 'error');
+          showEmuStatus(msg.error || t('writeFail'), 'error');
         }
         break;
       case 'gadgets:export-result':
         if (msg.ok) {
-          showToast('已导出 gadgets.json');
+          showToast(t('exported'));
         } else if (msg.cancelled) {
-          showToast('已取消');
+          showToast(t('cancelled'));
         } else {
-          showToast('导出失败：' + msg.error, true);
+          showToast(t('exportFail') + msg.error, true);
         }
         break;
       case 'gadgets:import-result':
@@ -1610,11 +2034,11 @@
           editingGadget = null;
           renderGadgetList();
           markChanged();
-          showToast('已导入 gadgets');
+          showToast(t('imported'));
         } else if (msg.cancelled) {
-          showToast('已取消');
+          showToast(t('cancelled'));
         } else {
-          showToast('导入失败：' + msg.error, true);
+          showToast(t('importFail') + msg.error, true);
         }
         break;
       default:
@@ -1623,5 +2047,6 @@
   });
 
   // 就绪后向宿主请求初始数据
+  applyStaticI18n();
   vscode.postMessage({ type: 'ready' });
 })();

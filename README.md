@@ -1,4 +1,155 @@
+<p align="center">
+  <img src="media/banner.png" alt="RopIDE for VS Code" width="100%" />
+</p>
+
 # RopIDE for VS Code
+
+A VS Code extension built for **`.rop` files** — ROP programs for the **CASIO fx-991 CN X**.
+
+A `.rop` file is a single JSON object:
+
+```json
+{
+  "input": "// ...assembly DSL source...",
+  "gadgets": [ { "name": "pop-er0", "addr": "121A8", "desc": "赋值 ER0", "tags": [] } ],
+  "leftStartAddress": "E9E0",
+  "rightStartAddress": "D710",
+  "ideVersion": 100
+}
+```
+
+This extension does **not** touch `.rin` / `gadgets.json` / `config.json` — everything lives inside the single `.rop` file.
+
+## Features
+
+When you open a `.rop` file, the editor shows the `input` field's content (not the raw JSON) with full syntax highlighting:
+
+| Syntax | Description |
+| --- | --- |
+| `// comment` | Gray italic |
+| `$name = value;` | Constant definition (cyan name + green value) |
+| `#gadget;` / `#-gadget;` | Gadget reference (blue; recognized ones get a background) |
+| `[expression]` | Value block (orange; closed ones get a background) |
+| `<anchor>` / `<-anchor>` | Address anchor (green; closed ones get a background) |
+| `00 11 AA` | Raw hex bytes |
+
+Other highlights:
+
+- **Left / right address gutters**: the line number gutter on the left shows each line's **left address**; a right gutter shows each line's **right start address**. The current line's addresses are highlighted in both gutters.
+- **Status bar address**: VS Code's status bar shows `L:xxxx R:xxxx` for the cursor position in real time.
+- **Gadgets panel**: open it from the toolbar — nicely laid out list of all gadgets (name, colored tags, address, description) with search, add, edit, delete.
+- **Gadget disassembly (experimental)**: turn on *[Experimental] Show gadget disassembly* in Settings and provide a `_disas` file; each gadget in the Gadgets panel then shows the disassembly snippet from its address until `POP PC` / `RT`.
+- **Compile**: one-click compile from the toolbar, showing a hexdump (16 bytes per row with left/right addresses), with copy-hex / copy-hexdump actions.
+- **New file**: when creating a `.rop` file, sequentially fill in the **file name**, **left address**, **right address**, and choose the gadgets source (VerF preset / VerC preset / import `gadgets.json` / empty).
+- **Gadget completion**: type `#` to get a gadget completion list.
+- **Constant / anchor completion**: type `$` to get defined constants and anchors.
+- **Market**: browse / search programs on [ropide.pages.dev](https://ropide.pages.dev), Featured / All sections, one-click download (**choose a save path, then it opens**), and publish (name / author / model / description form with expert check).
+- **Overwrite emulator**: from the compile tab you can "overwrite RAM" (inject address, defaults to the left address) and "overwrite launcher" (fixed at `0xD180` by default) — writing into the running emulator's memory via CasioEmuMsvc's McpPlugin (MCP, port `3001`).
+- **Tab-aligned comments**: pressing Tab aligns the current line's `//` comment with the column used above.
+- **Settings**: UI language (简体中文 / English) and the experimental disassembly toggle, available from the toolbar gear / the side panel.
+
+## ⚠️ Overwrite feature: the emulator must be started this way
+
+"Overwrite RAM / overwrite launcher" writes memory through CasioEmuMsvc's **McpPlugin** (MCP, `http://127.0.0.1:3001`), so the emulator **must be started from its own directory** (on Linux/macOS the plugin loader only scans the **current working directory** for `CasioEmuMsvc.Plugin.*.so`); otherwise the plugin isn't loaded, port 3001 isn't listening, and overwriting reports "找不到正在运行的 CasioEmuMsvc，或者进程不支持 MCP".
+
+**Correct way to start (important):**
+
+```bash
+cd /path/to/CasioEmuMsvc-mcp          # enter the directory that contains the CasioEmuMsvc binary (not its parent!)
+./CasioEmuMsvc ../models/fx991cnxfVirtual   # launch with the model directory
+```
+
+> Verify: visit `http://127.0.0.1:3001/health` — a `{"status":"ok",...}` response means MCP is ready.
+> If the port isn't 3001, change `ropide.casioemuMcpPort` in settings.
+
+## Install / Run
+
+Requires Node.js 18+ and VS Code 1.85+, with the `code` CLI installed
+(VS Code command palette → `Shell Command: Install 'code' command in PATH`).
+
+**One-click install (recommended)**: compile → package `.vsix` → install into VS Code:
+
+```bash
+./install.sh          # Linux / macOS
+install.bat           # Windows (CMD, double-click or command line)
+# or Windows PowerShell:
+.\install.ps1
+```
+
+After installing, reload the VS Code window (`Ctrl+Shift+P` → `Reload Window`),
+then open any `.rop` file to enter the RopIDE editor — **no F5 development host needed**.
+
+Manual steps (equivalent to the scripts above):
+
+```bash
+npm install
+npm run compile
+npm run package                       # produces ropide-vscode-plugin-0.1.0.vsix
+code --install-extension ropide-vscode-plugin-0.1.0.vsix --force
+```
+
+**Cross-platform packaging** (outputs `ropide-vscode-plugin-<yyyymmdd>.vsix`, works everywhere):
+
+```bash
+./build.sh
+```
+
+For live debugging after code changes, `F5` still starts the extension development host (the repo ships `.vscode/launch.json`).
+
+**Uninstall**:
+
+```bash
+./uninstall.sh          # Linux / macOS
+uninstall.bat           # Windows (CMD)
+# or Windows PowerShell:
+.\uninstall.ps1
+```
+
+## Compile rules
+
+The compiler is a faithful port of [rop-ide](https://github.com/WulanOVO/rop-ide)'s `src/parser.js` and ropide-python's `compiler.py`:
+
+- `#gadget;` encodes as 4 bytes (8 hex digits): `h1 h2 h3 h4`, where `h3 = ("0" if allow00 else "3") + addr[0]`, `h4 = "00" / "30"`.
+- `[expression]` encodes as little-endian 2 bytes; forward references to `$constants` are supported (deferred back-patch).
+- `<anchor>` records the address at the current byte-stream length (right address base; `<-anchor>` uses the left address base).
+- Raw hex characters merge directly into the byte stream.
+- Gutter / status-bar addresses = start address + byte offset of the current line / cursor.
+
+## Directory structure
+
+```
+ropide-vscode-plugin/
+├── package.json
+├── tsconfig.json
+├── build.sh                # Cross-platform packaging: outputs ropide-vscode-plugin-<yyyymmdd>.vsix
+├── simply-plugin.sh        # One-line install/uninstall without git clone (Linux/macOS)
+├── simply-plugin.bat       # One-line install/uninstall without git clone (Windows)
+├── install.sh              # Linux/macOS one-click install script
+├── install.ps1             # Windows PowerShell one-click install script
+├── install.bat             # Windows CMD one-click install script
+├── uninstall.sh            # Linux/macOS uninstall script
+├── uninstall.ps1           # Windows PowerShell uninstall script
+├── uninstall.bat           # Windows CMD uninstall script
+├── icon.png                # Extension icon
+├── media/
+│   ├── banner.png          # README banner (AI-generated)
+│   ├── editor.css          # Editor/panel/syntax-highlight styles
+│   ├── compiler.js         # Compiler + syntax-highlight parser (parser port)
+│   └── editor.js           # Webview main logic (gutters, gadgets, compile, completion, market, settings)
+└── src/
+    ├── extension.ts          # Activation entry, command registration, new/open files
+    ├── ropEditorProvider.ts  # CustomTextEditor provider, status bar, settings & disas sync
+    ├── presets.ts            # Built-in VerF / VerC gadget presets
+    ├── market.ts             # Market API (ropide.pages.dev)
+    ├── welcome.ts            # Welcome / About page (centered market dialog)
+    └── rop.ts                # .rop JSON parse/serialize, disas parse & snippet
+```
+
+> Note: `media/editor.html` is not used separately; the HTML is generated by `RopEditorProvider.getHtml()` (to inject the CSP nonce and webview URIs).
+
+---
+
+# RopIDE for VS Code（中文）
 
 一个专门为 **`.rop` 文件**（CASIO fx-991 CN X 的 ROP 程序）打造的 VS Code 插件。
 
@@ -57,9 +208,10 @@ curl.exe -sSL https://raw.githubusercontent.com/Yaing-Yan/ropide-vscode-plugin/m
 
 其它特性：
 
-- **左右地址栏**：左侧行号替换为每行起始的**左侧地址**；输入区右侧相对位置显示每行的**右侧起始地址**。
+- **左右地址栏**：左侧行号替换为每行起始的**左侧地址**；输入区右侧相对位置显示每行的**右侧起始地址**，光标所在行的左右地址会高亮提醒。
 - **状态栏地址**：光标所在处，VS Code 左下角状态栏实时显示 `L:xxxx R:xxxx`。
 - **Gadgets 面板**：右上角按钮打开，优美排版展示所有 gadgets（名称、彩色标签、地址、描述），支持搜索、新增、编辑、删除。
+- **gadget 汇编展示（实验性）**：在设置中开启「【实验性】gadgets 展示汇编」并提供 `_disas` 文件后，Gadgets 面板中每个 gadget 下方会展示从该地址到 `POP PC` / `RT` 的反汇编片段。
 - **编译**：右上角按钮一键编译，显示 hexdump（每行 16 字节，带左右地址），支持复制纯 hex 串 / hexdump。
 - **新建**：新建 `.rop` 文件时依次填写**文件名**、**左侧地址**、**右侧地址**，并选择 gadgets 来源（`VerF` 预设 / `VerC` 预设 / 导入 `gadgets.json` / 空）。
 - **gadget 补全**：输入 `#` 后弹出 gadget 补全列表。
@@ -67,6 +219,7 @@ curl.exe -sSL https://raw.githubusercontent.com/Yaing-Yan/ropide-vscode-plugin/m
 - **程序广场**：浏览 / 搜索 [ropide.pages.dev](https://ropide.pages.dev) 上的程序，精选/全部分区，一键下载（**指定保存路径后打开**）、发布（程序名/作者/机型/描述表单）。
 - **覆写模拟器**：编译结果页可「覆写 RAM」（注入地址，默认左地址）与「覆写 launcher」（固定 `0xD180`），通过 CasioEmuMsvc 的 McpPlugin（MCP，端口 `3001`）写入正在运行的模拟器内存。
 - **Tab 对齐注释**：按 Tab 自动对齐当前行的 `//` 注释到上文列。
+- **设置**：界面语言（简体中文 / English）与实验性反汇编开关，通过工具栏齿轮或侧栏「设置」页修改。
 
 ## ⚠️ 覆写功能：必须这样启动模拟器
 
@@ -153,16 +306,18 @@ ropide-vscode-plugin/
 ├── uninstall.ps1           # Windows PowerShell 卸载脚本
 ├── uninstall.bat           # Windows CMD 卸载脚本
 ├── icon.png                # 扩展图标
-├── src/
-│   ├── extension.ts          # 激活入口、命令注册、新建/打开文件
-│   ├── ropEditorProvider.ts  # CustomTextEditor 提供者、状态栏
-│   ├── presets.ts            # VerF / VerC gadgets 内置预设
-│   ├── market.ts             # 程序广场 API（ropide.pages.dev）
-│   └── rop.ts                # .rop JSON 解析/序列化
-└── media/
-    ├── editor.css            # 编辑器/面板/语法高亮样式
-    ├── compiler.js           # 编译器 + 语法高亮解析（parser 移植）
-    └── editor.js             # Webview 主逻辑（地址栏、gadgets、编译、补全、程序广场）
+├── media/
+│   ├── banner.png          # README 横幅（AI 生成）
+│   ├── editor.css          # 编辑器/面板/语法高亮样式
+│   ├── compiler.js         # 编译器 + 语法高亮解析（parser 移植）
+│   └── editor.js           # Webview 主逻辑（地址栏、gadgets、编译、补全、程序广场、设置）
+└── src/
+    ├── extension.ts          # 激活入口、命令注册、新建/打开文件
+    ├── ropEditorProvider.ts  # CustomTextEditor 提供者、状态栏、设置与 disas 同步
+    ├── presets.ts            # VerF / VerC gadgets 内置预设
+    ├── market.ts             # 程序广场 API（ropide.pages.dev）
+    ├── welcome.ts            # 欢迎/关于页（居中程序广场弹窗）
+    └── rop.ts                # .rop JSON 解析/序列化、disas 解析与片段截取
 ```
 
 > 注意：`media/editor.html` 未单独使用，HTML 由 `RopEditorProvider.getHtml()` 生成（便于注入 CSP nonce 与 webview URI）。

@@ -118,6 +118,25 @@
           "type": "number",
           "default": 3001,
           "description": "CasioEmuMsvc McpPlugin 的 MCP 端口（默认 3001）。"
+        },
+        "ropide.showGadgetDisasm": {
+          "type": "boolean",
+          "default": false,
+          "description": "【实验性】在 Gadgets 面板中展示每个 gadget 的反汇编源码（需要提供 _disas 文件）。"
+        },
+        "ropide.disasPath": {
+          "type": "string",
+          "default": "",
+          "description": "_disas 反汇编文件路径（由设置页选择，一般无需手动修改）。"
+        },
+        "ropide.language": {
+          "type": "string",
+          "enum": [
+            "zh-CN",
+            "en"
+          ],
+          "default": "zh-CN",
+          "description": "界面语言 / UI language（简体中文 / English）。"
         }
       }
     }

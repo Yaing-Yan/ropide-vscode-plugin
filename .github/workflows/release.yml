@@ -38,7 +38,8 @@ jobs:
           gh release create "auto-build-${{ steps.meta.outputs.stamp }}" \
             "ropide-vscode-plugin-${{ steps.meta.outputs.date }}.vsix" \
             --title "AUTO BUILD ${{ steps.meta.outputs.date }}" \
-            --notes "**AUTO BUILD**（自动构建，每次 push 自动生成，不覆盖历史版本）
+            --notes "**AUTO BUILD** — automatically built on every push; historical builds are kept.
+            自动构建，每次 push 自动生成，不覆盖历史版本。
 
-            构建日期：${{ steps.meta.outputs.date }}
-            提交：${{ github.sha }}"
+            Build date / 构建日期：${{ steps.meta.outputs.date }}
+            Commit / 提交：${{ github.sha }}"
