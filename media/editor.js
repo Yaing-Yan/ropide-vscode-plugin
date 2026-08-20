@@ -72,8 +72,14 @@
     <div class="error-banner" id="errorBanner" hidden></div>
     <div class="toolbar">
       <div class="tb-left">
-        <span class="tb-title" id="fileName">untitled.rop</span>
-        <span class="tb-dirty" id="dirtyBadge" hidden>●</span>
+        <div class="tb-emu">
+          <span class="tb-field"><label for="injectAddress">注入地址</label><input class="addr-input" id="injectAddress" maxlength="5" spellcheck="false" /></span>
+          <button class="tb-btn primary" id="btnWriteRam" title="把编译结果写入模拟器 RAM（注入地址，默认左地址）">${ICONS.play}覆写RAM</button>
+          <span class="tb-field"><label for="launcherAddr">地址</label><input class="addr-input" id="launcherAddr" maxlength="5" value="D180" spellcheck="false" /></span>
+          <input class="text-input tb-launcher" id="launcher" placeholder="launcher（如 FD 24 E0 E9 8F 23 42）" spellcheck="false" />
+          <button class="tb-btn primary" id="btnWriteLauncher" title="把 launcher 写入模拟器指定地址">${ICONS.play}覆写launcher</button>
+          <span class="emu-status" id="emuError" hidden></span>
+        </div>
       </div>
       <div class="tb-right">
         <button class="tb-btn" id="btnNew" title="新建 .rop 文件">${ICONS['new-file']}</button>
@@ -102,7 +108,6 @@
         <div class="sidepanel-tabs">
           <button class="sp-tab" data-tab="compile">编译</button>
           <button class="sp-tab" data-tab="gadgets">Gadgets</button>
-          <button class="sp-tab" data-tab="market">程序广场</button>
           <div class="spacer"></div>
           <button class="sp-close" id="btnClosePanel" title="关闭分栏">${ICONS.close}</button>
         </div>
@@ -111,18 +116,6 @@
             <div class="compile-setting">
               <span class="field">左地址 <input class="addr-input" id="leftAddrInput" maxlength="5" /></span>
               <span class="field">右地址 <input class="addr-input" id="rightAddrInput" maxlength="5" /></span>
-            </div>
-            <div class="emu-section">
-              <div class="emu-row">
-                <span class="field">注入地址 <input class="addr-input" id="injectAddress" maxlength="5" /></span>
-                <button class="icon-btn primary" id="btnWriteRam">覆写RAM</button>
-              </div>
-              <div class="emu-row">
-                <span class="field">地址 <input class="addr-input" id="launcherAddr" maxlength="5" value="D180" /></span>
-                <input class="text-input" id="launcher" placeholder="请输入 launcher（如 FD 24 E0 E9 8F 23 42）" />
-                <button class="icon-btn primary" id="btnWriteLauncher">覆写launcher</button>
-              </div>
-              <div class="emu-error" id="emuError" hidden></div>
             </div>
             <div class="compile-actions">
               <button class="icon-btn" id="btnCopyHex">${ICONS.copy}复制 hex 串</button>
@@ -143,13 +136,6 @@
             <div class="gadget-list" id="gadgetList"></div>
           </div>
 
-          <div class="tab-content" id="panelMarket" hidden>
-            <div class="panel-toolbar">
-              <input class="search-input" id="marketSearch" type="text" placeholder="搜索 name / author / model / desc…" />
-              <button class="icon-btn primary" id="btnPublish">${ICONS.plus}发布</button>
-            </div>
-            <div class="market-list" id="marketList"></div>
-          </div>
         </div>
       </div>
     </div>
@@ -166,6 +152,21 @@
           <input class="jump-addr" id="jumpAddr" placeholder="如 E9E0" maxlength="5" spellcheck="false" autocomplete="off" />
         </div>
         <span id="cursorInfo"></span>
+      </div>
+    </div>
+
+    <div class="overlay" id="marketOverlay" hidden>
+      <div class="panel wide">
+        <div class="panel-header">
+          <h2>程序广场</h2>
+          <div class="spacer"></div>
+          <input class="search-input panel-search" id="marketSearch" type="text" placeholder="搜索 name / author / model / desc…" />
+          <button class="icon-btn primary" id="btnPublish">${ICONS.plus}发布</button>
+          <button class="icon-btn" id="btnCloseMarket" title="关闭">${ICONS.close}</button>
+        </div>
+        <div class="panel-body">
+          <div class="market-list" id="marketList"></div>
+        </div>
       </div>
     </div>
 
@@ -207,8 +208,6 @@
 
   const el = {
     errorBanner: document.getElementById('errorBanner'),
-    fileName: document.getElementById('fileName'),
-    dirtyBadge: document.getElementById('dirtyBadge'),
     btnNew: document.getElementById('btnNew'),
     btnGadgets: document.getElementById('btnGadgets'),
     btnCompile: document.getElementById('btnCompile'),
@@ -232,7 +231,6 @@
     tabs: document.querySelectorAll('.sp-tab'),
     panelCompile: document.getElementById('panelCompile'),
     panelGadgets: document.getElementById('panelGadgets'),
-    panelMarket: document.getElementById('panelMarket'),
     gadgetSearch: document.getElementById('gadgetSearch'),
     gadgetList: document.getElementById('gadgetList'),
     btnAddGadget: document.getElementById('btnAddGadget'),
@@ -250,6 +248,8 @@
     btnCopyDump: document.getElementById('btnCopyDump'),
     compileInfo: document.getElementById('compileInfo'),
     hexdump: document.getElementById('hexdump'),
+    marketOverlay: document.getElementById('marketOverlay'),
+    btnCloseMarket: document.getElementById('btnCloseMarket'),
     marketSearch: document.getElementById('marketSearch'),
     marketList: document.getElementById('marketList'),
     btnPublish: document.getElementById('btnPublish'),
@@ -357,6 +357,7 @@
     renderFooter();
     updateCursor();
     if (activeTab === 'compile') renderCompile();
+    syncEmuInjectAddress();
   }
 
   function renderHighlight() {
@@ -458,7 +459,7 @@
   /* ---------------- 输入 / 光标 / 滚动 ---------------- */
   el.input.addEventListener('input', () => {
     state.input = el.input.value;
-    if (!dirty) { dirty = true; el.dirtyBadge.hidden = false; }
+    dirty = true;
     render();
     scheduleSave();
     handleAutocomplete();
@@ -545,7 +546,7 @@
     const end = el.input.selectionEnd;
     el.input.setRangeText(text, start, end, 'end');
     state.input = el.input.value;
-    if (!dirty) { dirty = true; el.dirtyBadge.hidden = false; }
+    dirty = true;
     render();
     scheduleSave();
   }
@@ -554,7 +555,7 @@
   el.btnNew.addEventListener('click', () => vscode.postMessage({ type: 'new' }));
   el.btnGadgets.addEventListener('click', () => togglePanel('gadgets'));
   el.btnCompile.addEventListener('click', () => togglePanel('compile'));
-  el.btnMarket.addEventListener('click', () => togglePanel('market'));
+  el.btnMarket.addEventListener('click', openMarketOverlay);
   el.btnAbout.addEventListener('click', () => vscode.postMessage({ type: 'about' }));
   el.btnClosePanel.addEventListener('click', () => {
     el.sidepanel.hidden = true;
@@ -571,7 +572,6 @@
     setActiveTab(tab);
     if (tab === 'compile') openCompile();
     else if (tab === 'gadgets') openGadgets();
-    else if (tab === 'market') openMarket();
   }
 
   function togglePanel(tab) {
@@ -589,7 +589,6 @@
     el.tabs.forEach((t) => t.classList.toggle('active', t.dataset.tab === tab));
     el.panelCompile.hidden = tab !== 'compile';
     el.panelGadgets.hidden = tab !== 'gadgets';
-    el.panelMarket.hidden = tab !== 'market';
   }
 
   // 右侧分栏宽度可拖拽调整
@@ -808,7 +807,7 @@
   }
 
   function markChanged() {
-    if (!dirty) { dirty = true; el.dirtyBadge.hidden = false; }
+    dirty = true;
     render();
     scheduleSave();
   }
@@ -828,9 +827,6 @@
   function openCompile() {
     el.leftAddrInput.value = state.leftStartAddress;
     el.rightAddrInput.value = state.rightStartAddress;
-    el.injectAddress.value = injectAddress || state.leftStartAddress;
-    el.launcher.value = launcher;
-    el.launcherAddr.value = launcherAddr;
     el.emuError.hidden = true;
     renderCompile();
   }
@@ -850,7 +846,6 @@
     const hex = parsed ? parsed.hexChars : '';
     const leftBase = parseBase(state.leftStartAddress);
     const rightBase = parseBase(state.rightStartAddress);
-    if (!injectAddress) el.injectAddress.value = state.leftStartAddress;
 
     const bytes = [];
     for (let i = 0; i < hex.length; i += 2) bytes.push(hex.slice(i, i + 2));
@@ -1144,13 +1139,32 @@
   el.input.addEventListener('mousemove', handleHover);
   el.input.addEventListener('mouseleave', hideHover);
 
-  /* ---------------- 覆写模拟器（RAM / launcher） ---------------- */
+  /* ---------------- 覆写模拟器（RAM / launcher，位于顶部工具栏） ---------------- */
+  function initEmuToolbar() {
+    el.injectAddress.value = injectAddress || state.leftStartAddress;
+    el.launcher.value = launcher;
+    el.launcherAddr.value = launcherAddr;
+    el.emuError.hidden = true;
+  }
+
+  // 用户未自定义注入地址时，跟随左地址变化。
+  function syncEmuInjectAddress() {
+    if (!injectAddress) el.injectAddress.value = state.leftStartAddress;
+  }
+
   function showEmuStatus(msg, kind) {
     // kind: 'busy' | 'error' | ''（清空）
     if (msg) {
       el.emuError.textContent = msg;
+      el.emuError.title = msg;
       el.emuError.hidden = false;
+      // 状态条较窄，显示若干秒后自动隐藏。
+      clearTimeout(showEmuStatus._t);
+      if (kind !== 'busy') {
+        showEmuStatus._t = setTimeout(() => { el.emuError.hidden = true; }, 5000);
+      }
     } else {
+      clearTimeout(showEmuStatus._t);
       el.emuError.hidden = true;
     }
     el.emuError.classList.toggle('error', kind === 'error');
@@ -1159,6 +1173,7 @@
   }
 
   el.injectAddress.addEventListener('input', () => {
+    el.injectAddress.value = el.injectAddress.value.replace(/[^0-9a-fA-F]/g, '');
     injectAddress = el.injectAddress.value;
   });
   el.injectAddress.addEventListener('change', () => {
@@ -1173,6 +1188,7 @@
     vscode.postMessage({ type: 'persist', key: 'launcher', value: launcher });
   });
   el.launcherAddr.addEventListener('input', () => {
+    el.launcherAddr.value = el.launcherAddr.value.replace(/[^0-9a-fA-F]/g, '');
     launcherAddr = el.launcherAddr.value;
   });
   el.launcherAddr.addEventListener('change', () => {
@@ -1321,7 +1337,7 @@
       }
     }
     state.input = el.input.value;
-    if (!dirty) { dirty = true; el.dirtyBadge.hidden = false; }
+    dirty = true;
     render();
     scheduleSave();
     hideAutocomplete();
@@ -1342,14 +1358,25 @@
     if (btn) downloadMarketItem(btn.dataset.download);
   });
 
-  function openMarket() {
+  function openMarketOverlay() {
+    el.marketOverlay.hidden = false;
     el.marketSearch.value = '';
     marketItems = [];
     marketError = '';
     marketLoading = true;
     renderMarketList();
     vscode.postMessage({ type: 'market:list' });
+    el.marketSearch.focus();
   }
+
+  function closeMarketOverlay() {
+    el.marketOverlay.hidden = true;
+  }
+
+  el.btnCloseMarket.addEventListener('click', closeMarketOverlay);
+  el.marketOverlay.addEventListener('mousedown', (e) => {
+    if (e.target === el.marketOverlay) closeMarketOverlay();
+  });
 
   function openPublish() {
     el.publishName.value = (fileName || 'untitled.rop').replace(/\.rop$/i, '');
@@ -1476,7 +1503,6 @@
       case 'init':
         if (typeof msg.fileName === 'string') {
           fileName = msg.fileName;
-          el.fileName.textContent = fileName;
         }
         if (msg.valid === false) {
           showError(msg.error || '这不是合法的 .rop（JSON）文件。');
@@ -1485,6 +1511,7 @@
         }
         injectAddress = typeof msg.injectAddress === 'string' ? msg.injectAddress : '';
         launcher = typeof msg.launcher === 'string' ? msg.launcher : '';
+        launcherAddr = typeof msg.launcherAddr === 'string' ? msg.launcherAddr : 'D180';
         // fallthrough
       case 'update': {
         state.input = typeof msg.input === 'string' ? msg.input : '';
@@ -1494,7 +1521,7 @@
         state.ideVersion = typeof msg.ideVersion === 'number' ? msg.ideVersion : 100;
         if (el.input.value !== state.input) el.input.value = state.input;
         dirty = false;
-        el.dirtyBadge.hidden = true;
+        initEmuToolbar();
         render();
         break;
       }
@@ -1508,7 +1535,7 @@
         openPanel('gadgets');
         break;
       case 'show-market':
-        openPanel('market');
+        openMarketOverlay();
         break;
       case 'market:list-result':
         marketLoading = false;
