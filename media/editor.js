@@ -108,6 +108,7 @@
         <div class="sidepanel-tabs">
           <button class="sp-tab" data-tab="compile">编译</button>
           <button class="sp-tab" data-tab="gadgets">Gadgets</button>
+          <button class="sp-tab" data-tab="market">程序广场</button>
           <div class="spacer"></div>
           <button class="sp-close" id="btnClosePanel" title="关闭分栏">${ICONS.close}</button>
         </div>
@@ -136,6 +137,13 @@
             <div class="gadget-list" id="gadgetList"></div>
           </div>
 
+          <div class="tab-content" id="panelMarket" hidden>
+            <div class="panel-toolbar">
+              <input class="search-input" id="marketSearch" type="text" placeholder="搜索 name / author / model / desc…" />
+              <button class="icon-btn primary" id="btnPublish">${ICONS.plus}发布</button>
+            </div>
+            <div class="market-list" id="marketList"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -152,21 +160,6 @@
           <input class="jump-addr" id="jumpAddr" placeholder="如 E9E0" maxlength="5" spellcheck="false" autocomplete="off" />
         </div>
         <span id="cursorInfo"></span>
-      </div>
-    </div>
-
-    <div class="overlay" id="marketOverlay" hidden>
-      <div class="panel wide">
-        <div class="panel-header">
-          <h2>程序广场</h2>
-          <div class="spacer"></div>
-          <input class="search-input panel-search" id="marketSearch" type="text" placeholder="搜索 name / author / model / desc…" />
-          <button class="icon-btn primary" id="btnPublish">${ICONS.plus}发布</button>
-          <button class="icon-btn" id="btnCloseMarket" title="关闭">${ICONS.close}</button>
-        </div>
-        <div class="panel-body">
-          <div class="market-list" id="marketList"></div>
-        </div>
       </div>
     </div>
 
@@ -231,6 +224,7 @@
     tabs: document.querySelectorAll('.sp-tab'),
     panelCompile: document.getElementById('panelCompile'),
     panelGadgets: document.getElementById('panelGadgets'),
+    panelMarket: document.getElementById('panelMarket'),
     gadgetSearch: document.getElementById('gadgetSearch'),
     gadgetList: document.getElementById('gadgetList'),
     btnAddGadget: document.getElementById('btnAddGadget'),
@@ -248,8 +242,6 @@
     btnCopyDump: document.getElementById('btnCopyDump'),
     compileInfo: document.getElementById('compileInfo'),
     hexdump: document.getElementById('hexdump'),
-    marketOverlay: document.getElementById('marketOverlay'),
-    btnCloseMarket: document.getElementById('btnCloseMarket'),
     marketSearch: document.getElementById('marketSearch'),
     marketList: document.getElementById('marketList'),
     btnPublish: document.getElementById('btnPublish'),
@@ -555,7 +547,7 @@
   el.btnNew.addEventListener('click', () => vscode.postMessage({ type: 'new' }));
   el.btnGadgets.addEventListener('click', () => togglePanel('gadgets'));
   el.btnCompile.addEventListener('click', () => togglePanel('compile'));
-  el.btnMarket.addEventListener('click', openMarketOverlay);
+  el.btnMarket.addEventListener('click', () => togglePanel('market'));
   el.btnAbout.addEventListener('click', () => vscode.postMessage({ type: 'about' }));
   el.btnClosePanel.addEventListener('click', () => {
     el.sidepanel.hidden = true;
@@ -572,6 +564,7 @@
     setActiveTab(tab);
     if (tab === 'compile') openCompile();
     else if (tab === 'gadgets') openGadgets();
+    else if (tab === 'market') openMarket();
   }
 
   function togglePanel(tab) {
@@ -589,6 +582,7 @@
     el.tabs.forEach((t) => t.classList.toggle('active', t.dataset.tab === tab));
     el.panelCompile.hidden = tab !== 'compile';
     el.panelGadgets.hidden = tab !== 'gadgets';
+    el.panelMarket.hidden = tab !== 'market';
   }
 
   // 右侧分栏宽度可拖拽调整
@@ -1358,25 +1352,14 @@
     if (btn) downloadMarketItem(btn.dataset.download);
   });
 
-  function openMarketOverlay() {
-    el.marketOverlay.hidden = false;
+  function openMarket() {
     el.marketSearch.value = '';
     marketItems = [];
     marketError = '';
     marketLoading = true;
     renderMarketList();
     vscode.postMessage({ type: 'market:list' });
-    el.marketSearch.focus();
   }
-
-  function closeMarketOverlay() {
-    el.marketOverlay.hidden = true;
-  }
-
-  el.btnCloseMarket.addEventListener('click', closeMarketOverlay);
-  el.marketOverlay.addEventListener('mousedown', (e) => {
-    if (e.target === el.marketOverlay) closeMarketOverlay();
-  });
 
   function openPublish() {
     el.publishName.value = (fileName || 'untitled.rop').replace(/\.rop$/i, '');
@@ -1535,7 +1518,7 @@
         openPanel('gadgets');
         break;
       case 'show-market':
-        openMarketOverlay();
+        openPanel('market');
         break;
       case 'market:list-result':
         marketLoading = false;
