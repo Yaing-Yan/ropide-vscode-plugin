@@ -64,7 +64,8 @@
       desc: '描述 *',
       descPh: '程序说明…',
       challenge: '内行验证 *',
-      challengePh: '两字节十六进制（如 1A2B）',
+      challengePh: '两字节十六进制',
+      challengeText: '为防止垃圾信息或机器人提交，请查看 fx-991CNX VerF ROM 中 0x{addr} 处的两个字节，并以十六进制输入（例: 1A2B），以证明你是圈内成员。',
       cancel: '取消',
       copied: '已复制',
       unnamed: '(未命名)',
@@ -89,6 +90,7 @@
       writingEmu: '覆写中…（首次定位 RAM 可能需要数十秒）',
       needLauncher: '请输入 launcher',
       invalidLauncherAddr: 'launcher 注入地址无效（1-5 位十六进制）',
+      emuNotRunning: '找不到正在运行的 CasioEmuMsvc，或者进程不支持 MCP（请从模拟器自身目录启动，详见 README）',
       invalidJumpAddr: '请输入 1–5 位十六进制地址',
       noJumpBytes: '当前还没有可跳转的字节',
       written: '已写入',
@@ -187,7 +189,8 @@
       desc: 'Description *',
       descPh: 'Program description…',
       challenge: 'Expert check *',
-      challengePh: 'Two bytes in hex (e.g. 1A2B)',
+      challengePh: 'Two bytes in hex',
+      challengeText: 'To prevent spam or bot submissions, please check the two bytes at 0x{addr} in the fx-991CNX VerF ROM and enter them in hex (e.g. 1A2B) to prove you are an insider.',
       cancel: 'Cancel',
       copied: 'Copied',
       unnamed: '(unnamed)',
@@ -212,6 +215,7 @@
       writingEmu: 'Writing… (locating RAM may take tens of seconds the first time)',
       needLauncher: 'Please enter a launcher',
       invalidLauncherAddr: 'Invalid launcher address (1-5 hex digits)',
+      emuNotRunning: 'CasioEmuMsvc is not running, or the process does not support MCP (start the emulator from its own directory, see README)',
       invalidJumpAddr: 'Enter a 1–5 digit hex address',
       noJumpBytes: 'No bytes to jump to yet',
       written: 'Written',
@@ -1971,9 +1975,7 @@
         if (msg.ok) {
           challenge = { token: msg.token, offset: msg.offset };
           el.challengeAnswer.disabled = false;
-          el.challengeHint.textContent = lang === 'en'
-            ? 'Enter the two bytes at 0x' + hexAddr(msg.offset) + ' in the fx-991CNX VerF ROM (e.g. 1A2B).'
-            : '请输入 fx-991CNX VerF ROM 中 0x' + hexAddr(msg.offset) + ' 处的两个字节（如 1A2B）。';
+          el.challengeHint.textContent = t('challengeText').replace('{addr}', hexAddr(msg.offset));
         } else {
           challenge = null;
           el.challengeAnswer.disabled = true;
@@ -2005,7 +2007,10 @@
           showEmuStatus('', '');
           showToast(t('written'));
         } else {
-          showEmuStatus(msg.error || t('writeFail'), 'error');
+          const err = msg.code === 'not-running'
+            ? t('emuNotRunning')
+            : (msg.error || t('writeFail'));
+          showEmuStatus(err, 'error');
         }
         break;
       case 'gadgets:export-result':

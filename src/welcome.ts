@@ -1,9 +1,30 @@
 import * as vscode from 'vscode';
-import { fetchMarketList, fetchMarketItem, MarketItem } from './market';
-import { serializeRopDocument } from './rop';
+import {
+  fetchMarketList,
+  fetchMarketItem,
+  fetchMarketChallenge,
+  publishToMarket,
+  MarketItem,
+} from './market';
+import { parseRopDocument, serializeRopDocument } from './rop';
 import { RopEditorProvider } from './ropEditorProvider';
+import { closeTabIfOpen } from './tabs';
 
 type WelcomeLang = 'zh-CN' | 'en';
+
+interface WelcomeMessage {
+  type?: string;
+  lang?: string;
+  url?: string;
+  id?: number | string;
+  name?: string;
+  data?: string;
+  author?: string;
+  model?: string;
+  description?: string;
+  challengeToken?: string;
+  challengeAnswer?: string;
+}
 
 /* ---------------- 欢迎页 i18n（复用全局设置 ropide.language） ---------------- */
 const WELCOME_STR: Record<WelcomeLang, Record<string, string>> = {
@@ -28,6 +49,40 @@ const WELCOME_STR: Record<WelcomeLang, Record<string, string>> = {
     unnamed: '(未命名)',
     byAuthor: '作者：',
     byModel: '机型：',
+    // 发布
+    publish: '发布',
+    publishTitle: '发布到程序广场',
+    chooseRop: '选择要发布的 .rop 文件',
+    progName: '程序名 *',
+    progNamePh: '例如 tetris',
+    author: '作者 *',
+    authorPh: '你的昵称',
+    model: '机型 *',
+    modelSel: '选择机型',
+    other: '其它',
+    otherModel: '其它机型 *',
+    otherModelPh: '输入机型',
+    desc: '描述 *',
+    descPh: '程序说明…',
+    challenge: '内行验证 *',
+    challengePh: '两字节十六进制',
+    challengeText: '为防止垃圾信息或机器人提交，请查看 fx-991CNX VerF ROM 中 0x{addr} 处的两个字节，并以十六进制输入（例: 1A2B），以证明你是圈内成员。',
+    cancel: '取消',
+    published: '发布成功',
+    publishFail: '发布失败：',
+    challengeLoading: '正在获取验证题目…',
+    challengeWait: '验证题目加载中，请稍候',
+    challengeRetry: '验证题目加载失败，正在重试',
+    challengeFail: '获取验证题目失败：',
+    challengeRetryLater: '请稍后重试',
+    challengeWrong: '验证失败：字节错误，已更换新题目',
+    challengeExpired: '验证题目已过期，已更换新题目',
+    needName: '请填写程序名',
+    needAuthor: '请填写作者',
+    needModel: '请选择 / 填写机型',
+    needDesc: '请填写描述',
+    needAnswer: '请输入 4 位十六进制的两字节答案',
+    ropLoadFail: '读取 .rop 文件失败：',
   },
   en: {
     title: 'Welcome to RopIDE for VS Code',
@@ -50,6 +105,40 @@ const WELCOME_STR: Record<WelcomeLang, Record<string, string>> = {
     unnamed: '(unnamed)',
     byAuthor: 'Author: ',
     byModel: 'Model: ',
+    // publish
+    publish: 'Publish',
+    publishTitle: 'Publish to Market',
+    chooseRop: 'Choose a .rop file to publish',
+    progName: 'Name *',
+    progNamePh: 'e.g. tetris',
+    author: 'Author *',
+    authorPh: 'Your nickname',
+    model: 'Model *',
+    modelSel: 'Select model',
+    other: 'Other',
+    otherModel: 'Other model *',
+    otherModelPh: 'Enter model',
+    desc: 'Description *',
+    descPh: 'Program description…',
+    challenge: 'Expert check *',
+    challengePh: 'Two bytes in hex',
+    challengeText: 'To prevent spam or bot submissions, please check the two bytes at 0x{addr} in the fx-991CNX VerF ROM and enter them in hex (e.g. 1A2B) to prove you are an insider.',
+    cancel: 'Cancel',
+    published: 'Published',
+    publishFail: 'Publish failed: ',
+    challengeLoading: 'Fetching challenge…',
+    challengeWait: 'Challenge is loading, please wait',
+    challengeRetry: 'Challenge failed to load, retrying',
+    challengeFail: 'Failed to fetch challenge: ',
+    challengeRetryLater: 'please retry later',
+    challengeWrong: 'Check failed: wrong bytes, a new challenge was issued',
+    challengeExpired: 'Challenge expired, a new one was issued',
+    needName: 'Please enter a program name',
+    needAuthor: 'Please enter the author',
+    needModel: 'Please select / enter a model',
+    needDesc: 'Please enter a description',
+    needAnswer: 'Enter the two-byte answer as 4 hex digits',
+    ropLoadFail: 'Failed to read .rop file: ',
   },
 };
 
@@ -87,7 +176,7 @@ export function showWelcome(context: vscode.ExtensionContext): void {
     }
   });
 
-  panel.webview.onDidReceiveMessage((msg: { type?: string; lang?: string; url?: string; id?: number | string; name?: string }) => {
+  panel.webview.onDidReceiveMessage((msg: WelcomeMessage) => {
     if (msg.type === 'set-language' && (msg.lang === 'zh-CN' || msg.lang === 'en')) {
       const next: WelcomeLang = msg.lang;
       void (async () => {
@@ -125,6 +214,75 @@ export function showWelcome(context: vscode.ExtensionContext): void {
       void handleWelcomeMarketDownload(msg.id ?? '', msg.name || 'program');
       return;
     }
+    // 发布：先让用户选一个 .rop 文件，再回传序列化内容给 Webview 填表。
+    if (msg.type === 'market:publish-open') {
+      void (async () => {
+        const uris = await vscode.window.showOpenDialog({
+          canSelectMany: false,
+          filters: { 'Rop File': ['rop'] },
+          title: welcomeText(lang, 'chooseRop'),
+        });
+        if (!uris || uris.length === 0) {
+          panel.webview.postMessage({ type: 'market:publish-ready', cancelled: true });
+          return;
+        }
+        try {
+          const bytes = await vscode.workspace.fs.readFile(uris[0]);
+          const text = Buffer.from(bytes).toString('utf8');
+          const parsed = parseRopDocument(text);
+          if (!parsed.ok) {
+            panel.webview.postMessage({ type: 'market:publish-ready', error: parsed.error });
+            return;
+          }
+          const fileName = uris[0].path.split('/').pop() || 'program.rop';
+          panel.webview.postMessage({
+            type: 'market:publish-ready',
+            ok: true,
+            data: serializeRopDocument(parsed.data),
+            fileName,
+          });
+        } catch (e) {
+          panel.webview.postMessage({ type: 'market:publish-ready', error: (e as Error).message });
+        }
+      })();
+      return;
+    }
+    if (msg.type === 'market:challenge') {
+      void (async () => {
+        const r = await fetchMarketChallenge();
+        panel.webview.postMessage(
+          'error' in r
+            ? { type: 'market:challenge-result', ok: false, error: r.error }
+            : {
+                type: 'market:challenge-result',
+                ok: true,
+                token: r.challenge.token,
+                offset: r.challenge.offset,
+              }
+        );
+      })();
+      return;
+    }
+    if (msg.type === 'market:publish') {
+      void (async () => {
+        const r = await publishToMarket({
+          name: String(msg.name || ''),
+          author: String(msg.author || ''),
+          model: String(msg.model || ''),
+          description: String(msg.description || ''),
+          data: String(msg.data || ''),
+          timestamp: Date.now(),
+          challengeToken: typeof msg.challengeToken === 'string' ? msg.challengeToken : '',
+          challengeAnswer: typeof msg.challengeAnswer === 'string' ? msg.challengeAnswer : '',
+        });
+        panel.webview.postMessage(
+          r.ok
+            ? { type: 'market:publish-result', ok: true }
+            : { type: 'market:publish-result', ok: false, code: r.code, error: r.error }
+        );
+      })();
+      return;
+    }
   });
   context.subscriptions.push(panel, onConfigChange);
 }
@@ -158,24 +316,59 @@ async function handleWelcomeMarketDownload(id: number | string, name: string): P
     void vscode.window.showErrorMessage(`写入失败：${(e as Error).message}`);
     return;
   }
+  // 覆盖保存同名文件时，已打开的标签页不会自动重新读取磁盘内容，需先关闭再打开。
+  await closeTabIfOpen(uri);
   await vscode.commands.executeCommand('vscode.openWith', uri, RopEditorProvider.viewType);
 }
 
 function getWelcomeHtml(lang: WelcomeLang): string {
   // 按钮文本显示目标语言：当前中文 → 显示 EN；当前英文 → 显示 中文
+  const W = (k: string) => welcomeText(lang, k);
   const i18n = {
     target: lang === 'zh-CN' ? 'en' : 'zh-CN',
-    featured: welcomeText(lang, 'featured'),
-    all: welcomeText(lang, 'all'),
-    marketEmpty: welcomeText(lang, 'marketEmpty'),
-    noMarketMatch: welcomeText(lang, 'noMarketMatch'),
-    loading: welcomeText(lang, 'loading'),
-    loadFail: welcomeText(lang, 'loadFail'),
-    download: welcomeText(lang, 'download'),
-    downloading: welcomeText(lang, 'downloading'),
-    unnamed: welcomeText(lang, 'unnamed'),
-    byAuthor: welcomeText(lang, 'byAuthor'),
-    byModel: welcomeText(lang, 'byModel'),
+    featured: W('featured'),
+    all: W('all'),
+    marketEmpty: W('marketEmpty'),
+    noMarketMatch: W('noMarketMatch'),
+    loading: W('loading'),
+    loadFail: W('loadFail'),
+    download: W('download'),
+    downloading: W('downloading'),
+    unnamed: W('unnamed'),
+    byAuthor: W('byAuthor'),
+    byModel: W('byModel'),
+    publish: W('publish'),
+    publishTitle: W('publishTitle'),
+    progName: W('progName'),
+    progNamePh: W('progNamePh'),
+    author: W('author'),
+    authorPh: W('authorPh'),
+    model: W('model'),
+    modelSel: W('modelSel'),
+    other: W('other'),
+    otherModel: W('otherModel'),
+    otherModelPh: W('otherModelPh'),
+    desc: W('desc'),
+    descPh: W('descPh'),
+    challenge: W('challenge'),
+    challengePh: W('challengePh'),
+    challengeText: W('challengeText'),
+    cancel: W('cancel'),
+    published: W('published'),
+    publishFail: W('publishFail'),
+    challengeLoading: W('challengeLoading'),
+    challengeWait: W('challengeWait'),
+    challengeRetry: W('challengeRetry'),
+    challengeFail: W('challengeFail'),
+    challengeRetryLater: W('challengeRetryLater'),
+    challengeWrong: W('challengeWrong'),
+    challengeExpired: W('challengeExpired'),
+    needName: W('needName'),
+    needAuthor: W('needAuthor'),
+    needModel: W('needModel'),
+    needDesc: W('needDesc'),
+    needAnswer: W('needAnswer'),
+    ropLoadFail: W('ropLoadFail'),
   };
   const langBtnLabel = i18n.target === 'en' ? 'EN' : '中文';
 
@@ -271,6 +464,11 @@ function getWelcomeHtml(lang: WelcomeLang): string {
       border-radius: 8px;
       box-shadow: 0 8px 24px rgba(0,0,0,0.3);
       overflow: hidden;
+    }
+    .publish-panel {
+      width: min(560px, 94vw);
+      height: auto;
+      max-height: 88vh;
     }
     .market-header {
       display: flex;
@@ -370,6 +568,59 @@ function getWelcomeHtml(lang: WelcomeLang): string {
     }
     .market-dl:hover { background: var(--vscode-button-hoverBackground, #1177bb); }
     .market-dl:disabled { opacity: 0.5; cursor: default; }
+    .market-header .market-dl { align-self: center; }
+
+    /* ---------- 发布表单 ---------- */
+    .form-row { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+    .form-row > label { font-size: 12px; color: var(--vscode-descriptionForeground, #9d9d9d); }
+    .text-input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 6px 8px;
+      font-size: 13px;
+      font-family: inherit;
+      color: var(--vscode-input-foreground, #ccc);
+      background: var(--vscode-input-background, #3c3c3c);
+      border: 1px solid var(--vscode-input-border, #3c3c3c);
+      border-radius: 4px;
+    }
+    .text-input:disabled { opacity: 0.6; }
+    .tag-select {
+      padding: 5px 8px;
+      font-size: 13px;
+      font-family: inherit;
+      color: var(--vscode-input-foreground, #ccc);
+      background: var(--vscode-input-background, #3c3c3c);
+      border: 1px solid var(--vscode-input-border, #3c3c3c);
+      border-radius: 4px;
+    }
+    .challenge-hint {
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--vscode-descriptionForeground, #9d9d9d);
+      white-space: normal;
+    }
+    .market-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+
+    /* ---------- toast ---------- */
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 28px;
+      transform: translateX(-50%);
+      z-index: 300;
+      max-width: 80vw;
+      padding: 8px 16px;
+      font-size: 13px;
+      color: #fff;
+      background: rgba(30, 30, 30, 0.92);
+      border: 1px solid var(--vscode-panel-border, #3c3c3c);
+      border-radius: 6px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .toast.error { background: rgba(150, 20, 20, 0.92); border-color: #e51400; }
+    .toast[hidden] { display: none; }
+
     .footer {
       margin-top: auto;
       text-align: center;
@@ -387,33 +638,69 @@ function getWelcomeHtml(lang: WelcomeLang): string {
   </style>
 </head>
 <body>
-  <button class="lang-toggle" id="btnLang" data-target-lang="${i18n.target}" title="${welcomeText(lang, 'switchTo')}">${langBtnLabel}</button>
-  <div class="title">${welcomeText(lang, 'title')}</div>
-  <div class="body">${welcomeText(lang, 'subtitle')}</div>
+  <button class="lang-toggle" id="btnLang" data-target-lang="${i18n.target}" title="${W('switchTo')}">${langBtnLabel}</button>
+  <div class="title">${W('title')}</div>
+  <div class="body">${W('subtitle')}</div>
   <div class="actions">
-    <button data-command="ropide.newFile">${welcomeText(lang, 'newFile')}</button>
-    <button class="secondary" data-command="ropide.openFile">${welcomeText(lang, 'openFile')}</button>
-    <button class="secondary" id="btnMarket">${welcomeText(lang, 'market')}</button>
+    <button data-command="ropide.newFile">${W('newFile')}</button>
+    <button class="secondary" data-command="ropide.openFile">${W('openFile')}</button>
+    <button class="secondary" id="btnMarket">${W('market')}</button>
   </div>
 
   <div class="market-overlay" id="marketOverlay" hidden>
     <div class="market-panel">
       <div class="market-header">
-        <h2>${welcomeText(lang, 'marketTitle')}</h2>
+        <h2>${W('marketTitle')}</h2>
         <div class="spacer"></div>
-        <input class="market-search" id="marketSearch" type="text" placeholder="${welcomeText(lang, 'marketSearchPh')}" />
-        <button class="market-close" id="btnCloseMarket" title="${welcomeText(lang, 'closeTitle')}">×</button>
+        <input class="market-search" id="marketSearch" type="text" placeholder="${W('marketSearchPh')}" />
+        <button class="market-dl" id="btnPublishMarket">${i18n.publish}</button>
+        <button class="market-close" id="btnCloseMarket" title="${W('closeTitle')}">×</button>
       </div>
       <div class="market-body">
         <div class="market-grid" id="marketGrid"></div>
       </div>
     </div>
   </div>
+
+  <div class="market-overlay" id="publishOverlay" hidden>
+    <div class="market-panel publish-panel">
+      <div class="market-header">
+        <h2>${i18n.publishTitle}</h2>
+        <div class="spacer"></div>
+        <button class="market-close" id="btnClosePublish" title="${W('closeTitle')}">×</button>
+      </div>
+      <div class="market-body">
+        <div class="form-row"><label>${i18n.progName}</label><input class="text-input" id="publishName" placeholder="${i18n.progNamePh}" spellcheck="false" /></div>
+        <div class="form-row"><label>${i18n.author}</label><input class="text-input" id="publishAuthor" placeholder="${i18n.authorPh}" spellcheck="false" /></div>
+        <div class="form-row"><label>${i18n.model}</label>
+          <select class="tag-select" id="publishModel" style="width:100%">
+            <option value="" disabled selected hidden>${i18n.modelSel}</option>
+            <option value="fx-991CNX (VerC)">fx-991CNX (VerC)</option>
+            <option value="fx-991CNX (VerF)">fx-991CNX (VerF)</option>
+            <option value="other">${i18n.other}</option>
+          </select>
+        </div>
+        <div class="form-row" id="publishOtherRow" hidden><label>${i18n.otherModel}</label><input class="text-input" id="publishOtherModel" placeholder="${i18n.otherModelPh}" spellcheck="false" /></div>
+        <div class="form-row"><label>${i18n.desc}</label><textarea class="text-input" id="publishDescription" rows="6" placeholder="${i18n.descPh}"></textarea></div>
+        <div class="form-row">
+          <label>${i18n.challenge}</label>
+          <div class="challenge-hint" id="challengeHint">${i18n.challengeLoading}</div>
+          <input class="text-input" id="challengeAnswer" maxlength="9" placeholder="${i18n.challengePh}" disabled spellcheck="false" />
+        </div>
+        <div class="market-actions">
+          <button class="market-dl" id="btnCancelPublish" style="background:var(--vscode-button-secondaryBackground,#3a3d41)">${i18n.cancel}</button>
+          <button class="market-dl" id="btnConfirmPublish">${i18n.publish}</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="footer">
     <div>Copyright © 2026 <a href="https://github.com/Yaing-Yan/ropide-vscode-plugin">RopIDE for VS Code</a> @Yaing-Yan，使用了Vibe Coding技术</div>
     <div>Copyright © 2026 <a href="https://github.com/WulanOVO/rop-ide">RopIDE</a> @wlyibo</div>
     <div><a href="https://ropide.pages.dev/">RopIDE网页版</a>·<a href="https://rop-ide2.pages.dev/">xe1010ce20的ROP IDE 2nd</a></div>
   </div>
+  <div class="toast" id="toast" hidden></div>
   <script>
     const vscode = acquireVsCodeApi();
     const WI18N = ${JSON.stringify(i18n)};
@@ -437,6 +724,17 @@ function getWelcomeHtml(lang: WelcomeLang): string {
         vscode.postMessage({ type: 'open', url: a.href });
       }
     });
+
+    /* ---------- toast ---------- */
+    const toast = document.getElementById('toast');
+    let toastTimer = null;
+    function showToast(text, isError) {
+      toast.textContent = text;
+      toast.classList.toggle('error', !!isError);
+      toast.hidden = false;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { toast.hidden = true; }, 3000);
+    }
 
     /* ---------- 程序广场（居中弹窗） ---------- */
     const overlay = document.getElementById('marketOverlay');
@@ -522,6 +820,92 @@ function getWelcomeHtml(lang: WelcomeLang): string {
       grid.innerHTML = html;
     }
 
+    /* ---------- 发布（需先选择 .rop 文件） ---------- */
+    const publishOverlay = document.getElementById('publishOverlay');
+    const publishName = document.getElementById('publishName');
+    const publishAuthor = document.getElementById('publishAuthor');
+    const publishModel = document.getElementById('publishModel');
+    const publishOtherRow = document.getElementById('publishOtherRow');
+    const publishOtherModel = document.getElementById('publishOtherModel');
+    const publishDescription = document.getElementById('publishDescription');
+    const challengeHint = document.getElementById('challengeHint');
+    const challengeAnswer = document.getElementById('challengeAnswer');
+    const btnPublishMarket = document.getElementById('btnPublishMarket');
+    const btnConfirmPublish = document.getElementById('btnConfirmPublish');
+    let publishData = null;
+    let challenge = null;
+    let challengeLoading = false;
+
+    function hexAddr(v) {
+      return Math.max(0, Math.floor(v)).toString(16).toUpperCase().padStart(4, '0');
+    }
+
+    btnPublishMarket.addEventListener('click', () => {
+      btnPublishMarket.disabled = true;
+      btnPublishMarket.textContent = WI18N.loading;
+      vscode.postMessage({ type: 'market:publish-open' });
+    });
+
+    function closePublish() { publishOverlay.hidden = true; }
+
+    document.getElementById('btnClosePublish').addEventListener('click', closePublish);
+    document.getElementById('btnCancelPublish').addEventListener('click', () => {
+      btnConfirmPublish.disabled = false;
+      closePublish();
+    });
+    publishOverlay.addEventListener('mousedown', (e) => {
+      if (e.target === publishOverlay) {
+        btnConfirmPublish.disabled = false;
+        closePublish();
+      }
+    });
+    publishModel.addEventListener('change', () => {
+      publishOtherRow.hidden = publishModel.value !== 'other';
+    });
+
+    function fetchChallenge() {
+      challenge = null;
+      challengeLoading = true;
+      challengeAnswer.value = '';
+      challengeAnswer.disabled = true;
+      challengeHint.textContent = WI18N.challengeLoading;
+      vscode.postMessage({ type: 'market:challenge' });
+    }
+
+    function confirmPublish() {
+      const name = publishName.value.trim();
+      const author = publishAuthor.value.trim();
+      const model = publishModel.value === 'other' ? publishOtherModel.value.trim() : publishModel.value;
+      const description = publishDescription.value.trim();
+      if (!name) { showToast(WI18N.needName, true); return; }
+      if (!author) { showToast(WI18N.needAuthor, true); return; }
+      if (!model) { showToast(WI18N.needModel, true); return; }
+      if (!description) { showToast(WI18N.needDesc, true); return; }
+
+      const answer = challengeAnswer.value.replace(/[^0-9a-fA-F]/g, '').toLowerCase();
+      if (!challenge) {
+        if (challengeLoading) showToast(WI18N.challengeWait, true);
+        else { showToast(WI18N.challengeRetry, true); fetchChallenge(); }
+        return;
+      }
+      if (!/^[0-9a-f]{4}$/.test(answer)) {
+        showToast(WI18N.needAnswer, true);
+        return;
+      }
+      btnConfirmPublish.disabled = true;
+      vscode.postMessage({
+        type: 'market:publish',
+        name,
+        author,
+        model,
+        description,
+        data: publishData,
+        challengeToken: challenge.token,
+        challengeAnswer: answer,
+      });
+    }
+    btnConfirmPublish.addEventListener('click', confirmPublish);
+
     window.addEventListener('message', (e) => {
       const msg = e.data;
       if (!msg || typeof msg !== 'object') return;
@@ -535,6 +919,53 @@ function getWelcomeHtml(lang: WelcomeLang): string {
       } else if (msg.type === 'market:get-result') {
         downloadingId = null;
         renderGrid();
+      } else if (msg.type === 'market:publish-ready') {
+        btnPublishMarket.disabled = false;
+        btnPublishMarket.textContent = WI18N.publish;
+        if (msg.error) {
+          showToast(WI18N.ropLoadFail + msg.error, true);
+        } else if (msg.cancelled) {
+          // 用户取消选择文件
+        } else {
+          publishData = msg.data;
+          publishName.value = (msg.fileName || 'program.rop').replace(/\.rop$/i, '');
+          publishAuthor.value = '';
+          publishModel.value = '';
+          publishOtherRow.hidden = true;
+          publishOtherModel.value = '';
+          publishDescription.value = '';
+          publishOverlay.hidden = false;
+          fetchChallenge();
+        }
+      } else if (msg.type === 'market:challenge-result') {
+        challengeLoading = false;
+        if (msg.ok) {
+          challenge = { token: msg.token, offset: msg.offset };
+          challengeAnswer.disabled = false;
+          challengeHint.textContent = WI18N.challengeText.replace('{addr}', hexAddr(msg.offset));
+        } else {
+          challenge = null;
+          challengeAnswer.disabled = true;
+          challengeHint.textContent = WI18N.challengeFail + (msg.error || WI18N.challengeRetryLater);
+        }
+      } else if (msg.type === 'market:publish-result') {
+        btnConfirmPublish.disabled = false;
+        if (msg.ok) {
+          showToast(WI18N.published);
+          closePublish();
+          items = [];
+          downloadingId = null;
+          grid.innerHTML = '<div class="market-empty">' + WI18N.loading + '</div>';
+          vscode.postMessage({ type: 'market:list' });
+        } else if (msg.code === 'wrong') {
+          showToast(WI18N.challengeWrong, true);
+          fetchChallenge();
+        } else if (msg.code === 'expired') {
+          showToast(WI18N.challengeExpired, true);
+          fetchChallenge();
+        } else {
+          showToast(WI18N.publishFail + msg.error, true);
+        }
       }
     });
   </script>

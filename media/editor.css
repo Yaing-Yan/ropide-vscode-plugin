@@ -125,9 +125,8 @@ body {
 .emu-status {
   font-size: 12px;
   color: var(--muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow: visible;
   max-width: 320px;
   flex: 0 1 auto;
 }

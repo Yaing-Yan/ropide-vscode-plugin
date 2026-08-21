@@ -11,6 +11,7 @@ import {
 import { fetchMarketList, fetchMarketItem, fetchMarketChallenge, publishToMarket } from './market';
 import { emuWrite, parseHexBytes } from './emu';
 import { showWelcome } from './welcome';
+import { closeTabIfOpen } from './tabs';
 
 interface EditorSession {
   document: vscode.TextDocument;
@@ -302,6 +303,8 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
             });
             return;
           }
+          // 覆盖保存同名文件时，已打开的标签页不会自动重新读取磁盘内容，需先关闭再打开。
+          await closeTabIfOpen(uri);
           await vscode.commands.executeCommand('vscode.openWith', uri, RopEditorProvider.viewType);
           session.panel.webview.postMessage({ type: 'market:get-result', id, ok: true });
         })();
@@ -369,7 +372,7 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
           session.panel.webview.postMessage(
             r.ok
               ? { type: 'emu:write-result', ok: true }
-              : { type: 'emu:write-result', ok: false, error: r.error }
+              : { type: 'emu:write-result', ok: false, code: r.code, error: r.error }
           );
         })();
         break;

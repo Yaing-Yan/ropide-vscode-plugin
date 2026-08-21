@@ -13,7 +13,12 @@
 const MCP_HOST = '127.0.0.1';
 const NOT_RUNNING = '找不到正在运行的CasioEmuMsvc，或者进程不支持MCP';
 
-export type EmuWriteResult = { ok: true } | { ok: false; error: string };
+/** 覆写失败的类别，供界面按当前语言本地化展示。 */
+export type EmuWriteErrorCode = 'not-running' | 'http' | 'mcp' | 'network';
+
+export type EmuWriteResult =
+  | { ok: true }
+  | { ok: false; code: EmuWriteErrorCode; error: string };
 
 export interface EmuOptions {
   port: number;
@@ -54,7 +59,7 @@ export async function emuWrite(
   opts: EmuOptions
 ): Promise<EmuWriteResult> {
   if (!(await emuHealth(opts.port))) {
-    return { ok: false, error: NOT_RUNNING };
+    return { ok: false, code: 'not-running', error: NOT_RUNNING };
   }
 
   try {
@@ -76,20 +81,20 @@ export async function emuWrite(
       signal: AbortSignal.timeout(10000),
     });
     if (!res.ok) {
-      return { ok: false, error: `MCP 返回 HTTP ${res.status}` };
+      return { ok: false, code: 'http', error: `MCP 返回 HTTP ${res.status}` };
     }
     const data = (await res.json()) as Record<string, unknown>;
     if (data && data.error) {
       const e = data.error as Record<string, unknown>;
-      return { ok: false, error: String(e.message || 'MCP 错误') };
+      return { ok: false, code: 'mcp', error: String(e.message || 'MCP 错误') };
     }
     const result = data?.result as Record<string, unknown> | undefined;
     if (result && result.isError) {
       const content = result.content as Array<{ text?: string }> | undefined;
-      return { ok: false, error: (content && content[0] && content[0].text) || '写入失败' };
+      return { ok: false, code: 'mcp', error: (content && content[0] && content[0].text) || '写入失败' };
     }
     return { ok: true };
   } catch (e) {
-    return { ok: false, error: (e as Error).message };
+    return { ok: false, code: 'network', error: (e as Error).message };
   }
 }
