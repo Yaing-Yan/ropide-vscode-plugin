@@ -3,7 +3,68 @@ import { fetchMarketList, fetchMarketItem, MarketItem } from './market';
 import { serializeRopDocument } from './rop';
 import { RopEditorProvider } from './ropEditorProvider';
 
-/** 首次安装 / 重装后显示欢迎页。 */
+type WelcomeLang = 'zh-CN' | 'en';
+
+/* ---------------- 欢迎页 i18n（复用全局设置 ropide.language） ---------------- */
+const WELCOME_STR: Record<WelcomeLang, Record<string, string>> = {
+  'zh-CN': {
+    title: '欢迎使用RopIDE for VS Code',
+    subtitle: '打开一个.rop文件以继续。',
+    newFile: '新建一个ROP文件',
+    openFile: '打开ROP文件',
+    market: '程序广场',
+    marketTitle: '程序广场',
+    closeTitle: '关闭',
+    switchTo: '切换到英文',
+    marketSearchPh: '搜索 name / author / model / desc…',
+    featured: '精选',
+    all: '全部',
+    marketEmpty: '程序广场空空如也',
+    noMarketMatch: '没有匹配的程序',
+    loading: '加载中…',
+    loadFail: '加载失败：',
+    download: '下载',
+    downloading: '下载中…',
+    unnamed: '(未命名)',
+    byAuthor: '作者：',
+    byModel: '机型：',
+  },
+  en: {
+    title: 'Welcome to RopIDE for VS Code',
+    subtitle: 'Open a .rop file to continue.',
+    newFile: 'New ROP File',
+    openFile: 'Open ROP File',
+    market: 'Market',
+    marketTitle: 'Program Market',
+    closeTitle: 'Close',
+    switchTo: 'Switch to Chinese',
+    marketSearchPh: 'Search name / author / model / desc…',
+    featured: 'Featured',
+    all: 'All',
+    marketEmpty: 'The market is empty',
+    noMarketMatch: 'No matching programs',
+    loading: 'Loading…',
+    loadFail: 'Load failed: ',
+    download: 'Download',
+    downloading: 'Downloading…',
+    unnamed: '(unnamed)',
+    byAuthor: 'Author: ',
+    byModel: 'Model: ',
+  },
+};
+
+function welcomeText(lang: WelcomeLang, key: string): string {
+  const pack = WELCOME_STR[lang] || WELCOME_STR['zh-CN'];
+  const v = pack[key];
+  return v !== undefined ? v : (WELCOME_STR['zh-CN'][key] ?? key);
+}
+
+function currentLanguage(): WelcomeLang {
+  const v = vscode.workspace.getConfiguration('ropide').get<string>('language', 'zh-CN');
+  return v === 'en' ? 'en' : 'zh-CN';
+}
+
+/** 首次安装 / 重装后显示欢迎页。右上角语言按钮显示的是“将要切换到的语言”。 */
 export function showWelcome(context: vscode.ExtensionContext): void {
   const panel = vscode.window.createWebviewPanel(
     'ropide.welcome',
@@ -11,8 +72,36 @@ export function showWelcome(context: vscode.ExtensionContext): void {
     vscode.ViewColumn.Active,
     { enableScripts: true, retainContextWhenHidden: true }
   );
-  panel.webview.html = getWelcomeHtml();
-  panel.webview.onDidReceiveMessage((msg: { type?: string; url?: string; id?: number | string; name?: string }) => {
+
+  let lang: WelcomeLang = currentLanguage();
+  panel.webview.html = getWelcomeHtml(lang);
+
+  // 其它入口（设置面板 / 编辑器内）改变 ropide.language 时，欢迎页同步切换。
+  const onConfigChange = vscode.workspace.onDidChangeConfiguration((e) => {
+    if (e.affectsConfiguration('ropide.language')) {
+      const next = currentLanguage();
+      if (next !== lang) {
+        lang = next;
+        panel.webview.html = getWelcomeHtml(lang);
+      }
+    }
+  });
+
+  panel.webview.onDidReceiveMessage((msg: { type?: string; lang?: string; url?: string; id?: number | string; name?: string }) => {
+    if (msg.type === 'set-language' && (msg.lang === 'zh-CN' || msg.lang === 'en')) {
+      const next: WelcomeLang = msg.lang;
+      void (async () => {
+        try {
+          const cfg = vscode.workspace.getConfiguration('ropide');
+          await cfg.update('language', next, vscode.ConfigurationTarget.Global);
+        } catch {
+          // 写入失败不阻断界面刷新
+        }
+        lang = next;
+        panel.webview.html = getWelcomeHtml(lang);
+      })();
+      return;
+    }
     if (msg.type === 'open' && typeof msg.url === 'string') {
       void vscode.env.openExternal(vscode.Uri.parse(msg.url));
       return;
@@ -37,7 +126,7 @@ export function showWelcome(context: vscode.ExtensionContext): void {
       return;
     }
   });
-  context.subscriptions.push(panel);
+  context.subscriptions.push(panel, onConfigChange);
 }
 
 async function handleWelcomeMarketDownload(id: number | string, name: string): Promise<void> {
@@ -72,9 +161,26 @@ async function handleWelcomeMarketDownload(id: number | string, name: string): P
   await vscode.commands.executeCommand('vscode.openWith', uri, RopEditorProvider.viewType);
 }
 
-function getWelcomeHtml(): string {
+function getWelcomeHtml(lang: WelcomeLang): string {
+  // 按钮文本显示目标语言：当前中文 → 显示 EN；当前英文 → 显示 中文
+  const i18n = {
+    target: lang === 'zh-CN' ? 'en' : 'zh-CN',
+    featured: welcomeText(lang, 'featured'),
+    all: welcomeText(lang, 'all'),
+    marketEmpty: welcomeText(lang, 'marketEmpty'),
+    noMarketMatch: welcomeText(lang, 'noMarketMatch'),
+    loading: welcomeText(lang, 'loading'),
+    loadFail: welcomeText(lang, 'loadFail'),
+    download: welcomeText(lang, 'download'),
+    downloading: welcomeText(lang, 'downloading'),
+    unnamed: welcomeText(lang, 'unnamed'),
+    byAuthor: welcomeText(lang, 'byAuthor'),
+    byModel: welcomeText(lang, 'byModel'),
+  };
+  const langBtnLabel = i18n.target === 'en' ? 'EN' : '中文';
+
   return `<!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="${lang}">
 <head>
   <meta charset="UTF-8" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline';" />
@@ -90,6 +196,22 @@ function getWelcomeHtml(): string {
       color: var(--vscode-foreground, #cccccc);
       background: var(--vscode-editor-background, #1e1e1e);
     }
+    /* ---------- 右上角语言切换按钮 ---------- */
+    .lang-toggle {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      z-index: 200;
+      padding: 6px 14px;
+      font-size: 13px;
+      font-family: inherit;
+      color: var(--vscode-button-foreground, #fff);
+      background: var(--vscode-button-secondaryBackground, #3a3d41);
+      border: 1px solid var(--vscode-panel-border, #3c3c3c);
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .lang-toggle:hover { background: var(--vscode-button-secondaryHoverBackground, #45494e); }
     .title {
       text-align: center;
       font-weight: bold;
@@ -265,21 +387,22 @@ function getWelcomeHtml(): string {
   </style>
 </head>
 <body>
-  <div class="title">欢迎使用RopIDE for VS Code</div>
-  <div class="body">打开一个.rop文件以继续。</div>
+  <button class="lang-toggle" id="btnLang" data-target-lang="${i18n.target}" title="${welcomeText(lang, 'switchTo')}">${langBtnLabel}</button>
+  <div class="title">${welcomeText(lang, 'title')}</div>
+  <div class="body">${welcomeText(lang, 'subtitle')}</div>
   <div class="actions">
-    <button data-command="ropide.newFile">新建一个ROP文件</button>
-    <button class="secondary" data-command="ropide.openFile">打开ROP文件</button>
-    <button class="secondary" id="btnMarket">程序广场</button>
+    <button data-command="ropide.newFile">${welcomeText(lang, 'newFile')}</button>
+    <button class="secondary" data-command="ropide.openFile">${welcomeText(lang, 'openFile')}</button>
+    <button class="secondary" id="btnMarket">${welcomeText(lang, 'market')}</button>
   </div>
 
   <div class="market-overlay" id="marketOverlay" hidden>
     <div class="market-panel">
       <div class="market-header">
-        <h2>程序广场</h2>
+        <h2>${welcomeText(lang, 'marketTitle')}</h2>
         <div class="spacer"></div>
-        <input class="market-search" id="marketSearch" type="text" placeholder="搜索 name / author / model / desc…" />
-        <button class="market-close" id="btnCloseMarket" title="关闭">×</button>
+        <input class="market-search" id="marketSearch" type="text" placeholder="${welcomeText(lang, 'marketSearchPh')}" />
+        <button class="market-close" id="btnCloseMarket" title="${welcomeText(lang, 'closeTitle')}">×</button>
       </div>
       <div class="market-body">
         <div class="market-grid" id="marketGrid"></div>
@@ -293,6 +416,13 @@ function getWelcomeHtml(): string {
   </div>
   <script>
     const vscode = acquireVsCodeApi();
+    const WI18N = ${JSON.stringify(i18n)};
+
+    /* ---------- 语言切换按钮（右上角，显示目标语言） ---------- */
+    document.getElementById('btnLang').addEventListener('click', (e) => {
+      const btn = e.currentTarget;
+      vscode.postMessage({ type: 'set-language', lang: btn.dataset.targetLang });
+    });
 
     /* ---------- 链接 / 命令按钮 ---------- */
     document.addEventListener('click', (e) => {
@@ -326,7 +456,7 @@ function getWelcomeHtml(): string {
       search.value = '';
       items = [];
       downloadingId = null;
-      grid.innerHTML = '<div class="market-empty">加载中…</div>';
+      grid.innerHTML = '<div class="market-empty">' + WI18N.loading + '</div>';
       vscode.postMessage({ type: 'market:list' });
       search.focus();
     }
@@ -359,7 +489,7 @@ function getWelcomeHtml(): string {
       const normal = filtered.filter((it) => !it.featured);
 
       if (!filtered.length) {
-        grid.innerHTML = '<div class="market-empty">' + (q ? '没有匹配的程序' : '程序广场空空如也') + '</div>';
+        grid.innerHTML = '<div class="market-empty">' + (q ? WI18N.noMarketMatch : WI18N.marketEmpty) + '</div>';
         return;
       }
 
@@ -368,25 +498,25 @@ function getWelcomeHtml(): string {
         const busy = downloadingId === idStr;
         return (
           '<div class="market-card ' + (isFeatured ? 'featured' : '') + '">' +
-            '<div class="market-card-title">' + esc(it.name || '(未命名)') +
+            '<div class="market-card-title">' + esc(it.name || WI18N.unnamed) +
               (isFeatured ? ' <span class="market-star">★</span>' : '') + '</div>' +
             '<div class="market-card-meta">' +
-              '<span>作者：' + esc(it.author || '-') + '</span>' +
-              '<span>机型：' + esc(it.model || '-') + '</span>' +
+              '<span>' + WI18N.byAuthor + esc(it.author || '-') + '</span>' +
+              '<span>' + WI18N.byModel + esc(it.model || '-') + '</span>' +
             '</div>' +
             (it.description ? '<div class="market-card-desc">' + esc(it.description) + '</div>' : '') +
             '<button class="market-dl" data-download="' + esc(idStr) + '"' + (busy ? ' disabled' : '') + '>' +
-              (busy ? '下载中…' : '下载') + '</button>' +
+              (busy ? WI18N.downloading : WI18N.download) + '</button>' +
           '</div>'
         );
       };
 
       let html = '';
       if (featured.length) {
-        html += '<div class="market-section">精选</div>' + featured.map((it) => card(it, true)).join('');
+        html += '<div class="market-section">' + WI18N.featured + '</div>' + featured.map((it) => card(it, true)).join('');
       }
       if (normal.length) {
-        if (featured.length) html += '<div class="market-section">全部</div>';
+        if (featured.length) html += '<div class="market-section">' + WI18N.all + '</div>';
         html += normal.map((it) => card(it, false)).join('');
       }
       grid.innerHTML = html;
@@ -397,7 +527,7 @@ function getWelcomeHtml(): string {
       if (!msg || typeof msg !== 'object') return;
       if (msg.type === 'market:list-result') {
         if (msg.error) {
-          grid.innerHTML = '<div class="market-empty">加载失败：' + esc(msg.error) + '</div>';
+          grid.innerHTML = '<div class="market-empty">' + WI18N.loadFail + esc(msg.error) + '</div>';
         } else {
           items = Array.isArray(msg.items) ? msg.items : [];
           renderGrid();
