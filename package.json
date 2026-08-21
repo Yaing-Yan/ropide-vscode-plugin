@@ -124,11 +124,6 @@
           "default": false,
           "description": "【实验性】在 Gadgets 面板中展示每个 gadget 的反汇编源码（需要提供 _disas 文件）。"
         },
-        "ropide.disasPath": {
-          "type": "string",
-          "default": "",
-          "description": "_disas 反汇编文件路径（由设置页选择，一般无需手动修改）。"
-        },
         "ropide.language": {
           "type": "string",
           "enum": [

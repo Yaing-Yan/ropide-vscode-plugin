@@ -19,6 +19,12 @@ interface EditorSession {
   writing: boolean;
   valid: boolean;
   error: string;
+  disasMap: Map<number, string[]> | null;
+  disasFile: string;
+}
+
+interface SidecarConfig {
+  disasPath?: string;
 }
 
 /**
@@ -33,8 +39,8 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
   private readonly sessions = new Map<string, EditorSession>();
   private readonly statusBar: vscode.StatusBarItem;
   private lastActiveUri: string | undefined;
-  private disasMap: Map<number, string[]> | null = null;
-  private disasFile = '';
+  /** 路径 -> 已解析的 disas 地址映射（避免对同一大文件重复解析） */
+  private readonly disasCache = new Map<string, Map<number, string[]>>();
 
   constructor(private readonly context: vscode.ExtensionContext) {
     this.statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
@@ -44,27 +50,94 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
     this.statusBar.show();
     context.subscriptions.push(this.statusBar);
 
-    // VS Code 设置变化 → 同步到所有打开的编辑器 Webview
+    // 全局设置（语言 / 展示汇编开关）变化 → 同步到所有编辑器
     context.subscriptions.push(
       vscode.workspace.onDidChangeConfiguration((e) => {
         if (e.affectsConfiguration('ropide.showGadgetDisasm') || e.affectsConfiguration('ropide.language')) {
-          this.pushSettingsToAll();
+          this.pushGlobalSettingsToAll();
         }
       })
     );
   }
 
-  private currentSettings(): { language: string; showGadgetDisasm: boolean; disasFile: string; disasLoaded: boolean } {
+  private globalSettings(): { language: string; showGadgetDisasm: boolean } {
     const cfg = vscode.workspace.getConfiguration('ropide');
-    const showGadgetDisasm = cfg.get<boolean>('showGadgetDisasm', false);
-    const language = cfg.get<string>('language', 'zh-CN');
-    return { language, showGadgetDisasm, disasFile: this.disasFile, disasLoaded: this.disasMap !== null };
+    return {
+      language: cfg.get<string>('language', 'zh-CN'),
+      showGadgetDisasm: cfg.get<boolean>('showGadgetDisasm', false),
+    };
   }
 
-  private pushSettingsToAll(): void {
-    const settings = this.currentSettings();
+  private sessionSettings(s: EditorSession) {
+    return {
+      ...this.globalSettings(),
+      disasFile: s.disasFile,
+      disasLoaded: s.disasMap !== null,
+    };
+  }
+
+  private pushGlobalSettingsToAll(): void {
+    const g = this.globalSettings();
     for (const s of this.sessions.values()) {
-      s.panel.webview.postMessage({ type: 'settings', ...settings });
+      s.panel.webview.postMessage({ type: 'settings', ...g, disasFile: s.disasFile, disasLoaded: s.disasMap !== null });
+    }
+  }
+
+  private pushSettings(s: EditorSession): void {
+    s.panel.webview.postMessage({ type: 'settings', ...this.sessionSettings(s) });
+  }
+
+  /** .rop 文件旁的隐藏配置 sidecar：<name>.ropide.json */
+  private sidecarUri(ropUri: vscode.Uri): vscode.Uri {
+    const base = ropUri.path.replace(/\.rop$/i, '');
+    return ropUri.with({ path: base + '.ropide.json' });
+  }
+
+  private async readSidecar(ropUri: vscode.Uri): Promise<SidecarConfig> {
+    try {
+      const bytes = await vscode.workspace.fs.readFile(this.sidecarUri(ropUri));
+      const obj = JSON.parse(Buffer.from(bytes).toString('utf8'));
+      return typeof obj === 'object' && obj ? (obj as SidecarConfig) : {};
+    } catch {
+      return {};
+    }
+  }
+
+  private async writeSidecar(ropUri: vscode.Uri, cfg: SidecarConfig): Promise<void> {
+    const uri = this.sidecarUri(ropUri);
+    const bytes = Buffer.from(JSON.stringify(cfg, null, 2), 'utf8');
+    await vscode.workspace.fs.writeFile(uri, bytes);
+  }
+
+  /** 读取（必要时解析）指定 disas 文件，返回地址映射；失败返回 null。 */
+  private async loadDisasMap(disasPath: string): Promise<Map<number, string[]> | null> {
+    const cached = this.disasCache.get(disasPath);
+    if (cached) return cached;
+    try {
+      const bytes = await vscode.workspace.fs.readFile(vscode.Uri.file(disasPath));
+      const text = Buffer.from(bytes).toString('utf8');
+      const map = parseDisas(text);
+      this.disasCache.set(disasPath, map);
+      return map;
+    } catch {
+      return null;
+    }
+  }
+
+  /** 根据 sidecar 加载该 .rop 文件对应的 _disas 到 session。 */
+  private async loadSessionDisas(session: EditorSession): Promise<void> {
+    const cfg = await this.readSidecar(session.document.uri);
+    const p = cfg.disasPath;
+    if (p) {
+      const map = await this.loadDisasMap(p);
+      if (map) {
+        session.disasMap = map;
+        session.disasFile = p.split(/[\\/]/).pop() || p;
+      } else {
+        // 路径失效：清空，但 sidecar 保留（用户可能只是临时移动了文件）
+        session.disasMap = null;
+        session.disasFile = '';
+      }
     }
   }
 
@@ -84,9 +157,14 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
       writing: false,
       valid: parsed.ok,
       error: parsed.ok ? '' : parsed.error,
+      disasMap: null,
+      disasFile: '',
     };
     this.sessions.set(uriKey, session);
     this.lastActiveUri = uriKey;
+
+    // 按 sidecar 配置加载该 .rop 文件自己的 _disas（不依赖进程生命周期）。
+    void this.loadSessionDisas(session).then(() => this.pushSettings(session));
 
     webviewPanel.webview.options = {
       enableScripts: true,
@@ -144,7 +222,7 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
           injectAddress: this.context.globalState.get<string>('ropide.injectAddress', ''),
           launcher: this.context.globalState.get<string>('ropide.launcher', ''),
           launcherAddr: this.context.globalState.get<string>('ropide.launcherAddr', 'D180'),
-          settings: this.currentSettings(),
+          settings: this.sessionSettings(session),
         });
         break;
       }
@@ -313,7 +391,7 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
           } else if (key === 'language') {
             await cfg.update('language', String(value), vscode.ConfigurationTarget.Global);
           }
-          this.pushSettingsToAll();
+          this.pushGlobalSettingsToAll();
         })();
         break;
       }
@@ -329,18 +407,19 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
             return;
           }
           try {
+            const disasPath = uris[0].fsPath;
             const bytes = await vscode.workspace.fs.readFile(uris[0]);
             const text = Buffer.from(bytes).toString('utf8');
-            this.disasMap = parseDisas(text);
-            this.disasFile = uris[0].fsPath.split(/[\\/]/).pop() || uris[0].fsPath;
-            await vscode.workspace
-              .getConfiguration('ropide')
-              .update('disasPath', uris[0].fsPath, vscode.ConfigurationTarget.Global);
-            this.pushSettingsToAll();
+            session.disasMap = parseDisas(text);
+            this.disasCache.set(disasPath, session.disasMap);
+            session.disasFile = disasPath.split(/[\\/]/).pop() || disasPath;
+            // 路径写入该 .rop 文件旁的隐藏配置（<name>.ropide.json），重启后仍然有效。
+            await this.writeSidecar(session.document.uri, { disasPath });
+            this.pushSettings(session);
             session.panel.webview.postMessage({
               type: 'disas:load-result',
               ok: true,
-              file: this.disasFile,
+              file: session.disasFile,
             });
           } catch (e) {
             session.panel.webview.postMessage({
@@ -355,15 +434,15 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
       case 'gadgets:disasm': {
         const addrStr = String(message.addr || '').replace(/^0x/i, '');
         const addr = parseInt(addrStr, 16);
-        if (!this.disasMap || !Number.isFinite(addr)) {
+        if (!session.disasMap || !Number.isFinite(addr)) {
           session.panel.webview.postMessage({
             type: 'gadgets:disasm-result',
             addr: addrStr,
-            error: this.disasMap ? '地址无效' : '尚未加载 _disas 文件',
+            error: session.disasMap ? '地址无效' : '尚未加载 _disas 文件',
           });
           return;
         }
-        const lines = disasSnippet(this.disasMap, addr);
+        const lines = disasSnippet(session.disasMap, addr);
         session.panel.webview.postMessage(
           lines
             ? { type: 'gadgets:disasm-result', addr: addrStr, lines }
