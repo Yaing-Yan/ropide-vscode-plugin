@@ -8,10 +8,11 @@ import {
   parseDisas,
   disasSnippet,
 } from './rop';
-import { fetchMarketList, fetchMarketItem, fetchMarketChallenge, publishToMarket } from './market';
+import { fetchMarketItem, fetchMarketChallenge, publishToMarket } from './market';
 import { emuWrite, parseHexBytes } from './emu';
 import { showWelcome } from './welcome';
 import { closeTabIfOpen } from './tabs';
+import { marketUnread } from './marketState';
 
 interface EditorSession {
   document: vscode.TextDocument;
@@ -164,6 +165,12 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
     this.sessions.set(uriKey, session);
     this.lastActiveUri = uriKey;
 
+    // 市场未读广播：任意视图打开广场清零时，同步刷新本编辑器的红点。
+    const sendUnread = (unread: number): void => {
+      webviewPanel.webview.postMessage({ type: 'market:unread', unread });
+    };
+    marketUnread.subscribe(sendUnread);
+
     // 按 sidecar 配置加载该 .rop 文件自己的 _disas（不依赖进程生命周期）。
     void this.loadSessionDisas(session).then(() => this.pushSettings(session));
 
@@ -197,6 +204,7 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
 
     const onDispose = webviewPanel.onDidDispose(() => {
       this.sessions.delete(uriKey);
+      marketUnread.unsubscribe(sendUnread);
       if (this.lastActiveUri === uriKey) this.lastActiveUri = undefined;
       onMessage.dispose();
       onChange.dispose();
@@ -260,12 +268,19 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
       }
       case 'market:list': {
         void (async () => {
-          const r = await fetchMarketList();
+          const r = await marketUnread.open();
           session.panel.webview.postMessage(
             'error' in r
               ? { type: 'market:list-result', error: r.error }
               : { type: 'market:list-result', items: r.items }
           );
+        })();
+        break;
+      }
+      case 'market:unread-check': {
+        void (async () => {
+          const unread = await marketUnread.check();
+          session.panel.webview.postMessage({ type: 'market:unread', unread });
         })();
         break;
       }

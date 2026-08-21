@@ -1,14 +1,13 @@
 import * as vscode from 'vscode';
 import {
-  fetchMarketList,
   fetchMarketItem,
   fetchMarketChallenge,
   publishToMarket,
-  MarketItem,
 } from './market';
 import { parseRopDocument, serializeRopDocument } from './rop';
 import { RopEditorProvider } from './ropEditorProvider';
 import { closeTabIfOpen } from './tabs';
+import { marketUnread } from './marketState';
 
 type WelcomeLang = 'zh-CN' | 'en';
 
@@ -165,6 +164,13 @@ export function showWelcome(context: vscode.ExtensionContext): void {
   let lang: WelcomeLang = currentLanguage();
   panel.webview.html = getWelcomeHtml(lang);
 
+  // 市场未读广播：任意视图打开广场清零时，同步刷新本欢迎页的红点。
+  const sendUnread = (unread: number): void => {
+    panel.webview.postMessage({ type: 'market:unread', unread });
+  };
+  marketUnread.subscribe(sendUnread);
+  panel.onDidDispose(() => marketUnread.unsubscribe(sendUnread));
+
   // 其它入口（设置面板 / 编辑器内）改变 ropide.language 时，欢迎页同步切换。
   const onConfigChange = vscode.workspace.onDidChangeConfiguration((e) => {
     if (e.affectsConfiguration('ropide.language')) {
@@ -201,12 +207,19 @@ export function showWelcome(context: vscode.ExtensionContext): void {
     }
     if (msg.type === 'market:list') {
       void (async () => {
-        const r = await fetchMarketList();
+        const r = await marketUnread.open();
         panel.webview.postMessage(
           'error' in r
             ? { type: 'market:list-result', error: r.error }
             : { type: 'market:list-result', items: r.items }
         );
+      })();
+      return;
+    }
+    if (msg.type === 'market:unread-check') {
+      void (async () => {
+        const unread = await marketUnread.check();
+        panel.webview.postMessage({ type: 'market:unread', unread });
       })();
       return;
     }
@@ -425,6 +438,7 @@ function getWelcomeHtml(lang: WelcomeLang): string {
       flex-wrap: wrap;
     }
     .actions button {
+      position: relative;
       padding: 8px 18px;
       font-size: 13px;
       font-family: inherit;
@@ -440,6 +454,26 @@ function getWelcomeHtml(lang: WelcomeLang): string {
       background: var(--vscode-button-secondaryBackground, #3a3d41);
     }
     .actions button.secondary:hover { background: var(--vscode-button-secondaryHoverBackground, #45494e); }
+
+    /* ---------- 程序广场未读小红点 ---------- */
+    .market-unread {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      min-width: 16px;
+      height: 16px;
+      padding: 0 4px;
+      border-radius: 8px;
+      background: #e51400;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 16px;
+      text-align: center;
+      box-sizing: border-box;
+      pointer-events: none;
+    }
+    .market-unread[hidden] { display: none; }
 
     /* ---------- 程序广场（居中弹窗，卡片网格） ---------- */
     .market-overlay {
@@ -644,7 +678,7 @@ function getWelcomeHtml(lang: WelcomeLang): string {
   <div class="actions">
     <button data-command="ropide.newFile">${W('newFile')}</button>
     <button class="secondary" data-command="ropide.openFile">${W('openFile')}</button>
-    <button class="secondary" id="btnMarket">${W('market')}</button>
+    <button class="secondary" id="btnMarket">${W('market')}<span class="market-unread" id="marketUnread" hidden></span></button>
   </div>
 
   <div class="market-overlay" id="marketOverlay" hidden>
@@ -735,6 +769,20 @@ function getWelcomeHtml(lang: WelcomeLang): string {
       clearTimeout(toastTimer);
       toastTimer = setTimeout(() => { toast.hidden = true; }, 3000);
     }
+
+    /* ---------- 程序广场未读小红点 ---------- */
+    const marketUnreadEl = document.getElementById('marketUnread');
+    function setMarketUnread(n) {
+      n = Math.max(0, Number(n) || 0);
+      if (n > 0) {
+        marketUnreadEl.textContent = n > 99 ? '99+' : String(n);
+        marketUnreadEl.hidden = false;
+      } else {
+        marketUnreadEl.hidden = true;
+      }
+    }
+    // 打开时查询一次未读数（不标记已读；打开广场后宿主会广播清零）
+    vscode.postMessage({ type: 'market:unread-check' });
 
     /* ---------- 程序广场（居中弹窗） ---------- */
     const overlay = document.getElementById('marketOverlay');
@@ -919,6 +967,8 @@ function getWelcomeHtml(lang: WelcomeLang): string {
       } else if (msg.type === 'market:get-result') {
         downloadingId = null;
         renderGrid();
+      } else if (msg.type === 'market:unread') {
+        setMarketUnread(msg.unread);
       } else if (msg.type === 'market:publish-ready') {
         btnPublishMarket.disabled = false;
         btnPublishMarket.textContent = WI18N.publish;

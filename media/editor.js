@@ -355,7 +355,7 @@
         <button class="tb-btn" id="btnNew" data-i18n-title="newFileTitle">${ICONS['new-file']}</button>
         <button class="tb-btn" id="btnGadgets" data-i18n-title="gadgetsTitle">${ICONS.list}<span class="tb-badge" id="gadgetCount">0</span></button>
         <button class="tb-btn" id="btnCompile" data-i18n-title="compile">${ICONS.play}</button>
-        <button class="tb-btn" id="btnMarket" data-i18n-title="market">${ICONS.globe}</button>
+        <button class="tb-btn" id="btnMarket" data-i18n-title="market">${ICONS.globe}<span class="market-badge" id="marketBadge" hidden></span></button>
         <button class="tb-btn" id="btnSettings" data-i18n-title="settings">${ICONS.gear}</button>
         <button class="tb-btn" id="btnAbout" data-i18n-title="aboutTitle">${ICONS.info}</button>
       </div>
@@ -503,6 +503,7 @@
     btnGadgets: document.getElementById('btnGadgets'),
     btnCompile: document.getElementById('btnCompile'),
     btnMarket: document.getElementById('btnMarket'),
+    marketBadge: document.getElementById('marketBadge'),
     btnSettings: document.getElementById('btnSettings'),
     btnAbout: document.getElementById('btnAbout'),
     gadgetCount: document.getElementById('gadgetCount'),
@@ -1767,6 +1768,17 @@
     vscode.postMessage({ type: 'market:list' });
   }
 
+  /* ---------------- 程序广场未读小红点 ---------------- */
+  function setMarketBadge(n) {
+    n = Math.max(0, Number(n) || 0);
+    if (n > 0) {
+      el.marketBadge.textContent = n > 99 ? '99+' : String(n);
+      el.marketBadge.hidden = false;
+    } else {
+      el.marketBadge.hidden = true;
+    }
+  }
+
   function openPublish() {
     el.publishName.value = (fileName || 'untitled.rop').replace(/\.rop$/i, '');
     el.publishAuthor.value = '';
@@ -1904,6 +1916,8 @@
         injectAddress = typeof msg.injectAddress === 'string' ? msg.injectAddress : '';
         launcher = typeof msg.launcher === 'string' ? msg.launcher : '';
         launcherAddr = typeof msg.launcherAddr === 'string' ? msg.launcherAddr : 'D180';
+        // 查询一次市场未读数（不标记已读；打开广场后宿主会广播清零）
+        vscode.postMessage({ type: 'market:unread-check' });
         // fallthrough
       case 'update': {
         state.input = typeof msg.input === 'string' ? msg.input : '';
@@ -1958,6 +1972,9 @@
           marketItems = Array.isArray(msg.items) ? msg.items : [];
         }
         renderMarketList();
+        break;
+      case 'market:unread':
+        setMarketBadge(msg.unread);
         break;
       case 'market:get-result':
         downloadingId = null;

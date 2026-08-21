@@ -12,9 +12,11 @@ import {
 } from './rop';
 import { VERF_GADGETS, VERC_GADGETS } from './presets';
 import { showWelcome } from './welcome';
+import { marketUnread } from './marketState';
 
 export function activate(context: vscode.ExtensionContext): void {
   const provider = new RopEditorProvider(context);
+  marketUnread.init(context);
 
   context.subscriptions.push(
     vscode.window.registerCustomEditorProvider(RopEditorProvider.viewType, provider, {
