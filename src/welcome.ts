@@ -89,8 +89,11 @@ const WELCOME_STR: Record<WelcomeLang, Record<string, string>> = {
     settingsTitle: '设置',
     disasmExp: '【实验性】gadgets 展示汇编',
     disasmHint: '在 Gadgets 面板中显示每个 gadget 的反汇编片段（需要提供 _disas 文件）',
-    disasmHoverExp: '【实验性】悬停提示展示汇编',
-    disasmHoverHint: '在悬停提示中展示 gadget 的反汇编片段（需要提供 _disas 文件并开启「展示汇编」）',
+    disasmHoverExp: '【实验性】在悬浮窗内展示汇编',
+    disasmHoverHint: '在鼠标悬停提示中显示 gadget 的反汇编片段（需要已加载 _disas 文件并开启「展示汇编」）',
+    disasmProvide: '请提供 _disas',
+    chooseFile: '选择文件',
+    disasmLoaded: '已加载：',
   },
   en: {
     title: 'Welcome to RopIDE for VS Code',
@@ -153,8 +156,11 @@ const WELCOME_STR: Record<WelcomeLang, Record<string, string>> = {
     settingsTitle: 'Settings',
     disasmExp: '[Experimental] Show disassembly in Gadgets panel',
     disasmHint: 'Show each gadget\'s disassembly in the Gadgets panel (requires a _disas file)',
-    disasmHoverExp: '[Experimental] Show disassembly on hover',
-    disasmHoverHint: 'Show disassembly snippet in hover tooltip (requires _disas and Show disassembly enabled)',
+    disasmHoverExp: '[Experimental] Show disassembly in hover',
+    disasmHoverHint: 'Display gadget disassembly snippets in the hover tooltip (requires _disas file loaded and "Show gadget disassembly" enabled)',
+    disasmProvide: 'Please provide _disas',
+    chooseFile: 'Choose file',
+    disasmLoaded: 'Loaded: ',
   },
 };
 
@@ -434,6 +440,9 @@ function getWelcomeHtml(lang: WelcomeLang): string {
     disasmHint: W('disasmHint'),
     disasmHoverExp: W('disasmHoverExp'),
     disasmHoverHint: W('disasmHoverHint'),
+    disasmProvide: W('disasmProvide'),
+    chooseFile: W('chooseFile'),
+    disasmLoaded: W('disasmLoaded'),
   };
   const langBtnLabel = i18n.target === 'en' ? 'EN' : '中文';
 
@@ -727,6 +736,13 @@ function getWelcomeHtml(lang: WelcomeLang): string {
     .setting-row.sep { border-top: 1px solid var(--vscode-panel-border, #3c3c3c); margin: 8px 0; padding: 0; height: 0; }
     .switch-label { cursor: pointer; user-select: none; }
     .setting-hint { font-size: 11px; color: var(--vscode-descriptionForeground, #9d9d9d); margin: -6px 0 10px 0; line-height: 1.5; }
+    .content-row { margin-bottom: 10px; }
+    .content-row[hidden] { display: none; }
+    .content-row .switch-label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; user-select: none; }
+    .content-row .switch-label input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--vscode-button-background, #0e639c); cursor: pointer; flex: 0 0 auto; }
+    .content-row .setting-hint { margin: 4px 0 0 24px; }
+    .disas-picker { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+    .disas-file { font-size: 12px; color: var(--vscode-descriptionForeground, #9d9d9d); }
 
     .footer {
       margin-top: auto;
@@ -823,16 +839,26 @@ function getWelcomeHtml(lang: WelcomeLang): string {
           <input type="checkbox" id="settingsStartup" />
         </div>
         <div class="setting-row sep"></div>
-        <div class="setting-row">
-          <label class="switch-label">${i18n.disasmExp}</label>
-          <input type="checkbox" id="settingsDisasm" />
+        <div class="content-row">
+          <label class="switch-label">
+            <input type="checkbox" id="settingsDisasm" />
+            <span>${i18n.disasmExp}</span>
+          </label>
+          <div class="setting-hint">${i18n.disasmHint}</div>
         </div>
-        <div class="setting-hint">${i18n.disasmHint}</div>
-        <div class="setting-row">
-          <label class="switch-label">${i18n.disasmHoverExp}</label>
-          <input type="checkbox" id="settingsHoverDisasm" />
+        <div class="content-row" id="settingsDisasRow" hidden>
+          <label>${i18n.disasmProvide}</label>
+          <div class="disas-picker">
+            <span class="disas-file" id="settingsDisasFile"></span>
+          </div>
         </div>
-        <div class="setting-hint">${i18n.disasmHoverHint}</div>
+        <div class="content-row" id="settingsHoverRow" hidden>
+          <label class="switch-label">
+            <input type="checkbox" id="settingsHoverDisasm" />
+            <span>${i18n.disasmHoverExp}</span>
+          </label>
+          <div class="setting-hint">${i18n.disasmHoverHint}</div>
+        </div>
       </div>
     </div>
   </div>
@@ -852,7 +878,15 @@ function getWelcomeHtml(lang: WelcomeLang): string {
     const settingsLang = document.getElementById('settingsLang');
     const settingsStartup = document.getElementById('settingsStartup');
     const settingsDisasm = document.getElementById('settingsDisasm');
+    const settingsDisasRow = document.getElementById('settingsDisasRow');
+    const settingsHoverRow = document.getElementById('settingsHoverRow');
     const settingsHoverDisasm = document.getElementById('settingsHoverDisasm');
+
+    function updateSettingsRows() {
+      const show = settingsDisasm.checked;
+      settingsDisasRow.hidden = !show;
+      settingsHoverRow.hidden = !show;
+    }
 
     document.getElementById('btnSettings').addEventListener('click', () => {
       vscode.postMessage({ type: 'settings:get' });
@@ -870,6 +904,7 @@ function getWelcomeHtml(lang: WelcomeLang): string {
       vscode.postMessage({ type: 'toggle-startup', enabled: settingsStartup.checked });
     });
     settingsDisasm.addEventListener('change', () => {
+      updateSettingsRows();
       vscode.postMessage({ type: 'settings:set', key: 'showGadgetDisasm', value: settingsDisasm.checked });
     });
     settingsHoverDisasm.addEventListener('change', () => {
@@ -1150,7 +1185,10 @@ function getWelcomeHtml(lang: WelcomeLang): string {
       } else if (msg.type === 'settings:data') {
         settingsLang.value = msg.language === 'en' ? 'en' : 'zh-CN';
         settingsStartup.checked = !!msg.showWelcomeOnStartup;
-        if (settingsDisasm) settingsDisasm.checked = !!msg.showGadgetDisasm;
+        if (settingsDisasm) {
+          settingsDisasm.checked = !!msg.showGadgetDisasm;
+          updateSettingsRows();
+        }
         if (settingsHoverDisasm) settingsHoverDisasm.checked = !!msg.showGadgetHoverDisasm;
         settingsOverlay.hidden = false;
       } else if (msg.type === 'startup-toggled') {
