@@ -178,6 +178,57 @@ body {
   margin-left: 2px;
 }
 
+/* ---------- 查找 / 替换面板 ---------- */
+.find-panel {
+  flex: 0 0 auto;
+  padding: 6px 12px;
+  background: var(--vscode-editorWidget-background, var(--panel-bg));
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+.find-panel[hidden] { display: none; }
+.find-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.find-input {
+  flex: 1 1 auto;
+  min-width: 100px;
+  padding: 4px 8px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--vscode-input-foreground, var(--fg));
+  background: var(--vscode-input-background, var(--bg));
+  border: 1px solid var(--vscode-input-border, var(--border));
+  border-radius: 4px;
+  outline: none;
+}
+.find-input:focus { border-color: var(--accent); }
+.find-count {
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: var(--muted);
+  min-width: 40px;
+  text-align: center;
+}
+.find-btn {
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--vscode-button-secondaryBackground, transparent);
+  color: var(--fg);
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.find-btn:hover { background: var(--vscode-toolbar-hoverBackground, rgba(0,0,0,0.08)); }
+.find-btn.find-close { font-size: 15px; padding: 2px 6px; line-height: 1; }
+
 /* ---------- 主区域（编辑器 + 右侧分栏） ---------- */
 .main {
   display: flex;

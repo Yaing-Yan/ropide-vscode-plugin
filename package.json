@@ -137,13 +137,18 @@
           ],
           "default": "zh-CN",
           "description": "界面语言 / UI language（简体中文 / English）。"
+        },
+        "ropide.showWelcomeOnStartup": {
+          "type": "boolean",
+          "default": true,
+          "description": "每次启动 VS Code 时自动打开 RopIDE 欢迎页。"
         }
       }
     }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "echo \"export const BUILD_TIME = '$(date +%Y%m%d-%H%M%S)';\" > src/buildInfo.ts && esbuild src/extension.ts --bundle --external:vscode --format=cjs --platform=node --outfile=dist/extension.js",
+    "compile": "echo \"export const BUILD_TIME = '$(date -u +%Y%m%d-%H%M%S)';\" > src/buildInfo.ts && esbuild src/extension.ts --bundle --external:vscode --format=cjs --platform=node --outfile=dist/extension.js",
     "watch": "esbuild src/extension.ts --bundle --external:vscode --format=cjs --platform=node --outfile=dist/extension.js --watch",
     "package": "vsce package"
   },

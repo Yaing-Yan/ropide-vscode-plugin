@@ -31,9 +31,9 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('ropide.about', () => showWelcome(context))
   );
 
-  // 首次安装 / 重装（globalState 被清除）时显示欢迎页
-  if (!context.globalState.get<boolean>('ropide.welcomeShown')) {
-    void context.globalState.update('ropide.welcomeShown', true);
+  // 每次启动时根据设置决定是否打开欢迎页
+  const showWelcomeSetting = vscode.workspace.getConfiguration('ropide').get<boolean>('showWelcomeOnStartup', true);
+  if (showWelcomeSetting) {
     showWelcome(context);
   }
 }

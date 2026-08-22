@@ -367,6 +367,22 @@
       </div>
     </div>
 
+    <div class="find-panel" id="findPanel" hidden>
+      <div class="find-row">
+        <input class="find-input" id="findInput" type="text" placeholder="查找…" spellcheck="false" />
+        <span class="find-count" id="findCount"></span>
+        <button class="find-btn" id="findPrev" title="上一个">▲</button>
+        <button class="find-btn" id="findNext" title="下一个">▼</button>
+        <button class="find-btn" id="findToggleReplace" title="替换">⤵</button>
+        <button class="find-btn find-close" id="findClose" title="关闭">×</button>
+      </div>
+      <div class="find-row" id="replaceRow" hidden>
+        <input class="find-input" id="replaceInput" type="text" placeholder="替换…" spellcheck="false" />
+        <button class="find-btn" id="replaceOne" title="替换">替换</button>
+        <button class="find-btn" id="replaceAll" title="全部替换">全部替换</button>
+      </div>
+    </div>
+
     <div class="main">
       <div class="editor">
         <div class="gutter" id="gutterLeft"><div class="gutter-inner"></div></div>
@@ -579,6 +595,17 @@
     btnCancelPublish: document.getElementById('btnCancelPublish'),
     btnConfirmPublish: document.getElementById('btnConfirmPublish'),
     toast: document.getElementById('toast'),
+    findPanel: document.getElementById('findPanel'),
+    findInput: document.getElementById('findInput'),
+    findCount: document.getElementById('findCount'),
+    findPrev: document.getElementById('findPrev'),
+    findNext: document.getElementById('findNext'),
+    findToggleReplace: document.getElementById('findToggleReplace'),
+    findClose: document.getElementById('findClose'),
+    replaceRow: document.getElementById('replaceRow'),
+    replaceInput: document.getElementById('replaceInput'),
+    replaceOne: document.getElementById('replaceOne'),
+    replaceAll: document.getElementById('replaceAll'),
   };
 
   /* ---------------- i18n：应用静态文案 ---------------- */
@@ -878,6 +905,17 @@
     } else if (e.key === '/' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
       toggleComment();
+    } else if (e.key === 'f' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      findOpen(false);
+    } else if (e.key === 'h' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      findOpen(true);
+    } else if (e.key === 'Escape') {
+      if (!el.findPanel.hidden) {
+        e.preventDefault();
+        findClose();
+      }
     }
   });
 
@@ -969,6 +1007,162 @@
     render();
     scheduleSave();
   }
+
+  /* ---------------- 查找 / 替换 ---------------- */
+  let findMatches = [];
+  let findIndex = -1;
+
+  function findOpen(showReplace) {
+    el.findPanel.hidden = false;
+    el.findInput.value = '';
+    el.replaceRow.hidden = !showReplace;
+    el.findCount.textContent = '';
+    findMatches = [];
+    findIndex = -1;
+    el.findInput.focus();
+  }
+
+  function findClose() {
+    el.findPanel.hidden = true;
+    el.input.focus();
+  }
+
+  function findDoSearch() {
+    const q = el.findInput.value;
+    if (!q) {
+      findMatches = [];
+      findIndex = -1;
+      el.findCount.textContent = '';
+      return;
+    }
+    const text = state.input;
+    findMatches = [];
+    let idx = 0;
+    while (true) {
+      idx = text.indexOf(q, idx);
+      if (idx < 0) break;
+      findMatches.push({ start: idx, end: idx + q.length });
+      idx += q.length;
+    }
+    if (findMatches.length === 0) {
+      findIndex = -1;
+      el.findCount.textContent = '0/0';
+      return;
+    }
+    // 保持当前光标位置附近的匹配索引
+    const curPos = el.input.selectionStart;
+    let best = 0;
+    for (let i = 0; i < findMatches.length; i++) {
+      if (findMatches[i].start <= curPos) best = i;
+    }
+    findIndex = best;
+    findGoTo();
+  }
+
+  function findGoTo() {
+    if (findMatches.length === 0 || findIndex < 0) return;
+    const m = findMatches[findIndex];
+    el.input.focus();
+    el.input.setSelectionRange(m.start, m.end);
+    // 滚动到匹配行
+    const lineIndex = state.input.substring(0, m.start).split('\n').length - 1;
+    const lh = parseFloat(getComputedStyle(el.input).lineHeight) || 21;
+    el.input.scrollTop = Math.max(0, lineIndex * lh - el.input.clientHeight / 2);
+    el.findCount.textContent = (findIndex + 1) + '/' + findMatches.length;
+  }
+
+  function findPrev() {
+    if (findMatches.length === 0) return;
+    findIndex = (findIndex - 1 + findMatches.length) % findMatches.length;
+    findGoTo();
+  }
+
+  function findNext() {
+    if (findMatches.length === 0) return;
+    findIndex = (findIndex + 1) % findMatches.length;
+    findGoTo();
+  }
+
+  function replaceOne() {
+    if (findMatches.length === 0 || findIndex < 0) return;
+    const m = findMatches[findIndex];
+    const r = el.replaceInput.value;
+    el.input.focus();
+    el.input.setSelectionRange(m.start, m.end);
+    el.input.setRangeText(r, m.start, m.end, 'select');
+    state.input = el.input.value;
+    dirty = true;
+    render();
+    scheduleSave();
+    // 重新搜索
+    const newStart = m.start + r.length;
+    findDoSearch();
+    // 恢复匹配导航位置
+    for (let i = 0; i < findMatches.length; i++) {
+      if (findMatches[i].start >= newStart) { findIndex = i; break; }
+    }
+    if (findIndex < 0) findIndex = findMatches.length - 1;
+    if (findMatches.length > 0) findGoTo();
+  }
+
+  function replaceAll() {
+    const q = el.findInput.value;
+    const r = el.replaceInput.value;
+    if (!q) return;
+    const text = state.input;
+    let result = '';
+    let lastIdx = 0;
+    let count = 0;
+    let idx = 0;
+    while (true) {
+      idx = text.indexOf(q, idx);
+      if (idx < 0) break;
+      result += text.substring(lastIdx, idx) + r;
+      idx += q.length;
+      lastIdx = idx;
+      count++;
+    }
+    result += text.substring(lastIdx);
+    if (count === 0) return;
+    state.input = result;
+    el.input.value = state.input;
+    dirty = true;
+    render();
+    scheduleSave();
+    // 关闭查找面板
+    findClose();
+  }
+
+  // 查找面板事件绑定
+  el.findInput.addEventListener('input', findDoSearch);
+  el.findInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (e.shiftKey) findPrev();
+      else findNext();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      findClose();
+    } else if ((e.key === 'f' || e.key === 'h') && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      findClose();
+    }
+  });
+  el.replaceInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      findClose();
+    }
+  });
+  el.findPrev.addEventListener('click', findPrev);
+  el.findNext.addEventListener('click', findNext);
+  el.findToggleReplace.addEventListener('click', () => {
+    el.replaceRow.hidden = !el.replaceRow.hidden;
+    if (!el.replaceRow.hidden) el.replaceInput.focus();
+  });
+  el.findClose.addEventListener('click', findClose);
+  el.replaceOne.addEventListener('click', replaceOne);
+  el.replaceAll.addEventListener('click', replaceAll);
 
   /* ---------------- 工具栏 + 右侧分栏 ---------------- */
   el.btnNew.addEventListener('click', () => vscode.postMessage({ type: 'new' }));

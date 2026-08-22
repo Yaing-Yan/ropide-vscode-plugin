@@ -83,6 +83,8 @@ const WELCOME_STR: Record<WelcomeLang, Record<string, string>> = {
     needDesc: '请填写描述',
     needAnswer: '请输入 4 位十六进制的两字节答案',
     ropLoadFail: '读取 .rop 文件失败：',
+    startupToggle: '每次启动时打开欢迎页',
+    startupToggleHint: '在 VS Code 设置中关闭「启动时打开欢迎页」',
   },
   en: {
     title: 'Welcome to RopIDE for VS Code',
@@ -139,6 +141,8 @@ const WELCOME_STR: Record<WelcomeLang, Record<string, string>> = {
     needDesc: 'Please enter a description',
     needAnswer: 'Enter the two-byte answer as 4 hex digits',
     ropLoadFail: 'Failed to read .rop file: ',
+    startupToggle: 'Open welcome page on startup',
+    startupToggleHint: 'Disable in VS Code settings → RopIDE → startup',
   },
 };
 
@@ -297,6 +301,15 @@ export function showWelcome(context: vscode.ExtensionContext): void {
       })();
       return;
     }
+    if (msg.type === 'toggle-startup') {
+      void (async () => {
+        const cfg = vscode.workspace.getConfiguration('ropide');
+        const current = cfg.get<boolean>('showWelcomeOnStartup', true);
+        await cfg.update('showWelcomeOnStartup', !current, vscode.ConfigurationTarget.Global);
+        panel.webview.postMessage({ type: 'startup-toggled', enabled: !current });
+      })();
+      return;
+    }
   });
   context.subscriptions.push(panel, onConfigChange);
 }
@@ -383,6 +396,8 @@ function getWelcomeHtml(lang: WelcomeLang): string {
     needDesc: W('needDesc'),
     needAnswer: W('needAnswer'),
     ropLoadFail: W('ropLoadFail'),
+    startupToggle: W('startupToggle'),
+    startupToggleHint: W('startupToggleHint'),
   };
   const langBtnLabel = i18n.target === 'en' ? 'EN' : '中文';
 
@@ -658,12 +673,15 @@ function getWelcomeHtml(lang: WelcomeLang): string {
 
     .footer {
       margin-top: auto;
-      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
       font-size: 0.85em;
       line-height: 1.9;
       color: var(--vscode-descriptionForeground, #9d9d9d);
       padding-bottom: 8px;
     }
+    .footer-ver { align-self: flex-end; }
     a {
       color: var(--vscode-textLink-foreground, #3794ff);
       text-decoration: none;
@@ -731,10 +749,11 @@ function getWelcomeHtml(lang: WelcomeLang): string {
   </div>
 
   <div class="footer">
-    <div>ver.${BUILD_TIME}</div>
+    <div class="footer-ver">ver.${BUILD_TIME}</div>
     <div>Copyright © 2026 <a href="https://github.com/Yaing-Yan/ropide-vscode-plugin">RopIDE for VS Code</a> @Yaing-Yan，使用了Vibe Coding技术</div>
     <div>Copyright © 2026 <a href="https://github.com/WulanOVO/rop-ide">RopIDE</a> @wlyibo</div>
     <div><a href="https://ropide.pages.dev/">RopIDE网页版</a>·<a href="https://rop-ide2.pages.dev/">xe1010ce20的ROP IDE 2nd</a></div>
+    <div><a class="startup-toggle" id="startupToggle" title="${i18n.startupToggleHint}">${i18n.startupToggle}</a></div>
   </div>
   <div class="toast" id="toast" hidden></div>
   <script>
@@ -745,6 +764,12 @@ function getWelcomeHtml(lang: WelcomeLang): string {
     document.getElementById('btnLang').addEventListener('click', (e) => {
       const btn = e.currentTarget;
       vscode.postMessage({ type: 'set-language', lang: btn.dataset.targetLang });
+    });
+
+    /* ---------- 启动时欢迎页开关 ---------- */
+    document.getElementById('startupToggle').addEventListener('click', (e) => {
+      e.preventDefault();
+      vscode.postMessage({ type: 'toggle-startup' });
     });
 
     /* ---------- 链接 / 命令按钮 ---------- */
@@ -1018,6 +1043,9 @@ function getWelcomeHtml(lang: WelcomeLang): string {
         } else {
           showToast(WI18N.publishFail + msg.error, true);
         }
+      } else if (msg.type === 'startup-toggled') {
+        const el = document.getElementById('startupToggle');
+        if (el) el.style.opacity = msg.enabled ? '1' : '0.5';
       }
     });
   </script>
