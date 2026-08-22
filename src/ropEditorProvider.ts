@@ -62,12 +62,13 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
     );
   }
 
-  private globalSettings(): { language: string; showGadgetDisasm: boolean; showGadgetHoverDisasm: boolean } {
+  private globalSettings(): { language: string; showGadgetDisasm: boolean; showGadgetHoverDisasm: boolean; showWelcomeOnStartup: boolean } {
     const cfg = vscode.workspace.getConfiguration('ropide');
     return {
       language: cfg.get<string>('language', 'zh-CN'),
       showGadgetDisasm: cfg.get<boolean>('showGadgetDisasm', false),
       showGadgetHoverDisasm: cfg.get<boolean>('showGadgetHoverDisasm', false),
+      showWelcomeOnStartup: cfg.get<boolean>('showWelcomeOnStartup', true),
     };
   }
 
@@ -411,6 +412,8 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
             await cfg.update('language', String(value), vscode.ConfigurationTarget.Global);
           } else if (key === 'showGadgetHoverDisasm') {
             await cfg.update('showGadgetHoverDisasm', !!value, vscode.ConfigurationTarget.Global);
+          } else if (key === 'showWelcomeOnStartup') {
+            await cfg.update('showWelcomeOnStartup', !!value, vscode.ConfigurationTarget.Global);
           }
           this.pushGlobalSettingsToAll();
         })();

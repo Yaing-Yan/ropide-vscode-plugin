@@ -53,6 +53,7 @@
       disasmProvide: '请提供 _disas',
       chooseFile: '选择文件',
       disasmLoaded: '已加载：',
+      welcomeStartup: '每次启动时打开欢迎页',
       publishTitle: '发布到程序广场',
       progName: '程序名 *',
       progNamePh: '例如 tetris',
@@ -180,6 +181,7 @@
       disasmProvide: 'Please provide _disas',
       chooseFile: 'Choose file',
       disasmLoaded: 'Loaded: ',
+      welcomeStartup: 'Open welcome page on startup',
       publishTitle: 'Publish to Market',
       progName: 'Name *',
       progNamePh: 'e.g. tetris',
@@ -276,6 +278,7 @@
   // 设置状态（由宿主推送）
   let showGadgetDisasm = false;
   let showGadgetHoverDisasm = false;
+  let showWelcomeOnStartup = true;
   let disasFile = '';
   let disasLoaded = false;
   const disasmCache = new Map(); // addr -> { lines } | { error }
@@ -450,6 +453,12 @@
               </div>
               <div class="form-row">
                 <label class="switch-row">
+                  <input type="checkbox" id="chkWelcomeStartup" />
+                  <span data-i18n="welcomeStartup"></span>
+                </label>
+              </div>
+              <div class="form-row">
+                <label class="switch-row">
                   <input type="checkbox" id="chkDisasm" />
                   <span data-i18n="disasmExp"></span>
                 </label>
@@ -557,6 +566,7 @@
     panelSettings: document.getElementById('panelSettings'),
     selLanguage: document.getElementById('selLanguage'),
     chkDisasm: document.getElementById('chkDisasm'),
+    chkWelcomeStartup: document.getElementById('chkWelcomeStartup'),
     disasRow: document.getElementById('disasRow'),
     btnChooseDisas: document.getElementById('btnChooseDisas'),
     disasFileLabel: document.getElementById('disasFile'),
@@ -2037,6 +2047,7 @@
     if (typeof s.language === 'string' && STR[s.language]) lang = s.language;
     showGadgetDisasm = !!s.showGadgetDisasm;
     showGadgetHoverDisasm = showGadgetDisasm && !!s.showGadgetHoverDisasm;
+    showWelcomeOnStartup = !!s.showWelcomeOnStartup;
     disasFile = typeof s.disasFile === 'string' ? s.disasFile : '';
     disasLoaded = !!s.disasLoaded;
     if (lang !== oldLang) applyStaticI18n();
@@ -2047,6 +2058,7 @@
   function syncSettingsUI() {
     el.selLanguage.value = lang;
     el.chkDisasm.checked = showGadgetDisasm;
+    el.chkWelcomeStartup.checked = showWelcomeOnStartup;
     el.disasRow.hidden = !showGadgetDisasm;
     el.chkHoverDisasm.checked = showGadgetHoverDisasm && showGadgetDisasm;
     el.disasmHoverRow.hidden = !showGadgetDisasm;
@@ -2061,6 +2073,9 @@
   });
   el.chkHoverDisasm.addEventListener('change', () => {
     vscode.postMessage({ type: 'settings:set', key: 'showGadgetHoverDisasm', value: el.chkHoverDisasm.checked });
+  });
+  el.chkWelcomeStartup.addEventListener('change', () => {
+    vscode.postMessage({ type: 'settings:set', key: 'showWelcomeOnStartup', value: el.chkWelcomeStartup.checked });
   });
   el.btnChooseDisas.addEventListener('click', () => {
     vscode.postMessage({ type: 'disas:choose' });

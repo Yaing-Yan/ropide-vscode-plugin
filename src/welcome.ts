@@ -83,17 +83,6 @@ const WELCOME_STR: Record<WelcomeLang, Record<string, string>> = {
     needDesc: '请填写描述',
     needAnswer: '请输入 4 位十六进制的两字节答案',
     ropLoadFail: '读取 .rop 文件失败：',
-    startupToggle: '每次启动时打开欢迎页',
-    startupToggleHint: '在 VS Code 设置中关闭「启动时打开欢迎页」',
-    settings: '设置',
-    settingsTitle: '设置',
-    disasmExp: '【实验性】gadgets 展示汇编',
-    disasmHint: '在 Gadgets 面板中显示每个 gadget 的反汇编片段（需要提供 _disas 文件）',
-    disasmHoverExp: '【实验性】在悬浮窗内展示汇编',
-    disasmHoverHint: '在鼠标悬停提示中显示 gadget 的反汇编片段（需要已加载 _disas 文件并开启「展示汇编」）',
-    disasmProvide: '请提供 _disas',
-    chooseFile: '选择文件',
-    disasmLoaded: '已加载：',
   },
   en: {
     title: 'Welcome to RopIDE for VS Code',
@@ -150,17 +139,6 @@ const WELCOME_STR: Record<WelcomeLang, Record<string, string>> = {
     needDesc: 'Please enter a description',
     needAnswer: 'Enter the two-byte answer as 4 hex digits',
     ropLoadFail: 'Failed to read .rop file: ',
-    startupToggle: 'Open welcome page on startup',
-    startupToggleHint: 'Disable in VS Code settings → RopIDE → startup',
-    settings: 'Settings',
-    settingsTitle: 'Settings',
-    disasmExp: '[Experimental] Show disassembly in Gadgets panel',
-    disasmHint: 'Show each gadget\'s disassembly in the Gadgets panel (requires a _disas file)',
-    disasmHoverExp: '[Experimental] Show disassembly in hover',
-    disasmHoverHint: 'Display gadget disassembly snippets in the hover tooltip (requires _disas file loaded and "Show gadget disassembly" enabled)',
-    disasmProvide: 'Please provide _disas',
-    chooseFile: 'Choose file',
-    disasmLoaded: 'Loaded: ',
   },
 };
 
@@ -319,34 +297,7 @@ export function showWelcome(context: vscode.ExtensionContext): void {
       })();
       return;
     }
-    if (msg.type === 'toggle-startup') {
-      void (async () => {
-        const cfg = vscode.workspace.getConfiguration('ropide');
-        const enabled = msg.enabled !== undefined ? !!msg.enabled : !cfg.get<boolean>('showWelcomeOnStartup', true);
-        await cfg.update('showWelcomeOnStartup', enabled, vscode.ConfigurationTarget.Global);
-        panel.webview.postMessage({ type: 'startup-toggled', enabled });
-      })();
-      return;
-    }
-    if (msg.type === 'settings:get') {
-      const cfg = vscode.workspace.getConfiguration('ropide');
-      panel.webview.postMessage({
-        type: 'settings:data',
-        language: currentLanguage(),
-        showWelcomeOnStartup: cfg.get<boolean>('showWelcomeOnStartup', true),
-        showGadgetDisasm: cfg.get<boolean>('showGadgetDisasm', false),
-        showGadgetHoverDisasm: cfg.get<boolean>('showGadgetHoverDisasm', false),
-      });
-      return;
-    }
-    if (msg.type === 'settings:set' && typeof msg.key === 'string') {
-      void (async () => {
-        const cfg = vscode.workspace.getConfiguration('ropide');
-        await cfg.update(msg.key, msg.value, vscode.ConfigurationTarget.Global);
-      })();
-      return;
-    }
-  });
+    });
   context.subscriptions.push(panel, onConfigChange);
 }
 
@@ -432,17 +383,6 @@ function getWelcomeHtml(lang: WelcomeLang): string {
     needDesc: W('needDesc'),
     needAnswer: W('needAnswer'),
     ropLoadFail: W('ropLoadFail'),
-    startupToggle: W('startupToggle'),
-    startupToggleHint: W('startupToggleHint'),
-    settings: W('settings'),
-    settingsTitle: W('settingsTitle'),
-    disasmExp: W('disasmExp'),
-    disasmHint: W('disasmHint'),
-    disasmHoverExp: W('disasmHoverExp'),
-    disasmHoverHint: W('disasmHoverHint'),
-    disasmProvide: W('disasmProvide'),
-    chooseFile: W('chooseFile'),
-    disasmLoaded: W('disasmLoaded'),
   };
   const langBtnLabel = i18n.target === 'en' ? 'EN' : '中文';
 
@@ -725,25 +665,6 @@ function getWelcomeHtml(lang: WelcomeLang): string {
     .toast.error { background: rgba(150, 20, 20, 0.92); border-color: #e51400; }
     .toast[hidden] { display: none; }
 
-    /* ---------- 设置面板 ---------- */
-    .settings-panel { width: min(400px, 90vw); height: auto; }
-    .settings-panel h2 { margin: 0; font-size: 15px; }
-    .settings-body { padding: 16px 14px; }
-    .setting-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
-    .setting-row label { font-size: 13px; flex: 1; }
-    .setting-row select { padding: 4px 8px; font-size: 13px; font-family: inherit; color: var(--vscode-input-foreground, #ccc); background: var(--vscode-input-background, #3c3c3c); border: 1px solid var(--vscode-input-border, #3c3c3c); border-radius: 4px; }
-    .setting-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--vscode-button-background, #0e639c); cursor: pointer; flex: 0 0 auto; }
-    .setting-row.sep { border-top: 1px solid var(--vscode-panel-border, #3c3c3c); margin: 8px 0; padding: 0; height: 0; }
-    .switch-label { cursor: pointer; user-select: none; }
-    .setting-hint { font-size: 11px; color: var(--vscode-descriptionForeground, #9d9d9d); margin: -6px 0 10px 0; line-height: 1.5; }
-    .content-row { margin-bottom: 10px; }
-    .content-row[hidden] { display: none; }
-    .content-row .switch-label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; user-select: none; }
-    .content-row .switch-label input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--vscode-button-background, #0e639c); cursor: pointer; flex: 0 0 auto; }
-    .content-row .setting-hint { margin: 4px 0 0 24px; }
-    .disas-picker { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
-    .disas-file { font-size: 12px; color: var(--vscode-descriptionForeground, #9d9d9d); }
-
     .footer {
       margin-top: auto;
       text-align: center;
@@ -761,7 +682,7 @@ function getWelcomeHtml(lang: WelcomeLang): string {
   </style>
 </head>
 <body>
-  <button class="lang-toggle" id="btnSettings" title="${W('settingsTitle')}">⚙</button>
+  <button class="lang-toggle" id="btnLang" data-target-lang="${i18n.target}" title="${W('switchTo')}">${langBtnLabel}</button>
   <div class="ver-top">ver.${BUILD_TIME}</div>
   <div class="title">${W('title')}</div>
   <div class="body">${W('subtitle')}</div>
@@ -819,50 +740,6 @@ function getWelcomeHtml(lang: WelcomeLang): string {
     </div>
   </div>
 
-  <div class="market-overlay" id="settingsOverlay" hidden>
-    <div class="market-panel settings-panel">
-      <div class="market-header">
-        <h2>${i18n.settingsTitle}</h2>
-        <div class="spacer"></div>
-        <button class="market-close" id="btnCloseSettings" title="${W('closeTitle')}">×</button>
-      </div>
-      <div class="settings-body">
-        <div class="setting-row">
-          <label>${W('lang')}</label>
-          <select id="settingsLang">
-            <option value="zh-CN">中文</option>
-            <option value="en">English</option>
-          </select>
-        </div>
-        <div class="setting-row">
-          <label>${i18n.startupToggle}</label>
-          <input type="checkbox" id="settingsStartup" />
-        </div>
-        <div class="setting-row sep"></div>
-        <div class="content-row">
-          <label class="switch-label">
-            <input type="checkbox" id="settingsDisasm" />
-            <span>${i18n.disasmExp}</span>
-          </label>
-          <div class="setting-hint">${i18n.disasmHint}</div>
-        </div>
-        <div class="content-row" id="settingsDisasRow" hidden>
-          <label>${i18n.disasmProvide}</label>
-          <div class="disas-picker">
-            <span class="disas-file" id="settingsDisasFile"></span>
-          </div>
-        </div>
-        <div class="content-row" id="settingsHoverRow" hidden>
-          <label class="switch-label">
-            <input type="checkbox" id="settingsHoverDisasm" />
-            <span>${i18n.disasmHoverExp}</span>
-          </label>
-          <div class="setting-hint">${i18n.disasmHoverHint}</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <div class="footer">
     <div>Copyright © 2026 <a href="https://github.com/Yaing-Yan/ropide-vscode-plugin">RopIDE for VS Code</a> @Yaing-Yan，使用了Vibe Coding技术</div>
     <div>Copyright © 2026 <a href="https://github.com/WulanOVO/rop-ide">RopIDE</a> @wlyibo</div>
@@ -873,42 +750,10 @@ function getWelcomeHtml(lang: WelcomeLang): string {
     const vscode = acquireVsCodeApi();
     const WI18N = ${JSON.stringify(i18n)};
 
-    /* ---------- 设置面板 ---------- */
-    const settingsOverlay = document.getElementById('settingsOverlay');
-    const settingsLang = document.getElementById('settingsLang');
-    const settingsStartup = document.getElementById('settingsStartup');
-    const settingsDisasm = document.getElementById('settingsDisasm');
-    const settingsDisasRow = document.getElementById('settingsDisasRow');
-    const settingsHoverRow = document.getElementById('settingsHoverRow');
-    const settingsHoverDisasm = document.getElementById('settingsHoverDisasm');
-
-    function updateSettingsRows() {
-      const show = settingsDisasm.checked;
-      settingsDisasRow.hidden = !show;
-      settingsHoverRow.hidden = !show;
-    }
-
-    document.getElementById('btnSettings').addEventListener('click', () => {
-      vscode.postMessage({ type: 'settings:get' });
-    });
-    document.getElementById('btnCloseSettings').addEventListener('click', () => {
-      settingsOverlay.hidden = true;
-    });
-    settingsOverlay.addEventListener('mousedown', (e) => {
-      if (e.target === settingsOverlay) settingsOverlay.hidden = true;
-    });
-    settingsLang.addEventListener('change', () => {
-      vscode.postMessage({ type: 'set-language', lang: settingsLang.value });
-    });
-    settingsStartup.addEventListener('change', () => {
-      vscode.postMessage({ type: 'toggle-startup', enabled: settingsStartup.checked });
-    });
-    settingsDisasm.addEventListener('change', () => {
-      updateSettingsRows();
-      vscode.postMessage({ type: 'settings:set', key: 'showGadgetDisasm', value: settingsDisasm.checked });
-    });
-    settingsHoverDisasm.addEventListener('change', () => {
-      vscode.postMessage({ type: 'settings:set', key: 'showGadgetHoverDisasm', value: settingsHoverDisasm.checked });
+    /* ---------- 语言切换按钮（右上角） ---------- */
+    document.getElementById('btnLang').addEventListener('click', (e) => {
+      const btn = e.currentTarget;
+      vscode.postMessage({ type: 'set-language', lang: btn.dataset.targetLang });
     });
 
     /* ---------- 链接 / 命令按钮 ---------- */
@@ -1182,17 +1027,6 @@ function getWelcomeHtml(lang: WelcomeLang): string {
         } else {
           showToast(WI18N.publishFail + msg.error, true);
         }
-      } else if (msg.type === 'settings:data') {
-        settingsLang.value = msg.language === 'en' ? 'en' : 'zh-CN';
-        settingsStartup.checked = !!msg.showWelcomeOnStartup;
-        if (settingsDisasm) {
-          settingsDisasm.checked = !!msg.showGadgetDisasm;
-          updateSettingsRows();
-        }
-        if (settingsHoverDisasm) settingsHoverDisasm.checked = !!msg.showGadgetHoverDisasm;
-        settingsOverlay.hidden = false;
-      } else if (msg.type === 'startup-toggled') {
-        settingsStartup.checked = !!msg.enabled;
       }
     });
   </script>
