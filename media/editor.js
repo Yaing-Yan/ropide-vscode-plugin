@@ -1056,7 +1056,7 @@
       if (findMatches[i].start <= curPos) best = i;
     }
     findIndex = best;
-    findGoTo();
+    el.findCount.textContent = (findIndex + 1) + '/' + findMatches.length;
   }
 
   function findGoTo() {
@@ -1069,6 +1069,15 @@
     const lh = parseFloat(getComputedStyle(el.input).lineHeight) || 21;
     el.input.scrollTop = Math.max(0, lineIndex * lh - el.input.clientHeight / 2);
     el.findCount.textContent = (findIndex + 1) + '/' + findMatches.length;
+  }
+
+  function findHighlight() {
+    // 仅更新匹配数显示，不移动光标
+    if (findMatches.length > 0 && findIndex >= 0) {
+      el.findCount.textContent = (findIndex + 1) + '/' + findMatches.length;
+    } else {
+      el.findCount.textContent = '0/0';
+    }
   }
 
   function findPrev() {

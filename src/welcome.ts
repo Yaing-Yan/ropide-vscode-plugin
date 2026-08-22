@@ -85,6 +85,8 @@ const WELCOME_STR: Record<WelcomeLang, Record<string, string>> = {
     ropLoadFail: '读取 .rop 文件失败：',
     startupToggle: '每次启动时打开欢迎页',
     startupToggleHint: '在 VS Code 设置中关闭「启动时打开欢迎页」',
+    settings: '设置',
+    settingsTitle: '设置',
   },
   en: {
     title: 'Welcome to RopIDE for VS Code',
@@ -143,6 +145,8 @@ const WELCOME_STR: Record<WelcomeLang, Record<string, string>> = {
     ropLoadFail: 'Failed to read .rop file: ',
     startupToggle: 'Open welcome page on startup',
     startupToggleHint: 'Disable in VS Code settings → RopIDE → startup',
+    settings: 'Settings',
+    settingsTitle: 'Settings',
   },
 };
 
@@ -304,10 +308,19 @@ export function showWelcome(context: vscode.ExtensionContext): void {
     if (msg.type === 'toggle-startup') {
       void (async () => {
         const cfg = vscode.workspace.getConfiguration('ropide');
-        const current = cfg.get<boolean>('showWelcomeOnStartup', true);
-        await cfg.update('showWelcomeOnStartup', !current, vscode.ConfigurationTarget.Global);
-        panel.webview.postMessage({ type: 'startup-toggled', enabled: !current });
+        const enabled = msg.enabled !== undefined ? !!msg.enabled : !cfg.get<boolean>('showWelcomeOnStartup', true);
+        await cfg.update('showWelcomeOnStartup', enabled, vscode.ConfigurationTarget.Global);
+        panel.webview.postMessage({ type: 'startup-toggled', enabled });
       })();
+      return;
+    }
+    if (msg.type === 'settings:get') {
+      const cfg = vscode.workspace.getConfiguration('ropide');
+      panel.webview.postMessage({
+        type: 'settings:data',
+        language: currentLanguage(),
+        showWelcomeOnStartup: cfg.get<boolean>('showWelcomeOnStartup', true),
+      });
       return;
     }
   });
@@ -398,6 +411,8 @@ function getWelcomeHtml(lang: WelcomeLang): string {
     ropLoadFail: W('ropLoadFail'),
     startupToggle: W('startupToggle'),
     startupToggleHint: W('startupToggleHint'),
+    settings: W('settings'),
+    settingsTitle: W('settingsTitle'),
   };
   const langBtnLabel = i18n.target === 'en' ? 'EN' : '中文';
 
@@ -434,6 +449,15 @@ function getWelcomeHtml(lang: WelcomeLang): string {
       cursor: pointer;
     }
     .lang-toggle:hover { background: var(--vscode-button-secondaryHoverBackground, #45494e); }
+    .ver-top {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      z-index: 200;
+      font-size: 0.75em;
+      color: var(--vscode-descriptionForeground, #9d9d9d);
+      user-select: none;
+    }
     .title {
       text-align: center;
       font-weight: bold;
@@ -671,17 +695,23 @@ function getWelcomeHtml(lang: WelcomeLang): string {
     .toast.error { background: rgba(150, 20, 20, 0.92); border-color: #e51400; }
     .toast[hidden] { display: none; }
 
+    /* ---------- 设置面板 ---------- */
+    .settings-panel { width: min(400px, 90vw); height: auto; }
+    .settings-panel h2 { margin: 0; font-size: 15px; }
+    .settings-body { padding: 16px 14px; }
+    .setting-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+    .setting-row label { font-size: 13px; flex: 1; }
+    .setting-row select { padding: 4px 8px; font-size: 13px; font-family: inherit; color: var(--vscode-input-foreground, #ccc); background: var(--vscode-input-background, #3c3c3c); border: 1px solid var(--vscode-input-border, #3c3c3c); border-radius: 4px; }
+    .setting-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--vscode-button-background, #0e639c); cursor: pointer; }
+
     .footer {
       margin-top: auto;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
+      text-align: center;
       font-size: 0.85em;
       line-height: 1.9;
       color: var(--vscode-descriptionForeground, #9d9d9d);
       padding-bottom: 8px;
     }
-    .footer-ver { align-self: flex-end; }
     a {
       color: var(--vscode-textLink-foreground, #3794ff);
       text-decoration: none;
@@ -692,12 +722,14 @@ function getWelcomeHtml(lang: WelcomeLang): string {
 </head>
 <body>
   <button class="lang-toggle" id="btnLang" data-target-lang="${i18n.target}" title="${W('switchTo')}">${langBtnLabel}</button>
+  <div class="ver-top">ver.${BUILD_TIME}</div>
   <div class="title">${W('title')}</div>
   <div class="body">${W('subtitle')}</div>
   <div class="actions">
     <button data-command="ropide.newFile">${W('newFile')}</button>
     <button class="secondary" data-command="ropide.openFile">${W('openFile')}</button>
     <button class="secondary" id="btnMarket">${W('market')}<span class="market-unread" id="marketUnread" hidden></span></button>
+    <button class="secondary" id="btnSettings">⚙ ${W('settings')}</button>
   </div>
 
   <div class="market-overlay" id="marketOverlay" hidden>
@@ -748,12 +780,33 @@ function getWelcomeHtml(lang: WelcomeLang): string {
     </div>
   </div>
 
+  <div class="market-overlay" id="settingsOverlay" hidden>
+    <div class="market-panel settings-panel">
+      <div class="market-header">
+        <h2>${i18n.settingsTitle}</h2>
+        <div class="spacer"></div>
+        <button class="market-close" id="btnCloseSettings" title="${W('closeTitle')}">×</button>
+      </div>
+      <div class="settings-body">
+        <div class="setting-row">
+          <label>${W('lang')}</label>
+          <select id="settingsLang">
+            <option value="zh-CN">中文</option>
+            <option value="en">English</option>
+          </select>
+        </div>
+        <div class="setting-row">
+          <label>${i18n.startupToggle}</label>
+          <input type="checkbox" id="settingsStartup" />
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="footer">
-    <div class="footer-ver">ver.${BUILD_TIME}</div>
     <div>Copyright © 2026 <a href="https://github.com/Yaing-Yan/ropide-vscode-plugin">RopIDE for VS Code</a> @Yaing-Yan，使用了Vibe Coding技术</div>
     <div>Copyright © 2026 <a href="https://github.com/WulanOVO/rop-ide">RopIDE</a> @wlyibo</div>
     <div><a href="https://ropide.pages.dev/">RopIDE网页版</a>·<a href="https://rop-ide2.pages.dev/">xe1010ce20的ROP IDE 2nd</a></div>
-    <div><a class="startup-toggle" id="startupToggle" title="${i18n.startupToggleHint}">${i18n.startupToggle}</a></div>
   </div>
   <div class="toast" id="toast" hidden></div>
   <script>
@@ -766,10 +819,25 @@ function getWelcomeHtml(lang: WelcomeLang): string {
       vscode.postMessage({ type: 'set-language', lang: btn.dataset.targetLang });
     });
 
-    /* ---------- 启动时欢迎页开关 ---------- */
-    document.getElementById('startupToggle').addEventListener('click', (e) => {
-      e.preventDefault();
-      vscode.postMessage({ type: 'toggle-startup' });
+    /* ---------- 设置面板 ---------- */
+    const settingsOverlay = document.getElementById('settingsOverlay');
+    const settingsLang = document.getElementById('settingsLang');
+    const settingsStartup = document.getElementById('settingsStartup');
+
+    document.getElementById('btnSettings').addEventListener('click', () => {
+      vscode.postMessage({ type: 'settings:get' });
+    });
+    document.getElementById('btnCloseSettings').addEventListener('click', () => {
+      settingsOverlay.hidden = true;
+    });
+    settingsOverlay.addEventListener('mousedown', (e) => {
+      if (e.target === settingsOverlay) settingsOverlay.hidden = true;
+    });
+    settingsLang.addEventListener('change', () => {
+      vscode.postMessage({ type: 'set-language', lang: settingsLang.value });
+    });
+    settingsStartup.addEventListener('change', () => {
+      vscode.postMessage({ type: 'toggle-startup', enabled: settingsStartup.checked });
     });
 
     /* ---------- 链接 / 命令按钮 ---------- */
@@ -1043,9 +1111,12 @@ function getWelcomeHtml(lang: WelcomeLang): string {
         } else {
           showToast(WI18N.publishFail + msg.error, true);
         }
+      } else if (msg.type === 'settings:data') {
+        settingsLang.value = msg.language === 'en' ? 'en' : 'zh-CN';
+        settingsStartup.checked = !!msg.showWelcomeOnStartup;
+        settingsOverlay.hidden = false;
       } else if (msg.type === 'startup-toggled') {
-        const el = document.getElementById('startupToggle');
-        if (el) el.style.opacity = msg.enabled ? '1' : '0.5';
+        settingsStartup.checked = !!msg.enabled;
       }
     });
   </script>
