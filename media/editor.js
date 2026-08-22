@@ -919,16 +919,20 @@
     }
 
     let newLines = lines.slice();
+    let firstLineDelta = 0; // 首行字符增减量，用于保持光标位置
     for (let i = firstLine; i <= lastLine; i++) {
       if (allCommented) {
-        // 取消注释：去掉第一个 //（忽略前置空白）
+        // 取消注释：去掉 // 及后面的一个空格（如果有）
         const idx = newLines[i].indexOf('//');
         if (idx >= 0) {
-          newLines[i] = newLines[i].substring(0, idx) + newLines[i].substring(idx + 2);
+          const removeCount = (newLines[i].charAt(idx + 2) === ' ') ? 3 : 2;
+          newLines[i] = newLines[i].substring(0, idx) + newLines[i].substring(idx + removeCount);
+          if (i === firstLine) firstLineDelta = -removeCount;
         }
       } else {
-        // 添加注释
-        newLines[i] = '//' + newLines[i];
+        // 添加注释，主动加一个空格
+        newLines[i] = '// ' + newLines[i];
+        if (i === firstLine) firstLineDelta = 3;
       }
     }
 
@@ -939,13 +943,9 @@
     scheduleSave();
     hideAutocomplete();
 
-    // 维持选区（整体偏移 ±2 × 行数）
-    const offset = allCommented ? -2 : 2;
-    const newStart = start + offset * (firstLine === lastLine ? 1 : 1);
-    const newEnd = end + offset * (lastLine - firstLine + 1);
-    try {
-      el.input.setSelectionRange(Math.max(0, newStart), Math.max(0, newEnd));
-    } catch { /* 越界忽略 */ }
+    // 光标定位到首行调整后的位置
+    const newPos = Math.max(0, start + firstLineDelta);
+    try { el.input.setSelectionRange(newPos, newPos); } catch { /* 越界忽略 */ }
   }
 
   function insertText(text) {
