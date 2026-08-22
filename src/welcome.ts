@@ -87,6 +87,10 @@ const WELCOME_STR: Record<WelcomeLang, Record<string, string>> = {
     startupToggleHint: '在 VS Code 设置中关闭「启动时打开欢迎页」',
     settings: '设置',
     settingsTitle: '设置',
+    disasmExp: '【实验性】gadgets 展示汇编',
+    disasmHint: '在 Gadgets 面板中显示每个 gadget 的反汇编片段（需要提供 _disas 文件）',
+    disasmHoverExp: '【实验性】悬停提示展示汇编',
+    disasmHoverHint: '在悬停提示中展示 gadget 的反汇编片段（需要提供 _disas 文件并开启「展示汇编」）',
   },
   en: {
     title: 'Welcome to RopIDE for VS Code',
@@ -147,6 +151,10 @@ const WELCOME_STR: Record<WelcomeLang, Record<string, string>> = {
     startupToggleHint: 'Disable in VS Code settings → RopIDE → startup',
     settings: 'Settings',
     settingsTitle: 'Settings',
+    disasmExp: '[Experimental] Show disassembly in Gadgets panel',
+    disasmHint: 'Show each gadget\'s disassembly in the Gadgets panel (requires a _disas file)',
+    disasmHoverExp: '[Experimental] Show disassembly on hover',
+    disasmHoverHint: 'Show disassembly snippet in hover tooltip (requires _disas and Show disassembly enabled)',
   },
 };
 
@@ -320,7 +328,16 @@ export function showWelcome(context: vscode.ExtensionContext): void {
         type: 'settings:data',
         language: currentLanguage(),
         showWelcomeOnStartup: cfg.get<boolean>('showWelcomeOnStartup', true),
+        showGadgetDisasm: cfg.get<boolean>('showGadgetDisasm', false),
+        showGadgetHoverDisasm: cfg.get<boolean>('showGadgetHoverDisasm', false),
       });
+      return;
+    }
+    if (msg.type === 'settings:set' && typeof msg.key === 'string') {
+      void (async () => {
+        const cfg = vscode.workspace.getConfiguration('ropide');
+        await cfg.update(msg.key, msg.value, vscode.ConfigurationTarget.Global);
+      })();
       return;
     }
   });
@@ -413,6 +430,10 @@ function getWelcomeHtml(lang: WelcomeLang): string {
     startupToggleHint: W('startupToggleHint'),
     settings: W('settings'),
     settingsTitle: W('settingsTitle'),
+    disasmExp: W('disasmExp'),
+    disasmHint: W('disasmHint'),
+    disasmHoverExp: W('disasmHoverExp'),
+    disasmHoverHint: W('disasmHoverHint'),
   };
   const langBtnLabel = i18n.target === 'en' ? 'EN' : '中文';
 
@@ -702,7 +723,10 @@ function getWelcomeHtml(lang: WelcomeLang): string {
     .setting-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
     .setting-row label { font-size: 13px; flex: 1; }
     .setting-row select { padding: 4px 8px; font-size: 13px; font-family: inherit; color: var(--vscode-input-foreground, #ccc); background: var(--vscode-input-background, #3c3c3c); border: 1px solid var(--vscode-input-border, #3c3c3c); border-radius: 4px; }
-    .setting-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--vscode-button-background, #0e639c); cursor: pointer; }
+    .setting-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--vscode-button-background, #0e639c); cursor: pointer; flex: 0 0 auto; }
+    .setting-row.sep { border-top: 1px solid var(--vscode-panel-border, #3c3c3c); margin: 8px 0; padding: 0; height: 0; }
+    .switch-label { cursor: pointer; user-select: none; }
+    .setting-hint { font-size: 11px; color: var(--vscode-descriptionForeground, #9d9d9d); margin: -6px 0 10px 0; line-height: 1.5; }
 
     .footer {
       margin-top: auto;
@@ -721,7 +745,7 @@ function getWelcomeHtml(lang: WelcomeLang): string {
   </style>
 </head>
 <body>
-  <button class="lang-toggle" id="btnLang" data-target-lang="${i18n.target}" title="${W('switchTo')}">${langBtnLabel}</button>
+  <button class="lang-toggle" id="btnSettings" title="${W('settingsTitle')}">⚙</button>
   <div class="ver-top">ver.${BUILD_TIME}</div>
   <div class="title">${W('title')}</div>
   <div class="body">${W('subtitle')}</div>
@@ -729,7 +753,6 @@ function getWelcomeHtml(lang: WelcomeLang): string {
     <button data-command="ropide.newFile">${W('newFile')}</button>
     <button class="secondary" data-command="ropide.openFile">${W('openFile')}</button>
     <button class="secondary" id="btnMarket">${W('market')}<span class="market-unread" id="marketUnread" hidden></span></button>
-    <button class="secondary" id="btnSettings">⚙ ${W('settings')}</button>
   </div>
 
   <div class="market-overlay" id="marketOverlay" hidden>
@@ -799,6 +822,17 @@ function getWelcomeHtml(lang: WelcomeLang): string {
           <label>${i18n.startupToggle}</label>
           <input type="checkbox" id="settingsStartup" />
         </div>
+        <div class="setting-row sep"></div>
+        <div class="setting-row">
+          <label class="switch-label">${i18n.disasmExp}</label>
+          <input type="checkbox" id="settingsDisasm" />
+        </div>
+        <div class="setting-hint">${i18n.disasmHint}</div>
+        <div class="setting-row">
+          <label class="switch-label">${i18n.disasmHoverExp}</label>
+          <input type="checkbox" id="settingsHoverDisasm" />
+        </div>
+        <div class="setting-hint">${i18n.disasmHoverHint}</div>
       </div>
     </div>
   </div>
@@ -813,16 +847,12 @@ function getWelcomeHtml(lang: WelcomeLang): string {
     const vscode = acquireVsCodeApi();
     const WI18N = ${JSON.stringify(i18n)};
 
-    /* ---------- 语言切换按钮（右上角，显示目标语言） ---------- */
-    document.getElementById('btnLang').addEventListener('click', (e) => {
-      const btn = e.currentTarget;
-      vscode.postMessage({ type: 'set-language', lang: btn.dataset.targetLang });
-    });
-
     /* ---------- 设置面板 ---------- */
     const settingsOverlay = document.getElementById('settingsOverlay');
     const settingsLang = document.getElementById('settingsLang');
     const settingsStartup = document.getElementById('settingsStartup');
+    const settingsDisasm = document.getElementById('settingsDisasm');
+    const settingsHoverDisasm = document.getElementById('settingsHoverDisasm');
 
     document.getElementById('btnSettings').addEventListener('click', () => {
       vscode.postMessage({ type: 'settings:get' });
@@ -838,6 +868,12 @@ function getWelcomeHtml(lang: WelcomeLang): string {
     });
     settingsStartup.addEventListener('change', () => {
       vscode.postMessage({ type: 'toggle-startup', enabled: settingsStartup.checked });
+    });
+    settingsDisasm.addEventListener('change', () => {
+      vscode.postMessage({ type: 'settings:set', key: 'showGadgetDisasm', value: settingsDisasm.checked });
+    });
+    settingsHoverDisasm.addEventListener('change', () => {
+      vscode.postMessage({ type: 'settings:set', key: 'showGadgetHoverDisasm', value: settingsHoverDisasm.checked });
     });
 
     /* ---------- 链接 / 命令按钮 ---------- */
@@ -1114,6 +1150,8 @@ function getWelcomeHtml(lang: WelcomeLang): string {
       } else if (msg.type === 'settings:data') {
         settingsLang.value = msg.language === 'en' ? 'en' : 'zh-CN';
         settingsStartup.checked = !!msg.showWelcomeOnStartup;
+        if (settingsDisasm) settingsDisasm.checked = !!msg.showGadgetDisasm;
+        if (settingsHoverDisasm) settingsHoverDisasm.checked = !!msg.showGadgetHoverDisasm;
         settingsOverlay.hidden = false;
       } else if (msg.type === 'startup-toggled') {
         settingsStartup.checked = !!msg.enabled;
