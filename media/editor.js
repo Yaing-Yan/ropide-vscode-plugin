@@ -912,15 +912,24 @@
     const lastLine = upToEnd.split('\n').length - 1;
 
     const lines = text.split('\n');
+
+    // 检查非空行是否全部已注释
     let allCommented = true;
+    let hasNonEmpty = false;
     for (let i = firstLine; i <= lastLine; i++) {
-      const trimmed = lines[i].trim();
-      if (!trimmed.startsWith('//')) { allCommented = false; break; }
+      if (lines[i].trim().length > 0) {
+        hasNonEmpty = true;
+        if (!lines[i].trim().startsWith('//')) { allCommented = false; break; }
+      }
     }
+    // 全是空行，无需操作
+    if (!hasNonEmpty) return;
 
     let newLines = lines.slice();
-    let firstLineDelta = 0; // 首行字符增减量，用于保持光标位置
+    let firstLineDelta = 0; // 首行字符增减量
+    let totalDelta = 0;     // 总增减量，用于保持选区
     for (let i = firstLine; i <= lastLine; i++) {
+      if (lines[i].trim().length === 0) continue; // 跳过空行
       if (allCommented) {
         // 取消注释：去掉 // 及后面的一个空格（如果有）
         const idx = newLines[i].indexOf('//');
@@ -928,11 +937,13 @@
           const removeCount = (newLines[i].charAt(idx + 2) === ' ') ? 3 : 2;
           newLines[i] = newLines[i].substring(0, idx) + newLines[i].substring(idx + removeCount);
           if (i === firstLine) firstLineDelta = -removeCount;
+          totalDelta += -removeCount;
         }
       } else {
         // 添加注释，主动加一个空格
         newLines[i] = '// ' + newLines[i];
         if (i === firstLine) firstLineDelta = 3;
+        totalDelta += 3;
       }
     }
 
@@ -943,9 +954,10 @@
     scheduleSave();
     hideAutocomplete();
 
-    // 光标定位到首行调整后的位置
-    const newPos = Math.max(0, start + firstLineDelta);
-    try { el.input.setSelectionRange(newPos, newPos); } catch { /* 越界忽略 */ }
+    // 保持选区不折叠
+    const newStart = Math.max(0, start + firstLineDelta);
+    const newEnd = Math.max(newStart, end + totalDelta);
+    try { el.input.setSelectionRange(newStart, newEnd); } catch { /* 越界忽略 */ }
   }
 
   function insertText(text) {
