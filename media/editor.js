@@ -48,6 +48,8 @@
       lang: '语言',
       disasmExp: '【实验性】gadgets 展示汇编',
       disasmHint: '在 Gadgets 面板中显示每个 gadget 的反汇编片段（需要提供 _disas 文件）',
+      disasmHoverExp: '【实验性】在悬浮窗内展示汇编',
+      disasmHoverHint: '在鼠标悬停提示中显示 gadget 的反汇编片段（需要已加载 _disas 文件并开启「展示汇编」）',
       disasmProvide: '请提供 _disas',
       chooseFile: '选择文件',
       disasmLoaded: '已加载：',
@@ -173,6 +175,8 @@
       lang: 'Language',
       disasmExp: '[Experimental] Show gadget disassembly',
       disasmHint: 'Show disassembly snippets for each gadget in the Gadgets panel (requires a _disas file)',
+      disasmHoverExp: '[Experimental] Show disassembly in hover',
+      disasmHoverHint: 'Display gadget disassembly snippets in the hover tooltip (requires _disas file loaded and "Show gadget disassembly" enabled)',
       disasmProvide: 'Please provide _disas',
       chooseFile: 'Choose file',
       disasmLoaded: 'Loaded: ',
@@ -271,9 +275,11 @@
 
   // 设置状态（由宿主推送）
   let showGadgetDisasm = false;
+  let showGadgetHoverDisasm = false;
   let disasFile = '';
   let disasLoaded = false;
   const disasmCache = new Map(); // addr -> { lines } | { error }
+  let hoveredAddr = null; // 当前悬停的 gadget 地址，用于异步反汇编加载后更新提示框
 
   /* ---------------- 图标（feather 风格 SVG） ---------------- */
   const ICONS = {
@@ -440,6 +446,13 @@
                   <span class="disas-file" id="disasFile"></span>
                 </div>
               </div>
+              <div class="form-row" id="disasmHoverRow" hidden>
+                <label class="switch-row">
+                  <input type="checkbox" id="chkHoverDisasm" />
+                  <span data-i18n="disasmHoverExp"></span>
+                </label>
+                <div class="settings-hint" data-i18n="disasmHoverHint"></div>
+              </div>
             </div>
           </div>
         </div>
@@ -531,6 +544,8 @@
     disasRow: document.getElementById('disasRow'),
     btnChooseDisas: document.getElementById('btnChooseDisas'),
     disasFileLabel: document.getElementById('disasFile'),
+    chkHoverDisasm: document.getElementById('chkHoverDisasm'),
+    disasmHoverRow: document.getElementById('disasmHoverRow'),
     gadgetSearch: document.getElementById('gadgetSearch'),
     gadgetList: document.getElementById('gadgetList'),
     btnAddGadget: document.getElementById('btnAddGadget'),
@@ -860,6 +875,9 @@
     } else if (e.key === 'Tab') {
       e.preventDefault();
       alignComment();
+    } else if (e.key === '/' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      toggleComment();
     }
   });
 
@@ -880,6 +898,54 @@
     }
     const spaces = targetCol != null ? ' '.repeat(targetCol - currentCol) : '  ';
     insertText(spaces);
+  }
+
+  /* ---------------- Ctrl+/ 注释切换 ---------------- */
+  function toggleComment() {
+    const text = state.input;
+    const start = el.input.selectionStart;
+    const end = el.input.selectionEnd;
+    // 获取选区涉及的所有行号
+    const before = text.substring(0, start);
+    const firstLine = before.split('\n').length - 1; // 0-based
+    const upToEnd = text.substring(0, end);
+    const lastLine = upToEnd.split('\n').length - 1;
+
+    const lines = text.split('\n');
+    let allCommented = true;
+    for (let i = firstLine; i <= lastLine; i++) {
+      const trimmed = lines[i].trim();
+      if (!trimmed.startsWith('//')) { allCommented = false; break; }
+    }
+
+    let newLines = lines.slice();
+    for (let i = firstLine; i <= lastLine; i++) {
+      if (allCommented) {
+        // 取消注释：去掉第一个 //（忽略前置空白）
+        const idx = newLines[i].indexOf('//');
+        if (idx >= 0) {
+          newLines[i] = newLines[i].substring(0, idx) + newLines[i].substring(idx + 2);
+        }
+      } else {
+        // 添加注释
+        newLines[i] = '//' + newLines[i];
+      }
+    }
+
+    state.input = newLines.join('\n');
+    el.input.value = state.input;
+    dirty = true;
+    render();
+    scheduleSave();
+    hideAutocomplete();
+
+    // 维持选区（整体偏移 ±2 × 行数）
+    const offset = allCommented ? -2 : 2;
+    const newStart = start + offset * (firstLine === lastLine ? 1 : 1);
+    const newEnd = end + offset * (lastLine - firstLine + 1);
+    try {
+      el.input.setSelectionRange(Math.max(0, newStart), Math.max(0, newEnd));
+    } catch { /* 越界忽略 */ }
   }
 
   function insertText(text) {
@@ -1359,7 +1425,21 @@
     if (token.kind === 'gadget') {
       const g = state.gadgets.find((x) => x.name === token.name);
       if (!g) return null;
-      return { kind: 'gadget', name: g.name, addr: g.addr, desc: g.desc, tags: g.tags || [] };
+      const info = { kind: 'gadget', name: g.name, addr: g.addr, desc: g.desc, tags: g.tags || [] };
+      // 子开关：在悬浮窗内展示反汇编
+      if (showGadgetDisasm && showGadgetHoverDisasm && disasLoaded && g.addr) {
+        const addrNorm = g.addr.replace(/^0x/i, '').toUpperCase();
+        const cached = disasmCache.get(addrNorm);
+        if (cached) {
+          info.disasmAddr = addrNorm;
+          info.disasmLines = cached.lines || null;
+          info.disasmError = cached.error || null;
+        } else {
+          info.disasmAddr = addrNorm;
+          info.disasmLoading = true;
+        }
+      }
+      return info;
     }
     if (token.kind === 'const') {
       const name = token.name;
@@ -1461,10 +1541,22 @@
     if (!info) return '';
     if (info.kind === 'gadget') {
       const tags = (info.tags || []).map((t) => tagHtml(t)).join(' ');
-      return `<div class="ht-title">#${escapeHtml(info.name)};</div>`
+      let html = `<div class="ht-title">#${escapeHtml(info.name)};</div>`
         + `<div class="ht-row"><span class="ht-label">${t('htAddr')}</span><span class="ht-mono">${escapeHtml(info.addr || '')}</span></div>`
         + (tags ? `<div class="ht-tags">${tags}</div>` : '')
         + (info.desc ? `<div class="ht-desc">${escapeHtml(info.desc)}</div>` : '');
+      if (info.disasmAddr) {
+        let asmHtml;
+        if (info.disasmLines) {
+          asmHtml = info.disasmLines.map((l) => escapeHtml(l)).join('\n');
+        } else if (info.disasmError) {
+          asmHtml = `<span class="err">${escapeHtml(info.disasmError)}</span>`;
+        } else {
+          asmHtml = t('disasmLoading');
+        }
+        html += `<pre class="ht-disasm" data-ht-disasm="${escapeHtml(info.disasmAddr)}">${asmHtml}</pre>`;
+      }
+      return html;
     }
     if (info.kind === 'constant') {
       return `<div class="ht-title">${t('htConst')} <span class="ht-mono">$${escapeHtml(info.name)}</span></div>`
@@ -1487,6 +1579,7 @@
 
   function showHover(info, x, y) {
     if (!info) { hideHover(); return; }
+    hoveredAddr = info.disasmAddr || null;
     el.hoverTip.innerHTML = renderHoverHtml(info);
     el.hoverTip.hidden = false;
     const w = el.hoverTip.offsetWidth;
@@ -1499,13 +1592,21 @@
     el.hoverTip.style.top = Math.max(4, top) + 'px';
   }
 
-  function hideHover() { el.hoverTip.hidden = true; }
+  function hideHover() { hoveredAddr = null; el.hoverTip.hidden = true; }
 
   function handleHover(e) {
     const offset = charOffsetFromPoint(e.clientX, e.clientY);
-    const info = buildHoverInfoFromToken(findTokenAt(offset));
-    if (info) showHover(info, e.clientX, e.clientY);
-    else hideHover();
+    const token = findTokenAt(offset);
+    const info = buildHoverInfoFromToken(token);
+    if (info) {
+      // 如果反汇编需要异步加载，立即请求
+      if (info.disasmAddr && info.disasmLoading) {
+        vscode.postMessage({ type: 'gadgets:disasm', addr: info.disasmAddr });
+      }
+      showHover(info, e.clientX, e.clientY);
+    } else {
+      hideHover();
+    }
   }
 
   el.input.addEventListener('mousemove', handleHover);
@@ -1720,6 +1821,7 @@
     const oldLang = lang;
     if (typeof s.language === 'string' && STR[s.language]) lang = s.language;
     showGadgetDisasm = !!s.showGadgetDisasm;
+    showGadgetHoverDisasm = showGadgetDisasm && !!s.showGadgetHoverDisasm;
     disasFile = typeof s.disasFile === 'string' ? s.disasFile : '';
     disasLoaded = !!s.disasLoaded;
     if (lang !== oldLang) applyStaticI18n();
@@ -1731,6 +1833,8 @@
     el.selLanguage.value = lang;
     el.chkDisasm.checked = showGadgetDisasm;
     el.disasRow.hidden = !showGadgetDisasm;
+    el.chkHoverDisasm.checked = showGadgetHoverDisasm && showGadgetDisasm;
+    el.disasmHoverRow.hidden = !showGadgetDisasm;
     el.disasFileLabel.textContent = disasFile ? t('disasmLoaded') + disasFile : '';
   }
 
@@ -1739,6 +1843,9 @@
   });
   el.chkDisasm.addEventListener('change', () => {
     vscode.postMessage({ type: 'settings:set', key: 'showGadgetDisasm', value: el.chkDisasm.checked });
+  });
+  el.chkHoverDisasm.addEventListener('change', () => {
+    vscode.postMessage({ type: 'settings:set', key: 'showGadgetHoverDisasm', value: el.chkHoverDisasm.checked });
   });
   el.btnChooseDisas.addEventListener('click', () => {
     vscode.postMessage({ type: 'disas:choose' });
@@ -1945,9 +2052,15 @@
         const addrKey = String(msg.addr || '').toUpperCase();
         const result = msg.lines ? { lines: msg.lines } : { error: msg.error || '' };
         disasmCache.set(addrKey, result);
+        // 更新 gadgets 面板
         el.gadgetList
           .querySelectorAll(`[data-disasm-addr="${addrKey}"]`)
           .forEach((pre) => fillDisasm(pre, result));
+        // 更新悬停提示
+        if (hoveredAddr === addrKey && !el.hoverTip.hidden) {
+          const pre = el.hoverTip.querySelector('.ht-disasm[data-ht-disasm]');
+          if (pre) fillDisasm(pre, result);
+        }
         break;
       }
       case 'invalid':

@@ -55,18 +55,19 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
     // 全局设置（语言 / 展示汇编开关）变化 → 同步到所有编辑器
     context.subscriptions.push(
       vscode.workspace.onDidChangeConfiguration((e) => {
-        if (e.affectsConfiguration('ropide.showGadgetDisasm') || e.affectsConfiguration('ropide.language')) {
+        if (e.affectsConfiguration('ropide.showGadgetDisasm') || e.affectsConfiguration('ropide.language') || e.affectsConfiguration('ropide.showGadgetHoverDisasm')) {
           this.pushGlobalSettingsToAll();
         }
       })
     );
   }
 
-  private globalSettings(): { language: string; showGadgetDisasm: boolean } {
+  private globalSettings(): { language: string; showGadgetDisasm: boolean; showGadgetHoverDisasm: boolean } {
     const cfg = vscode.workspace.getConfiguration('ropide');
     return {
       language: cfg.get<string>('language', 'zh-CN'),
       showGadgetDisasm: cfg.get<boolean>('showGadgetDisasm', false),
+      showGadgetHoverDisasm: cfg.get<boolean>('showGadgetHoverDisasm', false),
     };
   }
 
@@ -408,6 +409,8 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
             await cfg.update('showGadgetDisasm', !!value, vscode.ConfigurationTarget.Global);
           } else if (key === 'language') {
             await cfg.update('language', String(value), vscode.ConfigurationTarget.Global);
+          } else if (key === 'showGadgetHoverDisasm') {
+            await cfg.update('showGadgetHoverDisasm', !!value, vscode.ConfigurationTarget.Global);
           }
           this.pushGlobalSettingsToAll();
         })();

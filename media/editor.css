@@ -684,6 +684,20 @@ body.vscode-dark .code-input::selection { background: rgba(255, 255, 255, 0.2); 
 .ht-mono { font-family: var(--font-mono); color: var(--fg); }
 .ht-tags { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px; }
 .ht-desc { margin-top: 4px; color: var(--fg); white-space: pre-wrap; word-break: break-word; }
+.ht-disasm {
+  margin-top: 6px;
+  padding: 4px 6px;
+  font-size: 11px;
+  font-family: var(--vscode-editor-font-family, monospace);
+  background: rgba(0,0,0,0.1);
+  border-radius: 4px;
+  max-height: 120px;
+  overflow-y: auto;
+  white-space: pre;
+  line-height: 1.4;
+  color: var(--fg);
+}
+.ht-disasm.err { color: var(--vscode-errorForeground, #e51400); }
 
 /* ---------- 程序广场（编辑器侧栏，紧凑卡片网格） ---------- */
 .market-list {

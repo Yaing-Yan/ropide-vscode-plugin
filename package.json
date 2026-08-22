@@ -124,6 +124,11 @@
           "default": false,
           "description": "【实验性】在 Gadgets 面板中展示每个 gadget 的反汇编源码（需要提供 _disas 文件）。"
         },
+        "ropide.showGadgetHoverDisasm": {
+          "type": "boolean",
+          "default": false,
+          "description": "【实验性】在悬停提示中展示 gadget 的反汇编片段（需要提供 _disas 文件并开启「展示汇编」）。"
+        },
         "ropide.language": {
           "type": "string",
           "enum": [
