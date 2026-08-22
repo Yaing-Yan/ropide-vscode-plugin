@@ -8,6 +8,7 @@ import { parseRopDocument, serializeRopDocument } from './rop';
 import { RopEditorProvider } from './ropEditorProvider';
 import { closeTabIfOpen } from './tabs';
 import { marketUnread } from './marketState';
+import { BUILD_TIME } from './buildInfo';
 
 type WelcomeLang = 'zh-CN' | 'en';
 
@@ -730,6 +731,7 @@ function getWelcomeHtml(lang: WelcomeLang): string {
   </div>
 
   <div class="footer">
+    <div>ver.${BUILD_TIME}</div>
     <div>Copyright © 2026 <a href="https://github.com/Yaing-Yan/ropide-vscode-plugin">RopIDE for VS Code</a> @Yaing-Yan，使用了Vibe Coding技术</div>
     <div>Copyright © 2026 <a href="https://github.com/WulanOVO/rop-ide">RopIDE</a> @wlyibo</div>
     <div><a href="https://ropide.pages.dev/">RopIDE网页版</a>·<a href="https://rop-ide2.pages.dev/">xe1010ce20的ROP IDE 2nd</a></div>

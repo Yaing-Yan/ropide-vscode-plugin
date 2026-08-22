@@ -3,4 +3,5 @@ dist/
 *.vsix
 .vscode-test/
 *.ropide.json
+src/buildInfo.ts
 

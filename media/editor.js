@@ -371,7 +371,7 @@
       <div class="editor">
         <div class="gutter" id="gutterLeft"><div class="gutter-inner"></div></div>
         <div class="code-wrap" id="codeWrap">
-          <div class="highlight" id="highlight" aria-hidden="true"></div>
+          <div class="highlight" id="highlight"></div>
           <textarea class="code-input" id="input" spellcheck="false" wrap="off"></textarea>
           <div class="autocomplete" id="autocomplete" hidden></div>
           <div class="hover-tip" id="hoverTip" hidden></div>

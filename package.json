@@ -143,7 +143,7 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "esbuild src/extension.ts --bundle --external:vscode --format=cjs --platform=node --outfile=dist/extension.js",
+    "compile": "echo \"export const BUILD_TIME = '$(date +%Y%m%d-%H%M%S)';\" > src/buildInfo.ts && esbuild src/extension.ts --bundle --external:vscode --format=cjs --platform=node --outfile=dist/extension.js",
     "watch": "esbuild src/extension.ts --bundle --external:vscode --format=cjs --platform=node --outfile=dist/extension.js --watch",
     "package": "vsce package"
   },
