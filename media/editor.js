@@ -88,6 +88,10 @@
       showDisasm: '汇编',
       disasmLoading: '加载反汇编…',
       disasmFail: '没有该地址的反汇编',
+      disas: 'Disas',
+      disasTitle: '反汇编浏览器',
+      disasAddrPh: '地址（如 0x012D34、#gadget;)',
+      disasNeedFile: '尚未加载 _disas，请先在设置中开启「展示汇编」并选择文件',
       invalidAddr: '注入地址无效（1-5 位十六进制）',
       noCompileResult: '没有可写入的编译结果',
       writingEmu: '覆写中…（首次定位 RAM 可能需要数十秒）',
@@ -216,6 +220,10 @@
       showDisasm: 'ASM',
       disasmLoading: 'Loading disassembly…',
       disasmFail: 'No disassembly at this address',
+      disas: 'Disas',
+      disasTitle: 'Disassembly browser',
+      disasAddrPh: 'Address (e.g. 0x012D34, #gadget;)',
+      disasNeedFile: 'No _disas loaded. Enable "Show disassembly" and choose a file in settings first',
       invalidAddr: 'Invalid inject address (1-5 hex digits)',
       noCompileResult: 'Nothing compiled to write',
       writingEmu: 'Writing… (locating RAM may take tens of seconds the first time)',
@@ -281,6 +289,10 @@
   let showWelcomeOnStartup = true;
   let disasFile = '';
   let disasLoaded = false;
+  // Disas 浏览器：地址->行数据（由宿主端一次性下发）
+  let disasAddr = [];        // 排序后的唯一地址数组
+  let disasLines = [];       // 扁平行数组 { addr, text }，按地址、行序
+  let disasByAddr = [];      // addr -> lines[]
   const disasmCache = new Map(); // addr -> { lines } | { error }
   let hoveredAddr = null; // 当前悬停的 gadget 地址，用于异步反汇编加载后更新提示框
 
@@ -405,6 +417,7 @@
           <button class="sp-tab" data-tab="compile" data-i18n="compile"></button>
           <button class="sp-tab" data-tab="gadgets">Gadgets</button>
           <button class="sp-tab" data-tab="market" data-i18n="market"></button>
+          <button class="sp-tab" data-tab="disas" id="tabDisas" data-i18n="disas" hidden></button>
           <button class="sp-tab" data-tab="settings" data-i18n="settings"></button>
           <div class="spacer"></div>
           <button class="sp-close" id="btnClosePanel" data-i18n-title="closePanelTitle">${ICONS.close}</button>
@@ -440,6 +453,14 @@
               <button class="icon-btn primary" id="btnPublish">${ICONS.plus}<span data-i18n="publish"></span></button>
             </div>
             <div class="market-list" id="marketList"></div>
+          </div>
+
+          <div class="tab-content" id="panelDisas" hidden>
+            <div class="disas-toolbar">
+              <input class="disas-input" id="disasAddr" type="text" data-i18n-ph="disasAddrPh" spellcheck="false" />
+              <span class="disas-status" id="disasStatus"></span>
+            </div>
+            <pre class="disas-view" id="disasView"></pre>
           </div>
 
           <div class="tab-content" id="panelSettings" hidden>
@@ -560,10 +581,15 @@
     sideDivider: document.getElementById('sideDivider'),
     btnClosePanel: document.getElementById('btnClosePanel'),
     tabs: document.querySelectorAll('.sp-tab'),
+    tabDisas: document.getElementById('tabDisas'),
     panelCompile: document.getElementById('panelCompile'),
     panelGadgets: document.getElementById('panelGadgets'),
     panelMarket: document.getElementById('panelMarket'),
     panelSettings: document.getElementById('panelSettings'),
+    panelDisas: document.getElementById('panelDisas'),
+    disasAddr: document.getElementById('disasAddr'),
+    disasStatus: document.getElementById('disasStatus'),
+    disasView: document.getElementById('disasView'),
     selLanguage: document.getElementById('selLanguage'),
     chkDisasm: document.getElementById('chkDisasm'),
     chkWelcomeStartup: document.getElementById('chkWelcomeStartup'),
@@ -1223,7 +1249,14 @@
     el.panelCompile.hidden = tab !== 'compile';
     el.panelGadgets.hidden = tab !== 'gadgets';
     el.panelMarket.hidden = tab !== 'market';
+    el.panelDisas.hidden = tab !== 'disas';
     el.panelSettings.hidden = tab !== 'settings';
+    if (tab === 'disas') {
+      if (disasLoaded && disasLines.length === 0) {
+        vscode.postMessage({ type: 'disas:send-all' });
+      }
+      renderDisas();
+    }
   }
 
   // 右侧分栏宽度可拖拽调整
@@ -1504,6 +1537,147 @@
   }
   bindAddressInput(el.leftAddrInput, 'leftStartAddress');
   bindAddressInput(el.rightAddrInput, 'rightStartAddress');
+
+  /* ---------------- Disas 反汇编浏览器 ---------------- */
+  function setDisasData(addresses, byAddr) {
+    disasAddr = addresses || [];
+    disasByAddr = byAddr || {};
+    disasLines = [];
+    for (const addr of disasAddr) {
+      const lines = disasByAddr[addr] || [];
+      for (const text of lines) {
+        disasLines.push({ addr, text });
+      }
+    }
+    if (activeTab === 'disas') renderDisas();
+  }
+
+  // 判断该行是否为终止指令（POP PC / RT / RET）
+  function isTerminalLine(text) {
+    return /\bPOP\s+PC\b|\bRT\b|\bRET\b/i.test(text);
+  }
+
+  // 计算某个地址（disasAddr 中索引）对应 disasLines 中的起始行号
+  function disasLineStartForIdx(idx) {
+    let start = 0;
+    for (let i = 0; i < idx; i++) {
+      start += (disasByAddr[disasAddr[i]] || []).length;
+    }
+    return start;
+  }
+
+  // 解析地址输入，返回 disasAddr 中的索引；找不到返回 -1
+  function findDisasAddrIndex(q) {
+    q = q.toUpperCase();
+    // 去掉前导 0x
+    if (q.startsWith('0X')) q = q.slice(2);
+
+    // 精确匹配
+    let idx = disasAddr.findIndex((a) => String(a).toUpperCase() === q);
+    if (idx >= 0) return idx;
+
+    // 含通配符 X（任意十六进制位）
+    if (q.includes('X')) {
+      const regex = new RegExp('^' + q.replace(/X/g, '[0-9A-F]') + '$');
+      idx = disasAddr.findIndex((a) => regex.test(String(a).toUpperCase()));
+      if (idx >= 0) return idx;
+      const sub = new RegExp(q.replace(/X/g, '[0-9A-F]'));
+      idx = disasAddr.findIndex((a) => sub.test(String(a).toUpperCase()));
+      if (idx >= 0) return idx;
+    } else if (/^[0-9A-F]+$/.test(q)) {
+      // 后缀匹配（短模式，如 "34"、"2D"）
+      idx = disasAddr.findIndex((a) => String(a).toUpperCase().endsWith(q));
+      if (idx >= 0) return idx;
+      // 包含匹配
+      idx = disasAddr.findIndex((a) => String(a).toUpperCase().includes(q));
+      if (idx >= 0) return idx;
+      // 最近数值匹配
+      const targetVal = parseInt(q, 16);
+      if (Number.isFinite(targetVal)) {
+        for (let i = 0; i < disasAddr.length; i++) {
+          if (parseInt(String(disasAddr[i]), 16) >= targetVal) return i;
+        }
+        return disasAddr.length - 1;
+      }
+    }
+    return -1;
+  }
+
+  function renderDisas() {
+    if (!disasLoaded || disasLines.length === 0) {
+      el.disasView.innerHTML = '<span class="disas-line">' + t('disasNeedFile') + '</span>';
+      return;
+    }
+    const html = disasLines.map((l, i) =>
+      `<span class="disas-line" data-line="${i}" data-addr="${l.addr}">${i + 1}. ${escapeHtml(l.text)}</span>`
+    ).join('');
+    el.disasView.innerHTML = html;
+  }
+
+  function disasJump() {
+    const raw = el.disasAddr.value.trim();
+    if (!raw || disasLines.length === 0) return;
+
+    let targetIdx = -1;
+    let status = '';
+
+    // #gadget; 引用
+    const gm = raw.replace(/^0x/i, '').match(/^#([^;]+);?$/i);
+    if (gm) {
+      const gName = gm[1];
+      const g = state.gadgets.find((x) => x.name === gName);
+      if (g) {
+        const addr = String(g.addr).toUpperCase().replace(/^0X/, '');
+        targetIdx = findDisasAddrIndex(addr);
+        if (targetIdx < 0) status = `未找到地址 ${addr}`;
+      } else {
+        status = `未找到 gadget: ${gName}`;
+      }
+    } else {
+      targetIdx = findDisasAddrIndex(raw);
+      if (targetIdx < 0) status = '未找到匹配地址';
+    }
+
+    if (targetIdx < 0) {
+      el.disasStatus.textContent = status;
+      return;
+    }
+
+    const lineStart = disasLineStartForIdx(targetIdx);
+    if (lineStart < 0 || lineStart >= disasLines.length) return;
+
+    // 清空旧高亮
+    el.disasView.querySelectorAll('.disas-line.current, .disas-line.terminal').forEach((n) => {
+      n.classList.remove('current', 'terminal');
+    });
+
+    // 高亮目标行
+    const curEl = el.disasView.querySelector(`[data-line="${lineStart}"]`);
+    if (curEl) curEl.classList.add('current');
+
+    // 从目标行向后找最近的 POP PC / RT
+    let termIdx = -1;
+    for (let i = lineStart; i < disasLines.length; i++) {
+      if (isTerminalLine(disasLines[i].text)) { termIdx = i; break; }
+    }
+    if (termIdx >= 0) {
+      const termEl = el.disasView.querySelector(`[data-line="${termIdx}"]`);
+      if (termEl) termEl.classList.add('terminal');
+    }
+
+    // 滚动到目标行
+    const lh = 18;
+    el.disasView.scrollTop = Math.max(0, lineStart * lh - el.disasView.clientHeight / 3);
+
+    el.disasStatus.textContent = (termIdx >= 0 ? '行 ' + (termIdx + 1) + ' ' : '') + disasLines[lineStart].addr;
+  }
+
+  el.disasAddr.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      disasJump();
+    }
+  });
 
   function renderCompile() {
     const hex = parsed ? parsed.hexChars : '';
@@ -2048,8 +2222,17 @@
     showGadgetDisasm = !!s.showGadgetDisasm;
     showGadgetHoverDisasm = showGadgetDisasm && !!s.showGadgetHoverDisasm;
     showWelcomeOnStartup = !!s.showWelcomeOnStartup;
+    const wasLoaded = disasLoaded;
     disasFile = typeof s.disasFile === 'string' ? s.disasFile : '';
     disasLoaded = !!s.disasLoaded;
+    if (wasLoaded !== disasLoaded && !disasLoaded) {
+      setDisasData([], {});
+    }
+    // Disas 标签仅在（实验功能 + 已加载 _disas）时可见
+    if (el.tabDisas) el.tabDisas.hidden = !(showGadgetDisasm && disasLoaded);
+    if (activeTab === 'disas' && disasLoaded && disasLines.length === 0) {
+      vscode.postMessage({ type: 'disas:send-all' });
+    }
     if (lang !== oldLang) applyStaticI18n();
     if (activeTab === 'settings') syncSettingsUI();
     if (activeTab === 'gadgets') renderGadgetList();
@@ -2278,6 +2461,19 @@
           showToast(t('loadFail') + (msg.error || ''), true);
         }
         break;
+      case 'disas:full': {
+        if (!msg.ok || !Array.isArray(msg.data)) {
+          if (activeTab === 'disas') renderDisas();
+          return;
+        }
+        const byAddr = {};
+        const addrs = msg.data.map((d) => {
+          byAddr[d.addr] = d.lines;
+          return d.addr;
+        });
+        setDisasData(addrs, byAddr);
+        break;
+      }
       case 'gadgets:disasm-result': {
         const addrKey = String(msg.addr || '').toUpperCase();
         const result = msg.lines ? { lines: msg.lines } : { error: msg.error || '' };

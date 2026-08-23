@@ -474,6 +474,19 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
         );
         break;
       }
+      case 'disas:send-all': {
+        if (!session.disasMap) {
+          session.panel.webview.postMessage({ type: 'disas:full', ok: false });
+          return;
+        }
+        const addrs = [...session.disasMap.keys()].sort((a, b) => a - b);
+        const data = addrs.map((a) => ({
+          addr: a.toString(16).toUpperCase().padStart(6, '0'),
+          lines: session.disasMap.get(a) as string[],
+        }));
+        session.panel.webview.postMessage({ type: 'disas:full', ok: true, data });
+        break;
+      }
       case 'about': {
         showWelcome(this.context);
         break;
