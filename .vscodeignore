@@ -15,3 +15,5 @@ simply-plugin.bat
 build.sh
 **/*.map
 **/tsconfig.json
+publish.sh
+PUBLISHING.md

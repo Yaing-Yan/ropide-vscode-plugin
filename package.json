@@ -150,7 +150,11 @@
     "vscode:prepublish": "npm run compile",
     "compile": "echo \"export const BUILD_TIME = '$(date -u +%Y%m%d-%H%M%S)';\" > src/buildInfo.ts && esbuild src/extension.ts --bundle --external:vscode --format=cjs --platform=node --outfile=dist/extension.js",
     "watch": "esbuild src/extension.ts --bundle --external:vscode --format=cjs --platform=node --outfile=dist/extension.js --watch",
-    "package": "vsce package"
+    "package": "vsce package",
+    "publish:vsce": "./publish.sh",
+    "publish:ovsx": "./publish.sh --ovsx",
+    "publish:both": "./publish.sh --both",
+    "publish:dry": "./publish.sh --package"
   },
   "devDependencies": {
     "@types/node": "^20.11.30",
