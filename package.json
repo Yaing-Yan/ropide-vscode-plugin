@@ -129,6 +129,11 @@
           "default": false,
           "description": "在悬停提示中展示 gadget 的反汇编片段（需要提供 _disas 文件并开启「展示汇编」）。"
         },
+        "ropide.showDisasTab": {
+          "type": "boolean",
+          "default": false,
+          "description": "在侧边栏显示 Disas（反汇编浏览器）选项卡（需要提供 _disas 文件）。"
+        },
         "ropide.language": {
           "type": "string",
           "enum": [

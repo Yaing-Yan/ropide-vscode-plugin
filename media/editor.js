@@ -50,10 +50,19 @@
       disasmHint: '在 Gadgets 面板中显示每个 gadget 的反汇编片段（需要提供 _disas 文件）',
       disasmHoverExp: '在悬浮窗内展示汇编',
       disasmHoverHint: '在鼠标悬停提示中显示 gadget 的反汇编片段（需要已加载 _disas 文件并开启「展示汇编」）',
+      disasTabExp: '显示 Disas 选项卡',
+      disasTabHint: '在侧边栏显示「Disas」反汇编浏览器选项卡（需要提供 _disas 文件）。',
       disasmProvide: '请提供 _disas',
       chooseFile: '选择文件',
       disasmLoaded: '已加载：',
       welcomeStartup: '每次启动时打开欢迎页',
+      updateSection: '版本更新',
+      checkUpdate: '检查更新',
+      updateChecking: '正在检查更新…',
+      updateLatest: '已是最新版本',
+      updateAvailable: '发现新版本：',
+      updateOpen: '前往 GitHub',
+      updateFailed: '检查更新失败：',
       publishTitle: '发布到程序广场',
       progName: '程序名 *',
       progNamePh: '例如 tetris',
@@ -91,7 +100,7 @@
       disas: 'Disas',
       disasTitle: '反汇编浏览器',
       disasAddrPh: '地址（如 0x012D34、#gadget;)',
-      disasNeedFile: '尚未加载 _disas，请先在设置中开启「展示汇编」并选择文件',
+      disasNeedFile: '尚未加载 _disas，请先在设置中开启「显示 Disas 选项卡」并选择 _disas 文件',
       invalidAddr: '注入地址无效（1-5 位十六进制）',
       noCompileResult: '没有可写入的编译结果',
       writingEmu: '覆写中…（首次定位 RAM 可能需要数十秒）',
@@ -182,10 +191,19 @@
       disasmHint: 'Show disassembly snippets for each gadget in the Gadgets panel (requires a _disas file)',
       disasmHoverExp: 'Show disassembly in hover',
       disasmHoverHint: 'Display gadget disassembly snippets in the hover tooltip (requires _disas file loaded and "Show gadget disassembly" enabled)',
+      disasTabExp: 'Show Disas tab',
+      disasTabHint: 'Show the "Disas" disassembly browser tab in the side panel (requires a _disas file).',
       disasmProvide: 'Please provide _disas',
       chooseFile: 'Choose file',
       disasmLoaded: 'Loaded: ',
       welcomeStartup: 'Open welcome page on startup',
+      updateSection: 'Updates',
+      checkUpdate: 'Check for updates',
+      updateChecking: 'Checking for updates…',
+      updateLatest: 'You are up to date',
+      updateAvailable: 'New version available: ',
+      updateOpen: 'Open on GitHub',
+      updateFailed: 'Update check failed: ',
       publishTitle: 'Publish to Market',
       progName: 'Name *',
       progNamePh: 'e.g. tetris',
@@ -223,7 +241,7 @@
       disas: 'Disas',
       disasTitle: 'Disassembly browser',
       disasAddrPh: 'Address (e.g. 0x012D34, #gadget;)',
-      disasNeedFile: 'No _disas loaded. Enable "Show disassembly" and choose a file in settings first',
+      disasNeedFile: 'No _disas loaded. Enable "Show Disas tab" and choose a _disas file in settings first',
       invalidAddr: 'Invalid inject address (1-5 hex digits)',
       noCompileResult: 'Nothing compiled to write',
       writingEmu: 'Writing… (locating RAM may take tens of seconds the first time)',
@@ -286,7 +304,13 @@
   // 设置状态（由宿主推送）
   let showGadgetDisasm = false;
   let showGadgetHoverDisasm = false;
+  let showDisasTab = false;      // 是否显示 Disas 选项卡（默认关闭）
   let showWelcomeOnStartup = true;
+  // 设置页「检查更新」状态：idle | checking | latest | available | error
+  let updateState = 'idle';
+  let updateSha = '';
+  let updateUrl = '';
+  let updateError = '';
   let disasFile = '';
   let disasLoaded = false;
   // Disas 浏览器：地址->行数据（由宿主端一次性下发）
@@ -326,6 +350,8 @@
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
     code:
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>',
+    refresh:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>',
   };
 
   /* ---------------- 状态 ---------------- */
@@ -485,6 +511,13 @@
                 </label>
                 <div class="settings-hint" data-i18n="disasmHint"></div>
               </div>
+              <div class="form-row">
+                <label class="switch-row">
+                  <input type="checkbox" id="chkDisasTab" />
+                  <span data-i18n="disasTabExp"></span>
+                </label>
+                <div class="settings-hint" data-i18n="disasTabHint"></div>
+              </div>
               <div class="form-row" id="disasRow" hidden>
                 <label><span data-i18n="disasmProvide"></span></label>
                 <div class="disas-picker">
@@ -498,6 +531,14 @@
                   <span data-i18n="disasmHoverExp"></span>
                 </label>
                 <div class="settings-hint" data-i18n="disasmHoverHint"></div>
+              </div>
+              <div class="form-row settings-sep">
+                <label data-i18n="updateSection"></label>
+                <div class="update-row">
+                  <button class="icon-btn" id="btnCheckUpdate">${ICONS.refresh}<span data-i18n="checkUpdate"></span></button>
+                  <span class="update-status" id="updateStatus"></span>
+                </div>
+                <div class="settings-hint" id="updateHint" hidden></div>
               </div>
             </div>
           </div>
@@ -592,12 +633,16 @@
     disasView: document.getElementById('disasView'),
     selLanguage: document.getElementById('selLanguage'),
     chkDisasm: document.getElementById('chkDisasm'),
+    chkDisasTab: document.getElementById('chkDisasTab'),
     chkWelcomeStartup: document.getElementById('chkWelcomeStartup'),
     disasRow: document.getElementById('disasRow'),
     btnChooseDisas: document.getElementById('btnChooseDisas'),
     disasFileLabel: document.getElementById('disasFile'),
     chkHoverDisasm: document.getElementById('chkHoverDisasm'),
     disasmHoverRow: document.getElementById('disasmHoverRow'),
+    btnCheckUpdate: document.getElementById('btnCheckUpdate'),
+    updateStatus: document.getElementById('updateStatus'),
+    updateHint: document.getElementById('updateHint'),
     gadgetSearch: document.getElementById('gadgetSearch'),
     gadgetList: document.getElementById('gadgetList'),
     btnAddGadget: document.getElementById('btnAddGadget'),
@@ -2221,6 +2266,7 @@
     if (typeof s.language === 'string' && STR[s.language]) lang = s.language;
     showGadgetDisasm = !!s.showGadgetDisasm;
     showGadgetHoverDisasm = showGadgetDisasm && !!s.showGadgetHoverDisasm;
+    showDisasTab = !!s.showDisasTab;
     showWelcomeOnStartup = !!s.showWelcomeOnStartup;
     const wasLoaded = disasLoaded;
     disasFile = typeof s.disasFile === 'string' ? s.disasFile : '';
@@ -2228,8 +2274,8 @@
     if (wasLoaded !== disasLoaded && !disasLoaded) {
       setDisasData([], {});
     }
-    // Disas 标签仅在（实验功能 + 已加载 _disas）时可见
-    if (el.tabDisas) el.tabDisas.hidden = !(showGadgetDisasm && disasLoaded);
+    // Disas 标签仅在（开启「显示 Disas 选项卡」+ 已加载 _disas）时可见
+    updateDisasTabVisibility();
     if (activeTab === 'disas' && disasLoaded && disasLines.length === 0) {
       vscode.postMessage({ type: 'disas:send-all' });
     }
@@ -2238,14 +2284,26 @@
     if (activeTab === 'gadgets') renderGadgetList();
   }
 
+  function updateDisasTabVisibility() {
+    if (!el.tabDisas) return;
+    el.tabDisas.hidden = !(showDisasTab && disasLoaded);
+    // 选项卡被隐藏时，如果正停留在 Disas 页，切回设置页
+    if (el.tabDisas.hidden && activeTab === 'disas') {
+      setActiveTab('settings');
+      syncSettingsUI();
+    }
+  }
+
   function syncSettingsUI() {
     el.selLanguage.value = lang;
     el.chkDisasm.checked = showGadgetDisasm;
+    el.chkDisasTab.checked = showDisasTab;
     el.chkWelcomeStartup.checked = showWelcomeOnStartup;
-    el.disasRow.hidden = !showGadgetDisasm;
+    el.disasRow.hidden = !(showDisasTab || showGadgetDisasm);
     el.chkHoverDisasm.checked = showGadgetHoverDisasm && showGadgetDisasm;
     el.disasmHoverRow.hidden = !showGadgetDisasm;
     el.disasFileLabel.textContent = disasFile ? t('disasmLoaded') + disasFile : '';
+    syncUpdateUI();
   }
 
   el.selLanguage.addEventListener('change', () => {
@@ -2253,6 +2311,9 @@
   });
   el.chkDisasm.addEventListener('change', () => {
     vscode.postMessage({ type: 'settings:set', key: 'showGadgetDisasm', value: el.chkDisasm.checked });
+  });
+  el.chkDisasTab.addEventListener('change', () => {
+    vscode.postMessage({ type: 'settings:set', key: 'showDisasTab', value: el.chkDisasTab.checked });
   });
   el.chkHoverDisasm.addEventListener('change', () => {
     vscode.postMessage({ type: 'settings:set', key: 'showGadgetHoverDisasm', value: el.chkHoverDisasm.checked });
@@ -2262,6 +2323,55 @@
   });
   el.btnChooseDisas.addEventListener('click', () => {
     vscode.postMessage({ type: 'disas:choose' });
+  });
+
+  /* ---------------- 设置页：检查更新 ---------------- */
+  function syncUpdateUI() {
+    if (!el.updateStatus) return;
+    el.btnCheckUpdate.disabled = updateState === 'checking';
+    if (updateState === 'idle') {
+      el.updateStatus.textContent = '';
+      el.updateStatus.className = 'update-status';
+      el.updateHint.hidden = true;
+      el.updateHint.textContent = '';
+      return;
+    }
+    if (updateState === 'checking') {
+      el.updateStatus.textContent = t('updateChecking');
+      el.updateStatus.className = 'update-status busy';
+      el.updateHint.hidden = true;
+      return;
+    }
+    if (updateState === 'latest') {
+      el.updateStatus.textContent = t('updateLatest');
+      el.updateStatus.className = 'update-status ok';
+      el.updateHint.hidden = true;
+      return;
+    }
+    if (updateState === 'available') {
+      el.updateStatus.textContent = t('updateAvailable') + (updateSha || '');
+      el.updateStatus.className = 'update-status new';
+      el.updateHint.hidden = false;
+      el.updateHint.innerHTML =
+        '<button class="link-btn" id="btnOpenUpdate">' + escapeHtml(t('updateOpen')) + '</button>';
+      const btn = document.getElementById('btnOpenUpdate');
+      if (btn) {
+        btn.addEventListener('click', () => {
+          vscode.postMessage({ type: 'open-external', url: updateUrl });
+        });
+      }
+      return;
+    }
+    // error
+    el.updateStatus.textContent = t('updateFailed') + updateError;
+    el.updateStatus.className = 'update-status err';
+    el.updateHint.hidden = true;
+  }
+
+  el.btnCheckUpdate.addEventListener('click', () => {
+    updateState = 'checking';
+    syncUpdateUI();
+    vscode.postMessage({ type: 'update:check' });
   });
 
   /* ---------------- 程序广场 ---------------- */
@@ -2453,6 +2563,18 @@
       }
       case 'settings':
         applySettings(msg);
+        break;
+      case 'update:result':
+        if (msg.ok) {
+          updateState = msg.hasUpdate ? 'available' : 'latest';
+          updateSha = typeof msg.sha === 'string' ? msg.sha : '';
+          updateUrl = typeof msg.url === 'string' ? msg.url : '';
+          updateError = '';
+        } else {
+          updateState = 'error';
+          updateError = String(msg.error || '');
+        }
+        syncUpdateUI();
         break;
       case 'disas:load-result':
         if (msg.ok) {

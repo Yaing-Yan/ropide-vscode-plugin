@@ -76,6 +76,7 @@ When you open a `.rop` file, the editor shows the `input` field's content (not t
 
 - **Gadgets panel** — open it from the toolbar: a laid-out list of all gadgets (name, colored tags, address, description) with search, add, edit, delete.
 - **Gadget disassembly** — enable *Show gadget disassembly* in Settings and provide a `_disas` file; each gadget then shows the disassembly snippet from its address until `POP PC` / `RT`. Optionally show the same snippet in the **hover tooltip**.
+- **Disas tab** — the read-only disassembly browser tab is opt-in: turn on *Show Disas tab* in Settings (off by default) and pick a `_disas` file to get it in the side panel.
 - **Disas browser tab** — a read-only disassembly browser (address input + line-numbered view); jump to any address (`0x012D34`, `12D34`, `#gadget;`, …) and it highlights the target line and the nearest terminating `POP PC` / `RT`. The `_disas` path is remembered per `.rop` file.
 
 #### Build & run
@@ -88,7 +89,7 @@ When you open a `.rop` file, the editor shows the `input` field's content (not t
 - **New file** — creating a `.rop` file walks you through **file name**, **left address**, **right address**, and the gadgets source (VerF preset / VerC preset / import `gadgets.json` / empty).
 - **Market** — browse / search programs on [ropide.pages.dev](https://ropide.pages.dev), Featured / All sections, one-click download (**choose a save path, then it opens**), and publish (name / author / model / description form with expert check). An unread badge appears on the market buttons when new programs are published.
 - **Welcome page** — a polished start page (optionally shown on startup) with quick actions, **recent files**, an **update-available badge** (compares the local build time against the latest `main` commit), and the market dialog.
-- **Settings** — UI language (简体中文 / English), the disassembly toggles, and the startup-welcome toggle, from the toolbar gear or the side panel.
+- **Settings** — UI language (简体中文 / English), the disassembly toggles, the Disas-tab toggle, the startup-welcome toggle and a **Check for updates** button, from the toolbar gear or the side panel. The update check compares your local build time against the latest commit on GitHub `main` and links straight to the repo when something newer exists.
 
 ## ⚠️ Overwrite feature: the emulator must be started this way
 
@@ -289,6 +290,7 @@ curl.exe -sSL https://raw.githubusercontent.com/Yaing-Yan/ropide-vscode-plugin/m
 
 - **Gadgets 面板** —— 右上角按钮打开，优美排版展示所有 gadgets（名称、彩色标签、地址、描述），支持搜索、新增、编辑、删除。
 - **gadget 汇编展示** —— 在设置中开启「gadgets 展示汇编」并提供 `_disas` 文件后，每个 gadget 下方会展示从该地址到 `POP PC` / `RT` 的反汇编片段；还可选择在**悬浮提示**中同样展示。
+- **Disas 选项卡开关** —— 反汇编浏览器标签默认**不显示**；在设置中开启「显示 Disas 选项卡」并选择 `_disas` 文件后，它才会出现在侧边栏。
 - **Disas 反汇编浏览器** —— 只读的反汇编浏览标签（地址输入框 + 带行号视图）；输入任意地址（`0x012D34`、`12D34`、`#gadget;` 等）即可跳转，并高亮目标行与其后最近的终止 `POP PC` / `RT`。`_disas` 路径按 `.rop` 文件记忆。
 
 #### 构建与运行
@@ -301,7 +303,7 @@ curl.exe -sSL https://raw.githubusercontent.com/Yaing-Yan/ropide-vscode-plugin/m
 - **新建** —— 新建 `.rop` 文件时依次填写**文件名**、**左侧地址**、**右侧地址**，并选择 gadgets 来源（`VerF` 预设 / `VerC` 预设 / 导入 `gadgets.json` / 空）。
 - **程序广场** —— 浏览 / 搜索 [ropide.pages.dev](https://ropide.pages.dev) 上的程序，精选/全部分区，一键下载（**指定保存路径后打开**）、发布（程序名/作者/机型/描述表单）。有新程序发布时，程序广场按钮上会出现未读小红点。
 - **欢迎页** —— 精致的起始页（可设为启动时打开），含快捷操作、**最近打开的文件**、**新版本徽章**（比较本地构建时间与 `main` 分支最新提交时间）以及程序广场弹窗。
-- **设置** —— 界面语言（简体中文 / English）、反汇编开关、启动欢迎页开关，通过工具栏齿轮或侧栏「设置」页修改。
+- **设置** —— 界面语言（简体中文 / English）、反汇编开关、Disas 选项卡开关、启动欢迎页开关，以及一个「检查更新」按钮，通过工具栏齿轮或侧栏「设置」页修改。「检查更新」会比较本地构建时间与 GitHub `main` 的最新提交时间，有更新时可直接跳转仓库。
 
 ## ⚠️ 覆写功能：必须这样启动模拟器
 

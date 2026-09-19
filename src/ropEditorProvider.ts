@@ -14,6 +14,7 @@ import { showWelcome } from './welcome';
 import { closeTabIfOpen } from './tabs';
 import { marketUnread } from './marketState';
 import { recordRecentFile } from './recent';
+import { checkForUpdate, REPO_URL } from './update';
 
 interface EditorSession {
   document: vscode.TextDocument;
@@ -53,22 +54,23 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
     this.statusBar.show();
     context.subscriptions.push(this.statusBar);
 
-    // 全局设置（语言 / 展示汇编开关）变化 → 同步到所有编辑器
+    // 全局设置（语言 / 展示汇编开关 / Disas 选项卡）变化 → 同步到所有编辑器
     context.subscriptions.push(
       vscode.workspace.onDidChangeConfiguration((e) => {
-        if (e.affectsConfiguration('ropide.showGadgetDisasm') || e.affectsConfiguration('ropide.language') || e.affectsConfiguration('ropide.showGadgetHoverDisasm')) {
+        if (e.affectsConfiguration('ropide.showGadgetDisasm') || e.affectsConfiguration('ropide.language') || e.affectsConfiguration('ropide.showGadgetHoverDisasm') || e.affectsConfiguration('ropide.showDisasTab')) {
           this.pushGlobalSettingsToAll();
         }
       })
     );
   }
 
-  private globalSettings(): { language: string; showGadgetDisasm: boolean; showGadgetHoverDisasm: boolean; showWelcomeOnStartup: boolean } {
+  private globalSettings(): { language: string; showGadgetDisasm: boolean; showGadgetHoverDisasm: boolean; showDisasTab: boolean; showWelcomeOnStartup: boolean } {
     const cfg = vscode.workspace.getConfiguration('ropide');
     return {
       language: cfg.get<string>('language', 'zh-CN'),
       showGadgetDisasm: cfg.get<boolean>('showGadgetDisasm', false),
       showGadgetHoverDisasm: cfg.get<boolean>('showGadgetHoverDisasm', false),
+      showDisasTab: cfg.get<boolean>('showDisasTab', false),
       showWelcomeOnStartup: cfg.get<boolean>('showWelcomeOnStartup', true),
     };
   }
@@ -414,6 +416,8 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
             await cfg.update('language', String(value), vscode.ConfigurationTarget.Global);
           } else if (key === 'showGadgetHoverDisasm') {
             await cfg.update('showGadgetHoverDisasm', !!value, vscode.ConfigurationTarget.Global);
+          } else if (key === 'showDisasTab') {
+            await cfg.update('showDisasTab', !!value, vscode.ConfigurationTarget.Global);
           } else if (key === 'showWelcomeOnStartup') {
             await cfg.update('showWelcomeOnStartup', !!value, vscode.ConfigurationTarget.Global);
           }
@@ -477,20 +481,40 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
         break;
       }
       case 'disas:send-all': {
-        if (!session.disasMap) {
+        const map = session.disasMap;
+        if (!map) {
           session.panel.webview.postMessage({ type: 'disas:full', ok: false });
           return;
         }
-        const addrs = [...session.disasMap.keys()].sort((a, b) => a - b);
+        const addrs = [...map.keys()].sort((a, b) => a - b);
         const data = addrs.map((a) => ({
           addr: a.toString(16).toUpperCase().padStart(6, '0'),
-          lines: session.disasMap.get(a) as string[],
+          lines: map.get(a) as string[],
         }));
         session.panel.webview.postMessage({ type: 'disas:full', ok: true, data });
         break;
       }
       case 'about': {
         showWelcome(this.context);
+        break;
+      }
+      // 设置页「检查更新」：比较本地构建时间与 GitHub main 最新提交时间
+      case 'update:check': {
+        void (async () => {
+          const r = await checkForUpdate();
+          session.panel.webview.postMessage(
+            'error' in r
+              ? { type: 'update:result', ok: false, error: r.error }
+              : { type: 'update:result', ok: true, hasUpdate: r.hasUpdate, sha: r.sha, url: REPO_URL }
+          );
+        })();
+        break;
+      }
+      case 'open-external': {
+        const url = String(message.url || '');
+        if (/^https?:\/\//i.test(url)) {
+          void vscode.env.openExternal(vscode.Uri.parse(url));
+        }
         break;
       }
       case 'gadgets:import': {
