@@ -13,6 +13,7 @@ import { emuWrite, parseHexBytes } from './emu';
 import { showWelcome } from './welcome';
 import { closeTabIfOpen } from './tabs';
 import { marketUnread } from './marketState';
+import { recordRecentFile } from './recent';
 
 interface EditorSession {
   document: vscode.TextDocument;
@@ -166,6 +167,7 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
     };
     this.sessions.set(uriKey, session);
     this.lastActiveUri = uriKey;
+    if (document.uri.scheme === 'file') recordRecentFile(this.context, document.uri);
 
     // 市场未读广播：任意视图打开广场清零时，同步刷新本编辑器的红点。
     const sendUnread = (unread: number): void => {

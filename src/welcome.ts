@@ -8,6 +8,8 @@ import { parseRopDocument, serializeRopDocument } from './rop';
 import { RopEditorProvider } from './ropEditorProvider';
 import { closeTabIfOpen } from './tabs';
 import { marketUnread } from './marketState';
+import { getRecentFiles, removeRecentFile } from './recent';
+import { checkForUpdate, REPO_URL } from './update';
 import { BUILD_TIME } from './buildInfo';
 
 type WelcomeLang = 'zh-CN' | 'en';
@@ -83,6 +85,10 @@ const WELCOME_STR: Record<WelcomeLang, Record<string, string>> = {
     needDesc: '请填写描述',
     needAnswer: '请输入 4 位十六进制的两字节答案',
     ropLoadFail: '读取 .rop 文件失败：',
+    recentTitle: '最近打开',
+    recentGone: '文件已不存在，已从最近列表移除',
+    updateAvailable: '有新版本',
+    updateTip: '点击前往 GitHub 获取最新版本',
   },
   en: {
     title: 'Welcome to RopIDE for VS Code',
@@ -139,6 +145,10 @@ const WELCOME_STR: Record<WelcomeLang, Record<string, string>> = {
     needDesc: 'Please enter a description',
     needAnswer: 'Enter the two-byte answer as 4 hex digits',
     ropLoadFail: 'Failed to read .rop file: ',
+    recentTitle: 'Recent',
+    recentGone: 'File no longer exists; removed from the recent list',
+    updateAvailable: 'Update available',
+    updateTip: 'Click to get the latest version on GitHub',
   },
 };
 
@@ -221,6 +231,35 @@ export function showWelcome(context: vscode.ExtensionContext): void {
       void (async () => {
         const unread = await marketUnread.check();
         panel.webview.postMessage({ type: 'market:unread', unread });
+      })();
+      return;
+    }
+    if (msg.type === 'recent:list') {
+      panel.webview.postMessage({ type: 'recent:list-result', items: getRecentFiles(context) });
+      return;
+    }
+    if (msg.type === 'recent:open' && typeof msg.url === 'string') {
+      void (async () => {
+        const uri = vscode.Uri.parse(msg.url as string);
+        try {
+          await vscode.workspace.fs.stat(uri);
+        } catch {
+          removeRecentFile(context, msg.url as string);
+          panel.webview.postMessage({ type: 'recent:gone', items: getRecentFiles(context) });
+          return;
+        }
+        await vscode.commands.executeCommand('vscode.openWith', uri, RopEditorProvider.viewType);
+      })();
+      return;
+    }
+    if (msg.type === 'update:check') {
+      void (async () => {
+        const r = await checkForUpdate();
+        panel.webview.postMessage(
+          'error' in r
+            ? { type: 'update:result', ok: false }
+            : { type: 'update:result', ok: true, hasUpdate: r.hasUpdate, url: REPO_URL }
+        );
       })();
       return;
     }
@@ -383,6 +422,10 @@ function getWelcomeHtml(lang: WelcomeLang): string {
     needDesc: W('needDesc'),
     needAnswer: W('needAnswer'),
     ropLoadFail: W('ropLoadFail'),
+    recentTitle: W('recentTitle'),
+    recentGone: W('recentGone'),
+    updateAvailable: W('updateAvailable'),
+    updateTip: W('updateTip'),
   };
   const langBtnLabel = i18n.target === 'en' ? 'EN' : '中文';
 
@@ -424,46 +467,161 @@ function getWelcomeHtml(lang: WelcomeLang): string {
       top: 16px;
       left: 16px;
       z-index: 200;
+      display: flex;
+      align-items: center;
+      gap: 8px;
       font-size: 0.75em;
       color: var(--vscode-descriptionForeground, #9d9d9d);
       user-select: none;
     }
+    .update-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 2px 9px;
+      border-radius: 999px;
+      font-weight: 700;
+      color: #fff;
+      background: linear-gradient(135deg, #2ea043, #238636);
+      box-shadow: 0 2px 8px rgba(35, 134, 54, 0.4);
+      cursor: pointer;
+      text-decoration: none;
+      animation: badgePop 0.25s ease;
+    }
+    .update-badge[hidden] { display: none; }
+    .update-badge .dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: #fff;
+      animation: pulse 1.6s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+    @keyframes badgePop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    /* ---------- Hero ---------- */
+    .hero {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 11vh;
+    }
+    .logo-badge {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 76px;
+      height: 76px;
+      border-radius: 20px;
+      background: var(--vscode-button-background, #0e639c);
+      background: linear-gradient(135deg,
+        var(--vscode-button-background, #0e639c),
+        color-mix(in srgb, var(--vscode-button-background, #0e639c) 55%, #7b52ff));
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255,255,255,0.12);
+      margin-bottom: 18px;
+    }
+    .logo-badge svg { width: 48px; height: 48px; }
     .title {
       text-align: center;
-      font-weight: bold;
-      font-size: 1.7em;
-      margin-top: 12vh;
+      font-weight: 700;
+      font-size: 1.75em;
+      letter-spacing: 0.2px;
+      margin: 0;
     }
     .body {
       text-align: center;
-      font-size: 1.1em;
-      margin-top: 18px;
+      font-size: 1.05em;
+      margin-top: 10px;
       color: var(--vscode-descriptionForeground, #9d9d9d);
     }
     .actions {
       display: flex;
       justify-content: center;
       gap: 12px;
-      margin-top: 28px;
+      margin-top: 30px;
       flex-wrap: wrap;
     }
     .actions button {
       position: relative;
-      padding: 8px 18px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 9px 20px;
       font-size: 13px;
+      font-weight: 600;
       font-family: inherit;
       color: var(--vscode-button-foreground, #fff);
       background: var(--vscode-button-background, #0e639c);
-      border: none;
-      border-radius: 4px;
+      border: 1px solid transparent;
+      border-radius: 999px;
       cursor: pointer;
+      transition: transform 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
     }
-    .actions button:hover { background: var(--vscode-button-hoverBackground, #1177bb); }
+    .actions button svg { width: 15px; height: 15px; opacity: 0.95; }
+    .actions button:hover {
+      background: var(--vscode-button-hoverBackground, #1177bb);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+    }
+    .actions button:active { transform: translateY(0); }
     .actions button.secondary {
       color: var(--vscode-button-secondaryForeground, #ccc);
       background: var(--vscode-button-secondaryBackground, #3a3d41);
+      border-color: var(--vscode-panel-border, #3c3c3c);
     }
     .actions button.secondary:hover { background: var(--vscode-button-secondaryHoverBackground, #45494e); }
+
+    /* ---------- 最近打开 ---------- */
+    .recent {
+      width: min(520px, 92vw);
+      margin: 34px auto 0;
+    }
+    .recent[hidden] { display: none; }
+    .recent-title {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      color: var(--vscode-descriptionForeground, #9d9d9d);
+      margin-bottom: 8px;
+    }
+    .recent-title svg { width: 14px; height: 14px; }
+    .recent-list { display: flex; flex-direction: column; gap: 6px; }
+    .recent-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 12px;
+      border: 1px solid var(--vscode-panel-border, #3c3c3c);
+      border-radius: 8px;
+      background: var(--vscode-editorWidget-background, rgba(255,255,255,0.02));
+      cursor: pointer;
+      text-align: left;
+      transition: border-color 0.12s ease, transform 0.12s ease, background 0.12s ease;
+    }
+    .recent-item:hover {
+      border-color: var(--vscode-focusBorder, #0e639c);
+      background: var(--vscode-list-hoverBackground, rgba(255,255,255,0.05));
+      transform: translateX(2px);
+    }
+    .recent-item .ri-icon {
+      flex: 0 0 auto;
+      display: flex;
+      color: var(--vscode-button-background, #0e639c);
+    }
+    .recent-item .ri-icon svg { width: 18px; height: 18px; }
+    .recent-item .ri-text { min-width: 0; display: flex; flex-direction: column; }
+    .recent-item .ri-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--vscode-foreground, #ccc);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .recent-item .ri-path {
+      font-size: 11px;
+      color: var(--vscode-descriptionForeground, #9d9d9d);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl;
+    }
 
     /* ---------- 程序广场未读小红点 ---------- */
     .market-unread {
@@ -569,9 +727,15 @@ function getWelcomeHtml(lang: WelcomeLang): string {
       flex-direction: column;
       gap: 6px;
       border: 1px solid var(--vscode-panel-border, #3c3c3c);
-      border-radius: 6px;
+      border-radius: 8px;
       padding: 10px 12px;
       min-width: 0;
+      transition: border-color 0.12s ease, transform 0.12s ease, box-shadow 0.12s ease;
+    }
+    .market-card:hover {
+      border-color: var(--vscode-focusBorder, #0e639c);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
     }
     .market-card.featured { border-color: var(--vscode-button-background, #0e639c); }
     .market-card-title {
@@ -668,11 +832,40 @@ function getWelcomeHtml(lang: WelcomeLang): string {
     .footer {
       margin-top: auto;
       text-align: center;
-      font-size: 0.85em;
-      line-height: 1.9;
+      font-size: 0.82em;
+      line-height: 1.7;
       color: var(--vscode-descriptionForeground, #9d9d9d);
-      padding-bottom: 8px;
+      padding-bottom: 10px;
     }
+    .footer .credit { opacity: 0.85; }
+    .link-pills {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .link-pills a {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 13px;
+      font-size: 12px;
+      color: var(--vscode-foreground, #ccc);
+      background: var(--vscode-editorWidget-background, rgba(255,255,255,0.03));
+      border: 1px solid var(--vscode-panel-border, #3c3c3c);
+      border-radius: 999px;
+      text-decoration: none;
+      cursor: pointer;
+      transition: border-color 0.12s ease, background 0.12s ease, color 0.12s ease, transform 0.12s ease;
+    }
+    .link-pills a:hover {
+      color: var(--vscode-button-foreground, #fff);
+      background: var(--vscode-button-background, #0e639c);
+      border-color: var(--vscode-button-background, #0e639c);
+      transform: translateY(-1px);
+    }
+    .link-pills a svg { width: 13px; height: 13px; }
     a {
       color: var(--vscode-textLink-foreground, #3794ff);
       text-decoration: none;
@@ -683,13 +876,47 @@ function getWelcomeHtml(lang: WelcomeLang): string {
 </head>
 <body>
   <button class="lang-toggle" id="btnLang" data-target-lang="${i18n.target}" title="${W('switchTo')}">${langBtnLabel}</button>
-  <div class="ver-top">ver.${BUILD_TIME}</div>
-  <div class="title">${W('title')}</div>
-  <div class="body">${W('subtitle')}</div>
-  <div class="actions">
-    <button data-command="ropide.newFile">${W('newFile')}</button>
-    <button class="secondary" data-command="ropide.openFile">${W('openFile')}</button>
-    <button class="secondary" id="btnMarket">${W('market')}<span class="market-unread" id="marketUnread" hidden></span></button>
+  <div class="ver-top">
+    <span>ver.${BUILD_TIME}</span>
+    <a class="update-badge" id="updateBadge" hidden title="${i18n.updateTip}"><span class="dot"></span>${i18n.updateAvailable}</a>
+  </div>
+  <div class="hero">
+    <div class="logo-badge">
+      <svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <g stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none">
+          <rect x="14" y="18" width="30" height="20" rx="4"/>
+          <rect x="52" y="18" width="30" height="20" rx="4"/>
+          <path d="M44 28 h8"/><path d="M82 28 h14 v22"/><path d="M92 44 l4 6 4 -6"/>
+          <rect x="24" y="56" width="80" height="58" rx="8"/>
+          <rect x="34" y="64" width="60" height="16" rx="3"/>
+        </g>
+        <g fill="#fff"><circle cx="40" cy="92" r="3.2"/><circle cx="54" cy="92" r="3.2"/><circle cx="68" cy="92" r="3.2"/><circle cx="88" cy="92" r="3.2"/><circle cx="40" cy="104" r="3.2"/><circle cx="54" cy="104" r="3.2"/><circle cx="68" cy="104" r="3.2"/></g>
+        <g stroke="#fff" stroke-width="3" stroke-linecap="round" fill="none"><rect x="82" y="100" width="14" height="8" rx="3"/></g>
+      </svg>
+    </div>
+    <h1 class="title">${W('title')}</h1>
+    <div class="body">${W('subtitle')}</div>
+    <div class="actions">
+      <button data-command="ropide.newFile">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 1.5H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5.5z"/><path d="M9 1.5v4h4"/><path d="M8 8.5v3M6.5 10h3"/></svg>
+        ${W('newFile')}
+      </button>
+      <button class="secondary" data-command="ropide.openFile">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 4a1 1 0 0 1 1-1h3l1.5 1.5h6a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1z"/></svg>
+        ${W('openFile')}
+      </button>
+      <button class="secondary" id="btnMarket">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="6.5"/><path d="M1.5 8h13M8 1.5c1.8 2 1.8 11 0 13M8 1.5c-1.8 2-1.8 11 0 13"/></svg>
+        ${W('market')}<span class="market-unread" id="marketUnread" hidden></span>
+      </button>
+    </div>
+    <div class="recent" id="recentSection" hidden>
+      <div class="recent-title">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.5"/><path d="M8 4.5V8l2.5 1.5"/></svg>
+        ${i18n.recentTitle}
+      </div>
+      <div class="recent-list" id="recentList"></div>
+    </div>
   </div>
 
   <div class="market-overlay" id="marketOverlay" hidden>
@@ -741,9 +968,26 @@ function getWelcomeHtml(lang: WelcomeLang): string {
   </div>
 
   <div class="footer">
-    <div>Copyright © 2026 <a href="https://github.com/Yaing-Yan/ropide-vscode-plugin">RopIDE for VS Code</a> @Yaing-Yan，使用了Vibe Coding技术</div>
-    <div>Copyright © 2026 <a href="https://github.com/WulanOVO/rop-ide">RopIDE</a> @wlyibo</div>
-    <div><a href="https://ropide.pages.dev/">RopIDE网页版</a>·<a href="https://rop-ide2.pages.dev/">xe1010ce20的ROP IDE 2nd</a></div>
+    <div class="credit">Copyright © 2026 RopIDE for VS Code @Yaing-Yan · 使用了 Vibe Coding 技术</div>
+    <div class="credit">Copyright © 2026 RopIDE @wlyibo</div>
+    <div class="link-pills">
+      <a href="https://github.com/Yaing-Yan/ropide-vscode-plugin">
+        <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0a8 8 0 0 0-2.53 15.59c.4.07.55-.17.55-.38l-.01-1.35c-2.23.48-2.7-1.07-2.7-1.07-.36-.93-.89-1.18-.89-1.18-.73-.5.06-.49.06-.49.8.06 1.23.83 1.23.83.72 1.23 1.88.87 2.34.67.07-.52.28-.87.5-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.83-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.03 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.52.56.83 1.28.83 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48l-.01 2.2c0 .21.15.46.55.38A8 8 0 0 0 8 0z"/></svg>
+        插件仓库
+      </a>
+      <a href="https://github.com/WulanOVO/rop-ide">
+        <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0a8 8 0 0 0-2.53 15.59c.4.07.55-.17.55-.38l-.01-1.35c-2.23.48-2.7-1.07-2.7-1.07-.36-.93-.89-1.18-.89-1.18-.73-.5.06-.49.06-.49.8.06 1.23.83 1.23.83.72 1.23 1.88.87 2.34.67.07-.52.28-.87.5-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.83-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.03 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.52.56.83 1.28.83 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48l-.01 2.2c0 .21.15.46.55.38A8 8 0 0 0 8 0z"/></svg>
+        rop-ide
+      </a>
+      <a href="https://ropide.pages.dev/">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="6.5"/><path d="M1.5 8h13M8 1.5c1.8 2 1.8 11 0 13M8 1.5c-1.8 2-1.8 11 0 13"/></svg>
+        RopIDE 网页版
+      </a>
+      <a href="https://rop-ide2.pages.dev/">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="6.5"/><path d="M1.5 8h13M8 1.5c1.8 2 1.8 11 0 13M8 1.5c-1.8 2-1.8 11 0 13"/></svg>
+        ROP IDE 2nd
+      </a>
+    </div>
   </div>
   <div class="toast" id="toast" hidden></div>
   <script>
@@ -794,6 +1038,47 @@ function getWelcomeHtml(lang: WelcomeLang): string {
     }
     // 打开时查询一次未读数（不标记已读；打开广场后宿主会广播清零）
     vscode.postMessage({ type: 'market:unread-check' });
+
+    /* ---------- 最近打开的 .rop 文件 ---------- */
+    const recentSection = document.getElementById('recentSection');
+    const recentList = document.getElementById('recentList');
+    function fsPathOf(uriStr) {
+      try {
+        let p = decodeURIComponent(String(uriStr).replace(/^file:\/\//, ''));
+        if (/^\/[A-Za-z]:/.test(p)) p = p.slice(1); // Windows /C:/...
+        return p;
+      } catch (e) { return String(uriStr); }
+    }
+    function renderRecent(list) {
+      if (!Array.isArray(list) || !list.length) {
+        recentSection.hidden = true;
+        recentList.innerHTML = '';
+        return;
+      }
+      recentSection.hidden = false;
+      recentList.innerHTML = list.map((it) => {
+        const path = fsPathOf(it.uri);
+        return (
+          '<button class="recent-item" data-uri="' + esc(it.uri) + '">' +
+            '<span class="ri-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 1.5H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5.5z"/><path d="M9 1.5v4h4"/></svg></span>' +
+            '<span class="ri-text">' +
+              '<span class="ri-name">' + esc(it.name) + '</span>' +
+              '<span class="ri-path">' + esc(path) + '</span>' +
+            '</span>' +
+          '</button>'
+        );
+      }).join('');
+    }
+    recentList.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-uri]');
+      if (!btn) return;
+      vscode.postMessage({ type: 'recent:open', url: btn.dataset.uri });
+    });
+    vscode.postMessage({ type: 'recent:list' });
+
+    /* ---------- 版本更新徽章 ---------- */
+    const updateBadge = document.getElementById('updateBadge');
+    vscode.postMessage({ type: 'update:check' });
 
     /* ---------- 程序广场（居中弹窗） ---------- */
     const overlay = document.getElementById('marketOverlay');
@@ -980,6 +1265,16 @@ function getWelcomeHtml(lang: WelcomeLang): string {
         renderGrid();
       } else if (msg.type === 'market:unread') {
         setMarketUnread(msg.unread);
+      } else if (msg.type === 'recent:list-result') {
+        renderRecent(msg.items);
+      } else if (msg.type === 'recent:gone') {
+        renderRecent(msg.items);
+        showToast(WI18N.recentGone, true);
+      } else if (msg.type === 'update:result') {
+        if (msg.ok && msg.hasUpdate && msg.url) {
+          updateBadge.href = msg.url;
+          updateBadge.hidden = false;
+        }
       } else if (msg.type === 'market:publish-ready') {
         btnPublishMarket.disabled = false;
         btnPublishMarket.textContent = WI18N.publish;

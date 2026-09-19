@@ -2,9 +2,29 @@
   <img src="media/banner.png" alt="RopIDE for VS Code" width="100%" />
 </p>
 
-# RopIDE for VS Code
+<h1 align="center">RopIDE for VS Code</h1>
 
-A VS Code extension built for **`.rop` files** — ROP programs for the **CASIO fx-991 CN X**.
+<p align="center">
+  A VS Code extension built for <b><code>.rop</code> files</b> — ROP programs for the <b>CASIO fx-991 CN X</b>.
+</p>
+
+<p align="center">
+  <img alt="VS Code" src="https://img.shields.io/badge/VS%20Code-%E2%89%A5%201.85-007ACC?logo=visualstudiocode&logoColor=white" />
+  <img alt="Node" src="https://img.shields.io/badge/Node.js-%E2%89%A5%2018-339933?logo=node.js&logoColor=white" />
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.4-3178C6?logo=typescript&logoColor=white" />
+  <img alt="License" src="https://img.shields.io/badge/License-GPL--3.0-blue" />
+  <img alt="Platform" src="https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey" />
+</p>
+
+<p align="center">
+  <a href="#features">Features</a> ·
+  <a href="#install--run">Install</a> ·
+  <a href="#-overwrite-feature-the-emulator-must-be-started-this-way">Emulator overwrite</a> ·
+  <a href="#compile-rules">Compile rules</a> ·
+  <a href="#ropide-for-vs-code中文">中文</a>
+</p>
+
+---
 
 A `.rop` file is a single JSON object:
 
@@ -33,20 +53,33 @@ When you open a `.rop` file, the editor shows the `input` field's content (not t
 | `<anchor>` / `<-anchor>` | Address anchor (green; closed ones get a background) |
 | `00 11 AA` | Raw hex bytes |
 
-Other highlights:
+#### Editing & navigation
 
-- **Left / right address gutters**: the line number gutter on the left shows each line's **left address**; a right gutter shows each line's **right start address**. The current line's addresses are highlighted in both gutters.
-- **Status bar address**: VS Code's status bar shows `L:xxxx R:xxxx` for the cursor position in real time.
-- **Gadgets panel**: open it from the toolbar — nicely laid out list of all gadgets (name, colored tags, address, description) with search, add, edit, delete.
-- **Gadget disassembly (experimental)**: turn on *[Experimental] Show gadget disassembly* in Settings and provide a `_disas` file; each gadget in the Gadgets panel then shows the disassembly snippet from its address until `POP PC` / `RT`.
-- **Compile**: one-click compile from the toolbar, showing a hexdump (16 bytes per row with left/right addresses), with copy-hex / copy-hexdump actions.
-- **New file**: when creating a `.rop` file, sequentially fill in the **file name**, **left address**, **right address**, and choose the gadgets source (VerF preset / VerC preset / import `gadgets.json` / empty).
-- **Gadget completion**: type `#` to get a gadget completion list.
-- **Constant / anchor completion**: type `$` to get defined constants and anchors.
-- **Market**: browse / search programs on [ropide.pages.dev](https://ropide.pages.dev), Featured / All sections, one-click download (**choose a save path, then it opens**), and publish (name / author / model / description form with expert check).
-- **Overwrite emulator**: from the compile tab you can "overwrite RAM" (inject address, defaults to the left address) and "overwrite launcher" (fixed at `0xD180` by default) — writing into the running emulator's memory via CasioEmuMsvc's McpPlugin (MCP, port `3001`).
-- **Tab-aligned comments**: pressing Tab aligns the current line's `//` comment with the column used above.
-- **Settings**: UI language (简体中文 / English) and the experimental disassembly toggle, available from the toolbar gear / the side panel.
+- **Left / right address gutters** — the line-number gutter on the left shows each line's **left address**; a right gutter shows each line's **right start address**. The current line's addresses are highlighted in both gutters.
+- **Status-bar address** — VS Code's status bar shows `L:xxxx R:xxxx` for the cursor position in real time.
+- **Cursor → address jump** — a jump box (bottom-right) moves the cursor to any address.
+- **Find / replace panel** — `Ctrl+F` opens an in-editor find/replace bar.
+- **Comment toggle** — `Ctrl+/` toggles `//` comments (skips empty lines, keeps selection, normalizes the space after `//`).
+- **Tab-aligned comments** — pressing Tab aligns the current line's `//` comment with the column used above.
+- **Completion** — type `#` for gadget completion, `$` for defined constants and anchors.
+
+#### Gadgets & disassembly
+
+- **Gadgets panel** — open it from the toolbar: a laid-out list of all gadgets (name, colored tags, address, description) with search, add, edit, delete.
+- **Gadget disassembly** — enable *Show gadget disassembly* in Settings and provide a `_disas` file; each gadget then shows the disassembly snippet from its address until `POP PC` / `RT`. Optionally show the same snippet in the **hover tooltip**.
+- **Disas browser tab** — a read-only disassembly browser (address input + line-numbered view); jump to any address (`0x012D34`, `12D34`, `#gadget;`, …) and it highlights the target line and the nearest terminating `POP PC` / `RT`. The `_disas` path is remembered per `.rop` file.
+
+#### Build & run
+
+- **Compile** — one-click compile from the toolbar, showing a hexdump (16 bytes per row with left/right addresses), with copy-hex / copy-hexdump actions.
+- **Overwrite emulator** — from the compile tab you can "overwrite RAM" (inject address, defaults to the left address) and "overwrite launcher" (fixed at `0xD180` by default), writing into the running emulator's memory via CasioEmuMsvc's McpPlugin (MCP, port `3001`).
+
+#### Files, market & welcome
+
+- **New file** — creating a `.rop` file walks you through **file name**, **left address**, **right address**, and the gadgets source (VerF preset / VerC preset / import `gadgets.json` / empty).
+- **Market** — browse / search programs on [ropide.pages.dev](https://ropide.pages.dev), Featured / All sections, one-click download (**choose a save path, then it opens**), and publish (name / author / model / description form with expert check). An unread badge appears on the market buttons when new programs are published.
+- **Welcome page** — a polished start page (optionally shown on startup) with quick actions, **recent files**, an **update-available badge** (compares the local build time against the latest `main` commit), and the market dialog.
+- **Settings** — UI language (简体中文 / English), the disassembly toggles, and the startup-welcome toggle, from the toolbar gear or the side panel.
 
 ## ⚠️ Overwrite feature: the emulator must be started this way
 
@@ -141,7 +174,13 @@ ropide-vscode-plugin/
     ├── ropEditorProvider.ts  # CustomTextEditor provider, status bar, settings & disas sync
     ├── presets.ts            # Built-in VerF / VerC gadget presets
     ├── market.ts             # Market API (ropide.pages.dev)
-    ├── welcome.ts            # Welcome / About page (centered market dialog)
+    ├── marketState.ts        # Cross-view market "unread" state & broadcast
+    ├── emu.ts                # CasioEmuMsvc MCP client (memory overwrite)
+    ├── tabs.ts               # Close/reload open tabs after overwrite-save
+    ├── recent.ts             # Recent .rop files (globalState)
+    ├── update.ts             # Update check (local build time vs. latest commit)
+    ├── buildInfo.ts          # Auto-generated build timestamp (BUILD_TIME)
+    ├── welcome.ts            # Welcome / About page (recent files, update badge, market dialog)
     └── rop.ts                # .rop JSON parse/serialize, disas parse & snippet
 ```
 
@@ -206,20 +245,33 @@ curl.exe -sSL https://raw.githubusercontent.com/Yaing-Yan/ropide-vscode-plugin/m
 | `<锚点>` / `<-锚点>` | 地址锚点（绿色，闭合的带底色） |
 | `00 11 AA` | 裸十六进制字节 |
 
-其它特性：
+#### 编辑与导航
 
-- **左右地址栏**：左侧行号替换为每行起始的**左侧地址**；输入区右侧相对位置显示每行的**右侧起始地址**，光标所在行的左右地址会高亮提醒。
-- **状态栏地址**：光标所在处，VS Code 左下角状态栏实时显示 `L:xxxx R:xxxx`。
-- **Gadgets 面板**：右上角按钮打开，优美排版展示所有 gadgets（名称、彩色标签、地址、描述），支持搜索、新增、编辑、删除。
-- **gadget 汇编展示（实验性）**：在设置中开启「【实验性】gadgets 展示汇编」并提供 `_disas` 文件后，Gadgets 面板中每个 gadget 下方会展示从该地址到 `POP PC` / `RT` 的反汇编片段。
-- **编译**：右上角按钮一键编译，显示 hexdump（每行 16 字节，带左右地址），支持复制纯 hex 串 / hexdump。
-- **新建**：新建 `.rop` 文件时依次填写**文件名**、**左侧地址**、**右侧地址**，并选择 gadgets 来源（`VerF` 预设 / `VerC` 预设 / 导入 `gadgets.json` / 空）。
-- **gadget 补全**：输入 `#` 后弹出 gadget 补全列表。
-- **常量 / 锚点补全**：输入 `$` 后弹出已定义常量与锚点补全列表。
-- **程序广场**：浏览 / 搜索 [ropide.pages.dev](https://ropide.pages.dev) 上的程序，精选/全部分区，一键下载（**指定保存路径后打开**）、发布（程序名/作者/机型/描述表单）。
-- **覆写模拟器**：编译结果页可「覆写 RAM」（注入地址，默认左地址）与「覆写 launcher」（固定 `0xD180`），通过 CasioEmuMsvc 的 McpPlugin（MCP，端口 `3001`）写入正在运行的模拟器内存。
-- **Tab 对齐注释**：按 Tab 自动对齐当前行的 `//` 注释到上文列。
-- **设置**：界面语言（简体中文 / English）与实验性反汇编开关，通过工具栏齿轮或侧栏「设置」页修改。
+- **左右地址栏** —— 左侧行号替换为每行起始的**左侧地址**；输入区右侧相对位置显示每行的**右侧起始地址**，光标所在行的左右地址会高亮提醒。
+- **状态栏地址** —— 光标所在处，VS Code 左下角状态栏实时显示 `L:xxxx R:xxxx`。
+- **光标跳转到地址** —— 右下角跳转框，可将光标移动到任意地址。
+- **查找 / 替换面板** —— `Ctrl+F` 打开编辑器内查找/替换栏。
+- **注释切换** —— `Ctrl+/` 切换 `//` 注释（跳过空行、保留选区、规范 `//` 后的空格）。
+- **Tab 对齐注释** —— 按 Tab 自动对齐当前行的 `//` 注释到上文列。
+- **补全** —— 输入 `#` 弹出 gadget 补全，输入 `$` 弹出已定义常量与锚点补全。
+
+#### Gadgets 与反汇编
+
+- **Gadgets 面板** —— 右上角按钮打开，优美排版展示所有 gadgets（名称、彩色标签、地址、描述），支持搜索、新增、编辑、删除。
+- **gadget 汇编展示** —— 在设置中开启「gadgets 展示汇编」并提供 `_disas` 文件后，每个 gadget 下方会展示从该地址到 `POP PC` / `RT` 的反汇编片段；还可选择在**悬浮提示**中同样展示。
+- **Disas 反汇编浏览器** —— 只读的反汇编浏览标签（地址输入框 + 带行号视图）；输入任意地址（`0x012D34`、`12D34`、`#gadget;` 等）即可跳转，并高亮目标行与其后最近的终止 `POP PC` / `RT`。`_disas` 路径按 `.rop` 文件记忆。
+
+#### 构建与运行
+
+- **编译** —— 右上角按钮一键编译，显示 hexdump（每行 16 字节，带左右地址），支持复制纯 hex 串 / hexdump。
+- **覆写模拟器** —— 编译结果页可「覆写 RAM」（注入地址，默认左地址）与「覆写 launcher」（固定 `0xD180`），通过 CasioEmuMsvc 的 McpPlugin（MCP，端口 `3001`）写入正在运行的模拟器内存。
+
+#### 文件、程序广场与欢迎页
+
+- **新建** —— 新建 `.rop` 文件时依次填写**文件名**、**左侧地址**、**右侧地址**，并选择 gadgets 来源（`VerF` 预设 / `VerC` 预设 / 导入 `gadgets.json` / 空）。
+- **程序广场** —— 浏览 / 搜索 [ropide.pages.dev](https://ropide.pages.dev) 上的程序，精选/全部分区，一键下载（**指定保存路径后打开**）、发布（程序名/作者/机型/描述表单）。有新程序发布时，程序广场按钮上会出现未读小红点。
+- **欢迎页** —— 精致的起始页（可设为启动时打开），含快捷操作、**最近打开的文件**、**新版本徽章**（比较本地构建时间与 `main` 分支最新提交时间）以及程序广场弹窗。
+- **设置** —— 界面语言（简体中文 / English）、反汇编开关、启动欢迎页开关，通过工具栏齿轮或侧栏「设置」页修改。
 
 ## ⚠️ 覆写功能：必须这样启动模拟器
 
@@ -316,7 +368,13 @@ ropide-vscode-plugin/
     ├── ropEditorProvider.ts  # CustomTextEditor 提供者、状态栏、设置与 disas 同步
     ├── presets.ts            # VerF / VerC gadgets 内置预设
     ├── market.ts             # 程序广场 API（ropide.pages.dev）
-    ├── welcome.ts            # 欢迎/关于页（居中程序广场弹窗）
+    ├── marketState.ts        # 跨视图「程序广场未读」状态与广播
+    ├── emu.ts                # CasioEmuMsvc MCP 客户端（内存覆写）
+    ├── tabs.ts               # 覆写保存后关闭/重载已打开标签页
+    ├── recent.ts             # 最近打开的 .rop 文件（globalState）
+    ├── update.ts             # 版本检查（本地构建时间 vs. 最新提交）
+    ├── buildInfo.ts          # 自动生成的构建时间戳（BUILD_TIME）
+    ├── welcome.ts            # 欢迎/关于页（最近文件、更新徽章、程序广场弹窗）
     └── rop.ts                # .rop JSON 解析/序列化、disas 解析与片段截取
 ```
 
