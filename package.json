@@ -134,6 +134,11 @@
           "default": false,
           "description": "在侧边栏显示 Disas（反汇编浏览器）选项卡（需要提供 _disas 文件）。"
         },
+        "ropide.highlightLauncher": {
+          "type": "boolean",
+          "default": true,
+          "description": "在注释中高亮含有「launch」的词（不区分大小写），便于定位 launcher 注入地址。"
+        },
         "ropide.language": {
           "type": "string",
           "enum": [

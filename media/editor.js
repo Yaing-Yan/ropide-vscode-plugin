@@ -50,6 +50,8 @@
       disasmHint: '在 Gadgets 面板中显示每个 gadget 的反汇编片段（需要提供 _disas 文件）',
       disasmHoverExp: '在悬浮窗内展示汇编',
       disasmHoverHint: '在鼠标悬停提示中显示 gadget 的反汇编片段（需要已加载 _disas 文件并开启「展示汇编」）',
+      launchHlExp: '高亮 launcher',
+      launchHlHint: '在注释中高亮含有「launch」的词（不区分大小写），方便定位 launcher 注入地址。',
       disasTabExp: '显示 Disas 选项卡',
       disasTabHint: '在侧边栏显示「Disas」反汇编浏览器选项卡（需要提供 _disas 文件）。',
       disasmProvide: '请提供 _disas',
@@ -61,7 +63,8 @@
       updateChecking: '正在检查更新…',
       updateLatest: '已是最新版本',
       updateAvailable: '发现新版本：',
-      updateOpen: '前往 GitHub',
+      updateNow: '立即更新',
+      updateRunning: '正在终端中更新，完成后重载窗口即可',
       updateFailed: '检查更新失败：',
       publishTitle: '发布到程序广场',
       progName: '程序名 *',
@@ -191,6 +194,8 @@
       disasmHint: 'Show disassembly snippets for each gadget in the Gadgets panel (requires a _disas file)',
       disasmHoverExp: 'Show disassembly in hover',
       disasmHoverHint: 'Display gadget disassembly snippets in the hover tooltip (requires _disas file loaded and "Show gadget disassembly" enabled)',
+      launchHlExp: 'Highlight launcher',
+      launchHlHint: 'Highlight words containing "launch" inside comments (case-insensitive) so the launcher injection address is easy to spot.',
       disasTabExp: 'Show Disas tab',
       disasTabHint: 'Show the "Disas" disassembly browser tab in the side panel (requires a _disas file).',
       disasmProvide: 'Please provide _disas',
@@ -202,7 +207,8 @@
       updateChecking: 'Checking for updates…',
       updateLatest: 'You are up to date',
       updateAvailable: 'New version available: ',
-      updateOpen: 'Open on GitHub',
+      updateNow: 'Update now',
+      updateRunning: 'Updating in the terminal — reload the window when it finishes',
       updateFailed: 'Update check failed: ',
       publishTitle: 'Publish to Market',
       progName: 'Name *',
@@ -305,6 +311,7 @@
   let showGadgetDisasm = false;
   let showGadgetHoverDisasm = false;
   let showDisasTab = false;      // 是否显示 Disas 选项卡（默认关闭）
+  let highlightLauncher = true;  // 注释中高亮含 launch 的词（默认开启）
   let showWelcomeOnStartup = true;
   // 设置页「检查更新」状态：idle | checking | latest | available | error
   let updateState = 'idle';
@@ -506,6 +513,13 @@
               </div>
               <div class="form-row">
                 <label class="switch-row">
+                  <input type="checkbox" id="chkLaunchHl" />
+                  <span data-i18n="launchHlExp"></span>
+                </label>
+                <div class="settings-hint" data-i18n="launchHlHint"></div>
+              </div>
+              <div class="form-row">
+                <label class="switch-row">
                   <input type="checkbox" id="chkDisasm" />
                   <span data-i18n="disasmExp"></span>
                 </label>
@@ -634,6 +648,7 @@
     selLanguage: document.getElementById('selLanguage'),
     chkDisasm: document.getElementById('chkDisasm'),
     chkDisasTab: document.getElementById('chkDisasTab'),
+    chkLaunchHl: document.getElementById('chkLaunchHl'),
     chkWelcomeStartup: document.getElementById('chkWelcomeStartup'),
     disasRow: document.getElementById('disasRow'),
     btnChooseDisas: document.getElementById('btnChooseDisas'),
@@ -799,6 +814,25 @@
     syncEmuInjectAddress();
   }
 
+  /**
+   * 注释里含 "launch" 的词（不区分大小写，如 launcher / launcherAddr / LAUNCH_VAR）
+   * 用 <span class="launch-hl"> 包一层。先按原始文本切分再转义，避免误伤转义实体。
+   */
+  const LAUNCH_WORD_RE = /[A-Za-z0-9_-]*launch[A-Za-z0-9_-]*/gi;
+  function highlightLaunchWords(raw) {
+    LAUNCH_WORD_RE.lastIndex = 0;
+    let out = '';
+    let last = 0;
+    let m;
+    while ((m = LAUNCH_WORD_RE.exec(raw)) !== null) {
+      out += escapeHtml(raw.slice(last, m.index));
+      out += '<span class="launch-hl">' + escapeHtml(m[0]) + '</span>';
+      last = m.index + m[0].length;
+    }
+    out += escapeHtml(raw.slice(last));
+    return out;
+  }
+
   function renderHighlight() {
     const out = [];
     for (const spans of parsed.highlightLines) {
@@ -808,6 +842,10 @@
         let html = escapeHtml(span.content);
         let attrs = '';
         const type = span.type || '';
+
+        if (highlightLauncher && type.split(',').indexOf('comment') !== -1) {
+          html = highlightLaunchWords(span.content);
+        }
 
         if (type.includes('gadget') && type.includes('closed')) {
           const m = span.content.match(/^#-?([^;\s]+)/);
@@ -2267,6 +2305,8 @@
     showGadgetDisasm = !!s.showGadgetDisasm;
     showGadgetHoverDisasm = showGadgetDisasm && !!s.showGadgetHoverDisasm;
     showDisasTab = !!s.showDisasTab;
+    const wasLaunchHl = highlightLauncher;
+    highlightLauncher = s.highlightLauncher !== false;
     showWelcomeOnStartup = !!s.showWelcomeOnStartup;
     const wasLoaded = disasLoaded;
     disasFile = typeof s.disasFile === 'string' ? s.disasFile : '';
@@ -2279,6 +2319,7 @@
     if (activeTab === 'disas' && disasLoaded && disasLines.length === 0) {
       vscode.postMessage({ type: 'disas:send-all' });
     }
+    if (wasLaunchHl !== highlightLauncher && parsed) renderHighlight();
     if (lang !== oldLang) applyStaticI18n();
     if (activeTab === 'settings') syncSettingsUI();
     if (activeTab === 'gadgets') renderGadgetList();
@@ -2298,6 +2339,7 @@
     el.selLanguage.value = lang;
     el.chkDisasm.checked = showGadgetDisasm;
     el.chkDisasTab.checked = showDisasTab;
+    el.chkLaunchHl.checked = highlightLauncher;
     el.chkWelcomeStartup.checked = showWelcomeOnStartup;
     el.disasRow.hidden = !(showDisasTab || showGadgetDisasm);
     el.chkHoverDisasm.checked = showGadgetHoverDisasm && showGadgetDisasm;
@@ -2315,6 +2357,9 @@
   el.chkDisasTab.addEventListener('change', () => {
     vscode.postMessage({ type: 'settings:set', key: 'showDisasTab', value: el.chkDisasTab.checked });
   });
+  el.chkLaunchHl.addEventListener('change', () => {
+    vscode.postMessage({ type: 'settings:set', key: 'highlightLauncher', value: el.chkLaunchHl.checked });
+  });
   el.chkHoverDisasm.addEventListener('change', () => {
     vscode.postMessage({ type: 'settings:set', key: 'showGadgetHoverDisasm', value: el.chkHoverDisasm.checked });
   });
@@ -2328,7 +2373,7 @@
   /* ---------------- 设置页：检查更新 ---------------- */
   function syncUpdateUI() {
     if (!el.updateStatus) return;
-    el.btnCheckUpdate.disabled = updateState === 'checking';
+    el.btnCheckUpdate.disabled = updateState === 'checking' || updateState === 'running';
     if (updateState === 'idle') {
       el.updateStatus.textContent = '';
       el.updateStatus.className = 'update-status';
@@ -2353,13 +2398,22 @@
       el.updateStatus.className = 'update-status new';
       el.updateHint.hidden = false;
       el.updateHint.innerHTML =
-        '<button class="link-btn" id="btnOpenUpdate">' + escapeHtml(t('updateOpen')) + '</button>';
-      const btn = document.getElementById('btnOpenUpdate');
+        '<button class="link-btn" id="btnRunUpdate" title="' + escapeHtml(updateUrl) + '">' +
+        escapeHtml(t('updateNow')) + '</button>';
+      const btn = document.getElementById('btnRunUpdate');
       if (btn) {
         btn.addEventListener('click', () => {
-          vscode.postMessage({ type: 'open-external', url: updateUrl });
+          updateState = 'running';
+          syncUpdateUI();
+          vscode.postMessage({ type: 'update:run' });
         });
       }
+      return;
+    }
+    if (updateState === 'running') {
+      el.updateStatus.textContent = t('updateRunning');
+      el.updateStatus.className = 'update-status new';
+      el.updateHint.hidden = true;
       return;
     }
     // error

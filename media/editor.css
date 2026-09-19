@@ -30,6 +30,10 @@
   --s-hex: var(--fg);
   --s-other: #777777;
   --s-warn-underline: #d29200;
+  /* 注释里的 launcher 关键词 */
+  --s-launch: #6741d9;
+  --s-launch-bg: #ede7ff;
+  --s-launch-underline: #9775fa;
 }
 
 body.vscode-dark {
@@ -46,6 +50,9 @@ body.vscode-dark {
   --s-anchor-closed-bg: #10241d;
   --s-anchor-closed-outline: #38d9a9;
   --s-warn-underline: #ffc078;
+  --s-launch: #b197fc;
+  --s-launch-bg: #221c3a;
+  --s-launch-underline: #6741d9;
 }
 
 * { box-sizing: border-box; }
@@ -331,6 +338,14 @@ body.vscode-dark .code-input::selection { background: rgba(255, 255, 255, 0.2); 
 
 /* 语法高亮 span */
 .highlight .comment { color: var(--s-comment); font-style: italic; }
+/* 注释中含 launch 的词：不改变字号/字重/内边距，避免与 textarea 的字符网格错位 */
+.highlight .launch-hl {
+  color: var(--s-launch);
+  background: var(--s-launch-bg);
+  border-radius: 2px;
+  text-decoration: underline 1px var(--s-launch-underline);
+  text-underline-offset: 2px;
+}
 .highlight .constant.name { color: var(--s-constant-name); }
 .highlight .constant.equal { color: var(--s-constant-equal); }
 .highlight .constant.value { color: var(--s-constant-value); }

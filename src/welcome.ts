@@ -10,6 +10,7 @@ import { closeTabIfOpen } from './tabs';
 import { marketUnread } from './marketState';
 import { getRecentFiles, removeRecentFile } from './recent';
 import { checkForUpdate, REPO_URL } from './update';
+import { runSelfUpdate } from './selfUpdate';
 import { BUILD_TIME } from './buildInfo';
 
 type WelcomeLang = 'zh-CN' | 'en';
@@ -87,8 +88,8 @@ const WELCOME_STR: Record<WelcomeLang, Record<string, string>> = {
     ropLoadFail: '读取 .rop 文件失败：',
     recentTitle: '最近打开',
     recentGone: '文件已不存在，已从最近列表移除',
-    updateAvailable: '有新版本',
-    updateTip: '点击前往 GitHub 获取最新版本',
+    updateAvailable: '有新版本 · 立即更新',
+    updateTip: '点击立即更新：会在终端里拉取最新源码重新编译并覆盖安装',
   },
   en: {
     title: 'Welcome to RopIDE for VS Code',
@@ -147,8 +148,8 @@ const WELCOME_STR: Record<WelcomeLang, Record<string, string>> = {
     ropLoadFail: 'Failed to read .rop file: ',
     recentTitle: 'Recent',
     recentGone: 'File no longer exists; removed from the recent list',
-    updateAvailable: 'Update available',
-    updateTip: 'Click to get the latest version on GitHub',
+    updateAvailable: 'Update available · Update now',
+    updateTip: 'Click to update in place: fetches the latest source, rebuilds and reinstalls (runs in a terminal)',
   },
 };
 
@@ -261,6 +262,10 @@ export function showWelcome(context: vscode.ExtensionContext): void {
             : { type: 'update:result', ok: true, hasUpdate: r.hasUpdate, url: REPO_URL }
         );
       })();
+      return;
+    }
+    if (msg.type === 'update:run') {
+      void runSelfUpdate(context);
       return;
     }
     if (msg.type === 'market:get') {
@@ -479,7 +484,10 @@ function getWelcomeHtml(lang: WelcomeLang): string {
       align-items: center;
       gap: 5px;
       padding: 2px 9px;
+      border: none;
       border-radius: 999px;
+      font-family: inherit;
+      font-size: inherit;
       font-weight: 700;
       color: #fff;
       background: linear-gradient(135deg, #2ea043, #238636);
@@ -487,7 +495,9 @@ function getWelcomeHtml(lang: WelcomeLang): string {
       cursor: pointer;
       text-decoration: none;
       animation: badgePop 0.25s ease;
+      transition: filter 0.12s ease, transform 0.12s ease;
     }
+    .update-badge:hover { filter: brightness(1.12); transform: translateY(-1px); }
     .update-badge[hidden] { display: none; }
     .update-badge .dot {
       width: 6px; height: 6px; border-radius: 50%;
@@ -878,7 +888,7 @@ function getWelcomeHtml(lang: WelcomeLang): string {
   <button class="lang-toggle" id="btnLang" data-target-lang="${i18n.target}" title="${W('switchTo')}">${langBtnLabel}</button>
   <div class="ver-top">
     <span>ver.${BUILD_TIME}</span>
-    <a class="update-badge" id="updateBadge" hidden title="${i18n.updateTip}"><span class="dot"></span>${i18n.updateAvailable}</a>
+    <button class="update-badge" id="updateBadge" hidden title="${i18n.updateTip}"><span class="dot"></span>${i18n.updateAvailable}</button>
   </div>
   <div class="hero">
     <div class="logo-badge">
@@ -1002,6 +1012,12 @@ function getWelcomeHtml(lang: WelcomeLang): string {
 
     /* ---------- 链接 / 命令按钮 ---------- */
     document.addEventListener('click', (e) => {
+      // 有新版本时，顶部徽章直接触发更新（在终端里拉取源码重新编译安装）
+      const upd = e.target.closest('#updateBadge');
+      if (upd) {
+        vscode.postMessage({ type: 'update:run' });
+        return;
+      }
       const btn = e.target.closest('button[data-command]');
       if (btn) {
         vscode.postMessage({ type: 'command', url: btn.dataset.command });
@@ -1272,7 +1288,6 @@ function getWelcomeHtml(lang: WelcomeLang): string {
         showToast(WI18N.recentGone, true);
       } else if (msg.type === 'update:result') {
         if (msg.ok && msg.hasUpdate && msg.url) {
-          updateBadge.href = msg.url;
           updateBadge.hidden = false;
         }
       } else if (msg.type === 'market:publish-ready') {

@@ -15,6 +15,7 @@ import { closeTabIfOpen } from './tabs';
 import { marketUnread } from './marketState';
 import { recordRecentFile } from './recent';
 import { checkForUpdate, REPO_URL } from './update';
+import { runSelfUpdate } from './selfUpdate';
 
 interface EditorSession {
   document: vscode.TextDocument;
@@ -57,20 +58,21 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
     // 全局设置（语言 / 展示汇编开关 / Disas 选项卡）变化 → 同步到所有编辑器
     context.subscriptions.push(
       vscode.workspace.onDidChangeConfiguration((e) => {
-        if (e.affectsConfiguration('ropide.showGadgetDisasm') || e.affectsConfiguration('ropide.language') || e.affectsConfiguration('ropide.showGadgetHoverDisasm') || e.affectsConfiguration('ropide.showDisasTab')) {
+        if (e.affectsConfiguration('ropide.showGadgetDisasm') || e.affectsConfiguration('ropide.language') || e.affectsConfiguration('ropide.showGadgetHoverDisasm') || e.affectsConfiguration('ropide.showDisasTab') || e.affectsConfiguration('ropide.highlightLauncher')) {
           this.pushGlobalSettingsToAll();
         }
       })
     );
   }
 
-  private globalSettings(): { language: string; showGadgetDisasm: boolean; showGadgetHoverDisasm: boolean; showDisasTab: boolean; showWelcomeOnStartup: boolean } {
+  private globalSettings(): { language: string; showGadgetDisasm: boolean; showGadgetHoverDisasm: boolean; showDisasTab: boolean; highlightLauncher: boolean; showWelcomeOnStartup: boolean } {
     const cfg = vscode.workspace.getConfiguration('ropide');
     return {
       language: cfg.get<string>('language', 'zh-CN'),
       showGadgetDisasm: cfg.get<boolean>('showGadgetDisasm', false),
       showGadgetHoverDisasm: cfg.get<boolean>('showGadgetHoverDisasm', false),
       showDisasTab: cfg.get<boolean>('showDisasTab', false),
+      highlightLauncher: cfg.get<boolean>('highlightLauncher', true),
       showWelcomeOnStartup: cfg.get<boolean>('showWelcomeOnStartup', true),
     };
   }
@@ -418,6 +420,8 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
             await cfg.update('showGadgetHoverDisasm', !!value, vscode.ConfigurationTarget.Global);
           } else if (key === 'showDisasTab') {
             await cfg.update('showDisasTab', !!value, vscode.ConfigurationTarget.Global);
+          } else if (key === 'highlightLauncher') {
+            await cfg.update('highlightLauncher', !!value, vscode.ConfigurationTarget.Global);
           } else if (key === 'showWelcomeOnStartup') {
             await cfg.update('showWelcomeOnStartup', !!value, vscode.ConfigurationTarget.Global);
           }
@@ -508,6 +512,11 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
               : { type: 'update:result', ok: true, hasUpdate: r.hasUpdate, sha: r.sha, url: REPO_URL }
           );
         })();
+        break;
+      }
+      // 设置页「立即更新」：在终端里跑 scripts/self-update.*，真正把新版本装上去
+      case 'update:run': {
+        void runSelfUpdate(this.context);
         break;
       }
       case 'open-external': {
