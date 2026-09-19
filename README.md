@@ -17,6 +17,7 @@
 </p>
 
 <p align="center">
+  <a href="#screenshot">Screenshot</a> ·
   <a href="#features">Features</a> ·
   <a href="#install--run">Install</a> ·
   <a href="#-overwrite-feature-the-emulator-must-be-started-this-way">Emulator overwrite</a> ·
@@ -39,6 +40,14 @@ A `.rop` file is a single JSON object:
 ```
 
 This extension does **not** touch `.rin` / `gadgets.json` / `config.json` — everything lives inside the single `.rop` file.
+
+## Screenshot
+
+The RopIDE welcome page (shown on startup) — start a new `.rop` file, open an existing one, or browse the program market:
+
+<p align="center">
+  <img src="media/demo.webp" alt="RopIDE for VS Code — welcome page" width="100%" />
+</p>
 
 ## Features
 
@@ -166,6 +175,7 @@ ropide-vscode-plugin/
 ├── icon.png                # Extension icon
 ├── media/
 │   ├── banner.png          # README banner (AI-generated)
+│   ├── demo.webp           # README screenshot (welcome page)
 │   ├── editor.css          # Editor/panel/syntax-highlight styles
 │   ├── compiler.js         # Compiler + syntax-highlight parser (parser port)
 │   └── editor.js           # Webview main logic (gutters, gadgets, compile, completion, market, settings)
@@ -205,6 +215,14 @@ ropide-vscode-plugin/
 ```
 
 本插件**不涉及** `.rin` / `gadgets.json` / `config.json`——所有操作都在单个 `.rop` 文件里完成。
+
+## 界面预览
+
+RopIDE 欢迎页（启动时自动打开）——新建 `.rop` 文件、打开已有文件，或进入程序广场：
+
+<p align="center">
+  <img src="media/demo.webp" alt="RopIDE for VS Code 欢迎页" width="100%" />
+</p>
 
 ## 快速安装（免 git clone）
 
@@ -360,6 +378,7 @@ ropide-vscode-plugin/
 ├── icon.png                # 扩展图标
 ├── media/
 │   ├── banner.png          # README 横幅（AI 生成）
+│   ├── demo.webp           # README 截图（欢迎页）
 │   ├── editor.css          # 编辑器/面板/语法高亮样式
 │   ├── compiler.js         # 编译器 + 语法高亮解析（parser 移植）
 │   └── editor.js           # Webview 主逻辑（地址栏、gadgets、编译、补全、程序广场、设置）

@@ -1044,8 +1044,8 @@ function getWelcomeHtml(lang: WelcomeLang): string {
     const recentList = document.getElementById('recentList');
     function fsPathOf(uriStr) {
       try {
-        let p = decodeURIComponent(String(uriStr).replace(/^file:\/\//, ''));
-        if (/^\/[A-Za-z]:/.test(p)) p = p.slice(1); // Windows /C:/...
+        let p = decodeURIComponent(String(uriStr).replace(/^file:\\/\\//, ''));
+        if (/^\\/[A-Za-z]:/.test(p)) p = p.slice(1); // Windows /C:/...
         return p;
       } catch (e) { return String(uriStr); }
     }
@@ -1284,7 +1284,7 @@ function getWelcomeHtml(lang: WelcomeLang): string {
           // 用户取消选择文件
         } else {
           publishData = msg.data;
-          publishName.value = (msg.fileName || 'program.rop').replace(/\.rop$/i, '');
+          publishName.value = (msg.fileName || 'program.rop').replace(/\\.rop$/i, '');
           publishAuthor.value = '';
           publishModel.value = '';
           publishOtherRow.hidden = true;
