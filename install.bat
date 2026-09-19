@@ -2,6 +2,29 @@
 setlocal
 cd /d "%~dp0"
 
+rem ---------------------------------------------------------------------------
+rem  RopIDE for VS Code — 本地安装（Windows）
+rem
+rem  优先调用 install.ps1：反色标题胶囊 + 居中偏上 + 固定 4 行渐变日志区。
+rem  找不到 PowerShell 时退回到下面的纯批处理流程，功能完全一致。
+rem ---------------------------------------------------------------------------
+
+where powershell >nul 2>nul
+if errorlevel 1 goto plain
+
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0install.ps1"
+if errorlevel 1 goto psfail
+goto :eof
+
+:psfail
+echo.
+echo [错误] PowerShell 安装脚本执行失败。
+echo        也可以手动运行： powershell -ExecutionPolicy Bypass -File install.ps1
+exit /b 1
+
+:plain
+echo [提示] 未找到 PowerShell，使用纯批处理模式。
+
 echo ==^> 检查 Node.js ...
 where node >nul 2>nul
 if errorlevel 1 (
@@ -18,7 +41,7 @@ echo ==^> 编译...
 call npm run compile
 
 echo ==^> 打包 .vsix...
-call npx vsce package
+call npx --yes vsce package
 
 set "VSIX="
 for /f "delims=" %%i in ('dir /b /o-d *.vsix') do if not defined VSIX set "VSIX=%%i"

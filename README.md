@@ -121,6 +121,15 @@ install.bat           # Windows (CMD, double-click or command line)
 After installing, reload the VS Code window (`Ctrl+Shift+P` → `Reload Window`),
 then open any `.rop` file to enter the RopIDE editor — **no F5 development host needed**.
 
+The install / uninstall scripts draw a small terminal UI (`scripts/ui.sh` on
+Linux/macOS, `scripts/ui.ps1` on Windows): an inverse-video title pill centred
+slightly above the middle, a subtitle, and a fixed **4-line log area** that
+scrolls and fades from bright at the bottom (newest) to dim at the top (oldest),
+with the current step / result on the last line. Every command's output streams
+into that area live. When the output is **not a terminal** (redirected, CI),
+when `NO_COLOR` is set, or when the window is too small, it automatically falls
+back to plain line-by-line output instead of emitting cursor-control codes.
+
 Manual steps (equivalent to the scripts above):
 
 ```bash
@@ -173,6 +182,9 @@ ropide-vscode-plugin/
 ├── uninstall.ps1           # Windows PowerShell uninstall script
 ├── uninstall.bat           # Windows CMD uninstall script
 ├── icon.png                # Extension icon
+├── scripts/
+│   ├── ui.sh               # Terminal UI library (bash): inverse title pill + 4-line fading log
+│   └── ui.ps1              # Terminal UI library (PowerShell), same look as ui.sh
 ├── media/
 │   ├── banner.png          # README banner (AI-generated)
 │   ├── demo.webp           # README screenshot (welcome page)
@@ -324,6 +336,13 @@ install.bat           # Windows（CMD 双击或命令行）
 装完重新加载 VS Code 窗口（`Ctrl+Shift+P` → `Reload Window`），
 打开任意 `.rop` 文件即可进入 RopIDE 编辑器——**无需 F5 调试宿主**。
 
+安装 / 卸载脚本会绘制一个终端界面（Linux/macOS 用 `scripts/ui.sh`，Windows 用
+`scripts/ui.ps1`）：反色标题胶囊居中偏上，下面是标题、说明，再下面是一个固定的
+**4 行日志区**——日志向上滚动，越靠下越亮（最新）、越往上越暗（最旧），最后一行
+显示当前步骤 / 最终结果；每条命令的输出都会实时流入日志区。
+当输出**不是终端**（被重定向、CI）、设置了 `NO_COLOR` 或窗口过小时，会自动退化为
+普通逐行输出，不会输出任何光标控制字符。
+
 手动分步（等价于上面脚本）：
 
 ```bash
@@ -376,6 +395,9 @@ ropide-vscode-plugin/
 ├── uninstall.ps1           # Windows PowerShell 卸载脚本
 ├── uninstall.bat           # Windows CMD 卸载脚本
 ├── icon.png                # 扩展图标
+├── scripts/
+│   ├── ui.sh               # 终端界面库（bash）：反色标题胶囊 + 4 行渐变日志
+│   └── ui.ps1              # 终端界面库（PowerShell），效果与 ui.sh 一致
 ├── media/
 │   ├── banner.png          # README 横幅（AI 生成）
 │   ├── demo.webp           # README 截图（欢迎页）
