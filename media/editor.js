@@ -155,6 +155,26 @@
       htAnchor: '锚点',
       htAnchorDef: '锚点定义',
       htValueBlock: '数值块',
+      // ---- 高级 / 分段 ----
+      advanced: '高级',
+      segTitle: '分段程序',
+      segHint: '每一段可以独立设置运行区（左地址）与储存区（右地址）。段标记写成一整行注释，例如 // @seg 名称 L=E9E0 R=D710 —— 因为是注释，旧版编辑器会原样忽略，.rop 结构与编译结果都不变。不写 L= / R= 时继承编译页的左右地址。',
+      segListEmpty: '还没有分段标记，整个程序属于「默认段」。点「新增分段」会在光标所在行插入一个标记。',
+      segAdd: '新增分段',
+      segName: '名称',
+      segNamePh: '如 第一段',
+      segRun: '运行区 (左)',
+      segStore: '储存区 (右)',
+      segInherit: '继承',
+      segLocate: '定位',
+      segDelete: '删除该段标记',
+      segMakeMark: '转为分段标记',
+      segRange: '行 {a}–{b} · {bytes} 字节',
+      segDefault: '默认段',
+      segNeedName: '分段标记',
+      compileSegHint: '左右地址是各分段的默认基准；分段基准在「高级」选项卡里设置。',
+      segSummary: '共 {n} 段',
+      segDefaultName: '段 {n}',
     },
     en: {
       injectAddr: 'Inject Addr',
@@ -299,12 +319,39 @@
       htAnchor: 'Anchor',
       htAnchorDef: 'Anchor definition',
       htValueBlock: 'Value block',
+      // ---- Advanced / segments ----
+      advanced: 'Advanced',
+      segTitle: 'Segmented program',
+      segHint: 'Each segment can have its own run area (left address) and storage area (right address). A segment marker is a whole-line comment such as // @seg name L=E9E0 R=D710 — being a comment, older editors ignore it, so the .rop structure and the compiled result stay unchanged. Omit L= / R= to inherit the addresses from the compile tab.',
+      segListEmpty: 'No segment markers yet — the whole program is the "default segment". Click "Add segment" to insert a marker at the cursor line.',
+      segAdd: 'Add segment',
+      segName: 'Name',
+      segNamePh: 'e.g. part 1',
+      segRun: 'Run area (left)',
+      segStore: 'Storage area (right)',
+      segInherit: 'inherit',
+      segLocate: 'Go to',
+      segDelete: 'Remove this marker',
+      segMakeMark: 'Make it a marker',
+      segRange: 'lines {a}–{b} · {bytes} bytes',
+      segDefault: 'Default segment',
+      segNeedName: 'Segment marker',
+      compileSegHint: 'Left/right addresses are the default bases for every segment; per-segment bases live in the "Advanced" tab.',
+      segSummary: '{n} segments',
+      segDefaultName: 'Part {n}',
     },
   };
   let lang = 'zh-CN';
   function t(key) {
     const pack = STR[lang] || STR['zh-CN'];
     return pack[key] !== undefined ? pack[key] : (STR['zh-CN'][key] || key);
+  }
+
+  /** 带 {name} 占位符的翻译 */
+  function tf(key, params) {
+    return t(key).replace(/\{(\w+)\}/g, (m, k) =>
+      params && params[k] !== undefined ? String(params[k]) : m
+    );
   }
 
   // 设置状态（由宿主推送）
@@ -389,7 +436,7 @@
   let injectAddress = '';
   let launcher = '';
   let launcherAddr = 'D180';
-  let activeTab = null; // 侧栏当前 tab：compile / gadgets / market / settings
+  let activeTab = null; // 侧栏当前 tab：compile / gadgets / market / disas / advanced / settings
 
   /* ---------------- DOM ---------------- */
   document.getElementById('app').innerHTML = `
@@ -451,6 +498,7 @@
           <button class="sp-tab" data-tab="gadgets">Gadgets</button>
           <button class="sp-tab" data-tab="market" data-i18n="market"></button>
           <button class="sp-tab" data-tab="disas" id="tabDisas" data-i18n="disas" hidden></button>
+          <button class="sp-tab" data-tab="advanced" id="tabAdvanced" data-i18n="advanced"></button>
           <button class="sp-tab" data-tab="settings" data-i18n="settings"></button>
           <div class="spacer"></div>
           <button class="sp-close" id="btnClosePanel" data-i18n-title="closePanelTitle">${ICONS.close}</button>
@@ -467,7 +515,19 @@
             </div>
             <div class="compile-info" id="compileInfo"></div>
             <div class="compile-hint" data-i18n="compileHint"></div>
+            <div class="compile-hint seg-compile-hint" data-i18n="compileSegHint"></div>
             <div class="hexdump" id="hexdump"></div>
+          </div>
+
+          <div class="tab-content" id="panelAdvanced" hidden>
+            <div class="panel-toolbar">
+              <span class="seg-heading" data-i18n="segTitle"></span>
+              <span class="seg-count" id="segCount"></span>
+              <div class="spacer"></div>
+              <button class="icon-btn primary" id="btnAddSegment">${ICONS.plus}<span data-i18n="segAdd"></span></button>
+            </div>
+            <div class="settings-hint seg-hint" data-i18n="segHint"></div>
+            <div class="seg-list" id="segList"></div>
           </div>
 
           <div class="tab-content" id="panelGadgets" hidden>
@@ -637,7 +697,12 @@
     btnClosePanel: document.getElementById('btnClosePanel'),
     tabs: document.querySelectorAll('.sp-tab'),
     tabDisas: document.getElementById('tabDisas'),
+    tabAdvanced: document.getElementById('tabAdvanced'),
     panelCompile: document.getElementById('panelCompile'),
+    panelAdvanced: document.getElementById('panelAdvanced'),
+    segList: document.getElementById('segList'),
+    segCount: document.getElementById('segCount'),
+    btnAddSegment: document.getElementById('btnAddSegment'),
     panelGadgets: document.getElementById('panelGadgets'),
     panelMarket: document.getElementById('panelMarket'),
     panelSettings: document.getElementById('panelSettings'),
@@ -719,6 +784,7 @@
     renderFooter();
     if (activeTab === 'gadgets') renderGadgetList();
     if (activeTab === 'market') renderMarketList();
+    if (activeTab === 'advanced') renderSegments();
     if (activeTab === 'settings') syncSettingsUI();
   }
 
@@ -793,6 +859,62 @@
     return countLessThan(byteStarts, pos);
   }
 
+  /* ---------------- 分段辅助 ----------------
+   * 段内地址 = 段基准 + (全局字节下标 - 该段起始字节下标)。
+   * 没有任何分段标记时只有一段（起始字节 0），结果与旧版完全一致。
+   */
+
+  function segList() {
+    return (parsed && parsed.segments && parsed.segments.length) ? parsed.segments : null;
+  }
+
+  function fallbackSeg() {
+    return {
+      name: '', left: state.leftStartAddress, right: state.rightStartAddress,
+      hasMark: false, markLine: -1, startLine: 0, endLine: lineStarts.length - 1, startByte: 0,
+    };
+  }
+
+  function segAtLine(lineIdx) {
+    const segs = segList();
+    if (!segs) return fallbackSeg();
+    const i = (parsed.lineSegment && parsed.lineSegment[lineIdx] != null)
+      ? parsed.lineSegment[lineIdx]
+      : 0;
+    return segs[i] || segs[0];
+  }
+
+  function segAtByte(byteIndex) {
+    const segs = segList();
+    if (!segs) return fallbackSeg();
+    for (const s of segs) {
+      const end = (s.endByte != null) ? s.endByte : Infinity;
+      if (byteIndex >= s.startByte && byteIndex < end) return s;
+    }
+    return segs[segs.length - 1];
+  }
+
+  function lineIndexAtPos(pos) {
+    let lo = 0, hi = lineStarts.length;
+    while (lo + 1 < hi) {
+      const mid = (lo + hi) >> 1;
+      if (lineStarts[mid] <= pos) lo = mid;
+      else hi = mid;
+    }
+    return lo;
+  }
+
+  /** 某个全局字节下标对应的左/右地址（分段感知） */
+  function addrAtByte(byteIndex, side) {
+    const seg = segAtByte(byteIndex);
+    const base = parseBase(side === 'left' ? seg.left : seg.right);
+    return hexAddr(base + Math.max(0, byteIndex - seg.startByte));
+  }
+
+  function baseOfSide(seg, side) {
+    return parseBase(side === 'left' ? seg.left : seg.right);
+  }
+
   /* ---------------- 渲染 ---------------- */
   function render() {
     parsed = window.RopCompiler.parseRopInput(state.input, state.gadgets, {
@@ -811,6 +933,7 @@
     renderFooter();
     updateCursor();
     if (activeTab === 'compile') renderCompile();
+    if (activeTab === 'advanced') renderSegments();
     syncEmuInjectAddress();
   }
 
@@ -871,13 +994,21 @@
   }
 
   function renderGutters() {
-    const leftBase = parseBase(state.leftStartAddress);
-    const rightBase = parseBase(state.rightStartAddress);
     let l = '', r = '';
+    let prevSeg = null;
     for (let i = 0; i < lineStarts.length; i++) {
-      const off = byteOffsetAt(lineStarts[i]);
-      l += `<div class="gutter-line" title="0x${hexAddr(leftBase + off)}">${hexAddr(leftBase + off)}</div>`;
-      r += `<div class="gutter-line" title="0x${hexAddr(rightBase + off)}">${hexAddr(rightBase + off)}</div>`;
+      const seg = segAtLine(i);
+      // 分段感知：偏移取「段内字节偏移」
+      const off = Math.max(0, byteOffsetAt(lineStarts[i]) - seg.startByte);
+      const la = hexAddr(parseBase(seg.left) + off);
+      const ra = hexAddr(parseBase(seg.right) + off);
+      const isSegStart = !!segList() && seg !== prevSeg;
+      const cls = isSegStart ? 'gutter-line seg-start' : 'gutter-line';
+      const segName = seg.name || (seg.hasMark ? t('segNeedName') : t('segDefault'));
+      const title = isSegStart ? `${segName} · 0x${la} / 0x${ra}` : `0x${la} / 0x${ra}`;
+      l += `<div class="${cls}" title="${escapeHtml(title)}">${la}</div>`;
+      r += `<div class="${cls}" title="${escapeHtml(title)}">${ra}</div>`;
+      prevSeg = seg;
     }
     el.gutterLeft.firstElementChild.innerHTML = l;
     el.gutterRight.firstElementChild.innerHTML = r;
@@ -895,9 +1026,11 @@
   let curLineIdx = -1;
   function updateCursor() {
     const pos = el.input.selectionStart;
-    const off = byteOffsetAt(pos);
-    const left = hexAddr(parseBase(state.leftStartAddress) + off);
-    const right = hexAddr(parseBase(state.rightStartAddress) + off);
+    const lineIdx = lineIndexAtPos(pos);
+    const seg = segAtLine(lineIdx);
+    const off = Math.max(0, byteOffsetAt(pos) - seg.startByte);
+    const left = hexAddr(parseBase(seg.left) + off);
+    const right = hexAddr(parseBase(seg.right) + off);
     el.cursorInfo.textContent = `L:${left}  R:${right}`;
     vscode.postMessage({ type: 'cursor', left, right });
     updateByteHighlight();
@@ -1313,6 +1446,7 @@
     if (tab === 'compile') openCompile();
     else if (tab === 'gadgets') openGadgets();
     else if (tab === 'market') openMarket();
+    else if (tab === 'advanced') renderSegments();
     else if (tab === 'settings') syncSettingsUI();
   }
 
@@ -1333,6 +1467,7 @@
     el.panelGadgets.hidden = tab !== 'gadgets';
     el.panelMarket.hidden = tab !== 'market';
     el.panelDisas.hidden = tab !== 'disas';
+    el.panelAdvanced.hidden = tab !== 'advanced';
     el.panelSettings.hidden = tab !== 'settings';
     if (tab === 'disas') {
       if (disasLoaded && disasLines.length === 0) {
@@ -1340,6 +1475,7 @@
       }
       renderDisas();
     }
+    if (tab === 'advanced') renderSegments();
   }
 
   // 右侧分栏宽度可拖拽调整
@@ -1621,6 +1757,232 @@
   bindAddressInput(el.leftAddrInput, 'leftStartAddress');
   bindAddressInput(el.rightAddrInput, 'rightStartAddress');
 
+  /* ---------------- 高级：分段程序 ----------------
+   * 段标记是一整行注释：// @seg 名称 L=E9E0 R=D710
+   * 旧版编辑器会把它当普通注释忽略，因此 .rop 结构与编译结果都不受影响。
+   */
+
+  /** 把名称 / 左右地址格式化成一行标记注释 */
+  function formatSegmentMarker(name, left, right) {
+    let s = '// @seg';
+    const n = String(name == null ? '' : name).trim();
+    if (n) s += ' ' + (/\s/.test(n) ? '"' + n.replace(/"/g, '') + '"' : n);
+    const l = String(left == null ? '' : left).trim().replace(/^0[xX]/, '').replace(/[^0-9a-fA-F]/g, '').slice(0, 5).toUpperCase();
+    const r = String(right == null ? '' : right).trim().replace(/^0[xX]/, '').replace(/[^0-9a-fA-F]/g, '').slice(0, 5).toUpperCase();
+    if (l) s += ' L=' + l;
+    if (r) s += ' R=' + r;
+    return s;
+  }
+
+  /** 用新文本整体替换输入区内容（可选恢复光标），并触发重编译 + 保存 */
+  function applyInputText(text, caret) {
+    const scrollTop = el.input.scrollTop;
+    const scrollLeft = el.input.scrollLeft;
+    state.input = text;
+    el.input.value = text;
+    if (caret != null) {
+      const p = Math.max(0, Math.min(caret, text.length));
+      el.input.setSelectionRange(p, p);
+    }
+    el.input.scrollTop = scrollTop;
+    el.input.scrollLeft = scrollLeft;
+    markChanged();
+    syncScroll();
+  }
+
+  /** 把隐式默认段的地址同步到编译页输入框 */
+  function syncCompileAddrInputs() {
+    el.leftAddrInput.value = state.leftStartAddress;
+    el.rightAddrInput.value = state.rightStartAddress;
+  }
+
+  /** 修改某一段的名称 / 运行区 / 储存区（写回源码注释） */
+  function setSegmentField(segIndex, field, rawValue) {
+    const segs = segList();
+    if (!segs || !segs[segIndex]) return;
+    const seg = segs[segIndex];
+
+    if (!seg.hasMark) {
+      // 隐式默认段没有标记行：改地址等同于改全局左右地址，名称需要先转成标记
+      if (field === 'left') state.leftStartAddress = normAddrValue(rawValue) || '0';
+      else if (field === 'right') state.rightStartAddress = normAddrValue(rawValue) || '0';
+      else return;
+      syncCompileAddrInputs();
+      markChanged();
+      return;
+    }
+
+    const name = field === 'name' ? String(rawValue == null ? '' : rawValue).trim() : seg.name;
+    const left = field === 'left' ? normAddrValue(rawValue) : (seg.leftExplicit ? seg.left : '');
+    const right = field === 'right' ? normAddrValue(rawValue) : (seg.rightExplicit ? seg.right : '');
+    const marker = formatSegmentMarker(name, left, right);
+
+    const lines = state.input.split('\n');
+    if (seg.markLine < 0 || seg.markLine >= lines.length) return;
+    if (lines[seg.markLine] === marker) return;
+    lines[seg.markLine] = marker;
+    const caret = lineStartsIn(lines, seg.markLine) + marker.length;
+    applyInputText(lines.join('\n'), caret);
+  }
+
+  function normAddrValue(v) {
+    return String(v == null ? '' : v)
+      .replace(/^0[xX]/, '')
+      .replace(/[^0-9a-fA-F]/g, '')
+      .slice(0, 5)
+      .toUpperCase();
+  }
+
+  function lineStartsIn(lines, idx) {
+    let p = 0;
+    for (let i = 0; i < idx && i < lines.length; i++) p += lines[i].length + 1;
+    return p;
+  }
+
+  /** 在当前光标所在行插入一个分段标记 */
+  function insertSegmentMarker() {
+    const lines = state.input.split('\n');
+    const lineIdx = lineIndexAtPos(el.input.selectionStart);
+    const seg = segAtLine(lineIdx);
+    if (seg.hasMark && seg.markLine === lineIdx) {
+      locateSegment(segList().indexOf(seg));
+      return;
+    }
+    const count = (segList() || []).length;
+    const name = tf('segDefaultName', { n: count + 1 });
+    const marker = formatSegmentMarker(name, seg.left, seg.right);
+    lines.splice(lineIdx, 0, marker);
+    const caret = lineStartsIn(lines, lineIdx) + '// @seg '.length + name.length;
+    applyInputText(lines.join('\n'), caret);
+    showToast(marker);
+  }
+
+  /** 删除某一段的标记行（该段代码并入上一段） */
+  function removeSegmentMarker(segIndex) {
+    const segs = segList();
+    if (!segs || !segs[segIndex]) return;
+    const seg = segs[segIndex];
+    if (!seg.hasMark) return;
+    const lines = state.input.split('\n');
+    if (seg.markLine < 0 || seg.markLine >= lines.length) return;
+    lines.splice(seg.markLine, 1);
+    applyInputText(lines.join('\n'));
+  }
+
+  /** 把隐式默认段转成显式标记 */
+  function makeSegmentMarked(segIndex) {
+    const segs = segList();
+    if (!segs || !segs[segIndex]) return;
+    const seg = segs[segIndex];
+    if (seg.hasMark) return;
+    const lines = state.input.split('\n');
+    const at = Math.max(0, Math.min(seg.startLine, lines.length));
+    const name = tf('segDefaultName', { n: 1 });
+    const marker = formatSegmentMarker(name, state.leftStartAddress, state.rightStartAddress);
+    lines.splice(at, 0, marker);
+    const caret = lineStartsIn(lines, at) + '// @seg '.length + name.length;
+    applyInputText(lines.join('\n'), caret);
+  }
+
+  /** 光标跳到某一段的标记行 */
+  function locateSegment(segIndex) {
+    const segs = segList();
+    if (!segs || !segs[segIndex]) return;
+    const seg = segs[segIndex];
+    const lineIdx = Math.max(0, Math.min(seg.hasMark ? seg.markLine : seg.startLine, lineStarts.length - 1));
+    const pos = lineStarts[lineIdx] || 0;
+    el.input.focus();
+    el.input.setSelectionRange(pos, pos);
+    scrollToInputPos(pos);
+    updateCursor();
+  }
+
+  function renderSegments() {
+    if (!el.segList) return;
+    const segs = segList() || [fallbackSeg()];
+    const total = parsed ? parsed.totalBytes : 0;
+    el.segCount.textContent = tf('segSummary', { n: segs.length });
+
+    const cards = segs
+      .map((seg, i) => {
+        const startByte = seg.startByte || 0;
+        const endByte = seg.endByte != null ? seg.endByte : total;
+        const bytes = Math.max(0, endByte - startByte);
+        const displayName = seg.name || (seg.hasMark ? t('segNeedName') : t('segDefault'));
+        const leftVal = seg.leftExplicit ? seg.left : state.leftStartAddress;
+        const rightVal = seg.rightExplicit ? seg.right : state.rightStartAddress;
+        const inherit = `<em class="seg-inherit">${escapeHtml(t('segInherit'))}</em>`;
+        return `
+        <div class="seg-card${seg.hasMark ? '' : ' implicit'}" data-seg="${i}">
+          <div class="seg-head">
+            <span class="seg-index">${i + 1}</span>
+            <input class="text-input seg-name" data-seg="${i}" data-field="name"
+              value="${escapeHtml(seg.name)}" placeholder="${escapeHtml(t('segNamePh'))}"
+              ${seg.hasMark ? '' : 'disabled'} />
+            <button class="icon-btn seg-btn" data-act="locate" data-seg="${i}" title="${escapeHtml(t('segLocate'))}">${ICONS.code}</button>
+            ${seg.hasMark
+              ? `<button class="icon-btn seg-btn" data-act="remove" data-seg="${i}" title="${escapeHtml(t('segDelete'))}">${ICONS.trash}</button>`
+              : `<button class="icon-btn seg-btn" data-act="make" data-seg="${i}" title="${escapeHtml(t('segMakeMark'))}">${ICONS.plus}</button>`}
+          </div>
+          <div class="seg-addrs">
+            <label class="seg-field">
+              <span>${escapeHtml(t('segRun'))}</span>
+              <span class="seg-input-wrap">
+                <input class="addr-input" data-seg="${i}" data-field="left" value="${escapeHtml(leftVal)}" />
+                ${seg.leftExplicit ? '' : inherit}
+              </span>
+            </label>
+            <label class="seg-field">
+              <span>${escapeHtml(t('segStore'))}</span>
+              <span class="seg-input-wrap">
+                <input class="addr-input" data-seg="${i}" data-field="right" value="${escapeHtml(rightVal)}" />
+                ${seg.rightExplicit ? '' : inherit}
+              </span>
+            </label>
+          </div>
+          <div class="seg-meta">
+            <span class="seg-name-tag${seg.hasMark ? '' : ' muted'}">${escapeHtml(displayName)}</span>
+            <span class="seg-range">${escapeHtml(tf('segRange', { a: seg.startLine, b: seg.endLine, bytes }))}</span>
+            <span class="seg-mark-src">${escapeHtml(seg.hasMark ? state.input.split('\n')[seg.markLine] || '' : '')}</span>
+          </div>
+        </div>`;
+      })
+      .join('');
+
+    // 一个标记都没有时给一句用法提示（此时整个程序都是「默认段」）
+    const tip = segs.some((s) => s.hasMark)
+      ? ''
+      : `<div class="seg-empty-hint">${escapeHtml(t('segListEmpty'))}</div>`;
+    el.segList.innerHTML = cards + tip;
+  }
+
+  if (el.segList) {
+    el.segList.addEventListener('change', (e) => {
+      const t0 = e.target;
+      if (!t0 || !t0.dataset || !t0.dataset.field) return;
+      const idx = parseInt(t0.dataset.seg, 10);
+      if (isNaN(idx)) return;
+      setSegmentField(idx, t0.dataset.field, t0.value);
+    });
+    el.segList.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && e.target && e.target.dataset && e.target.dataset.field) {
+        e.preventDefault();
+        e.target.blur();
+      }
+    });
+    el.segList.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-act]');
+      if (!btn) return;
+      const idx = parseInt(btn.dataset.seg, 10);
+      if (isNaN(idx)) return;
+      const act = btn.dataset.act;
+      if (act === 'locate') locateSegment(idx);
+      else if (act === 'remove') removeSegmentMarker(idx);
+      else if (act === 'make') makeSegmentMarked(idx);
+    });
+  }
+  el.btnAddSegment.addEventListener('click', insertSegmentMarker);
+
   /* ---------------- Disas 反汇编浏览器 ---------------- */
   function setDisasData(addresses, byAddr) {
     disasAddr = addresses || [];
@@ -1764,8 +2126,6 @@
 
   function renderCompile() {
     const hex = parsed ? parsed.hexChars : '';
-    const leftBase = parseBase(state.leftStartAddress);
-    const rightBase = parseBase(state.rightStartAddress);
 
     const bytes = [];
     for (let i = 0; i < hex.length; i += 2) bytes.push(hex.slice(i, i + 2));
@@ -1776,10 +2136,14 @@
       const byteSpans = rowBytes
         .map((b, col) => `<span class="hex-byte ${b === '00' ? 'zero' : ''}" data-byte="${row * 16 + col}">${b}</span>`)
         .join(' ');
+      // 分段感知：该行第一个字节的左右地址
+      const first = row * 16;
+      const leftAddr = addrAtByte(first, 'left');
+      const rightAddr = addrAtByte(first, 'right');
       html += `<div class="hex-row">`
-        + `<span class="hex-addr left">${hexAddr(leftBase + row * 16)}</span>`
+        + `<span class="hex-addr left">${leftAddr}</span>`
         + `<span class="hex-bytes">${byteSpans}</span>`
-        + `<span class="hex-addr right">${hexAddr(rightBase + row * 16)}</span>`
+        + `<span class="hex-addr right">${rightAddr}</span>`
         + `</div>`;
     }
     if (bytes.length === 0) html = '<div class="empty-hint">' + t('noBytes') + '</div>';
@@ -1814,8 +2178,8 @@
   });
 
   function selectByte(byteIndex) {
-    const left = hexAddr(parseBase(state.leftStartAddress) + byteIndex);
-    const right = hexAddr(parseBase(state.rightStartAddress) + byteIndex);
+    const left = addrAtByte(byteIndex, 'left');
+    const right = addrAtByte(byteIndex, 'right');
     el.cursorInfo.textContent = `#${byteIndex}  L:${left}  R:${right}`;
     vscode.postMessage({ type: 'cursor', left, right });
 
@@ -1844,21 +2208,32 @@
       return;
     }
     const addr = parseInt(raw, 16);
-    const base = el.jumpSide.value === 'left'
-      ? parseBase(state.leftStartAddress)
-      : parseBase(state.rightStartAddress);
+    const side = el.jumpSide.value === 'left' ? 'left' : 'right';
     const total = parsed ? parsed.totalBytes : 0;
     if (total === 0) {
       showToast(t('noJumpBytes'), true);
       return;
     }
-    const byteIndex = addr - base;
-    if (byteIndex < 0 || byteIndex >= total) {
-      showToast(`0x${hexAddr(base)} ~ 0x${hexAddr(base + total - 1)}`, true);
+
+    // 分段感知：在每一段各自的 [基准, 基准+段长) 区间里查找
+    const segs = segList() || [fallbackSeg()];
+    let hit = -1;
+    const ranges = [];
+    for (const seg of segs) {
+      const base = baseOfSide(seg, side);
+      const len = (seg.endByte != null ? seg.endByte : total) - seg.startByte;
+      if (len <= 0) continue;
+      ranges.push(`0x${hexAddr(base)} ~ 0x${hexAddr(base + len - 1)}`);
+      if (hit < 0 && addr >= base && addr < base + len) {
+        hit = seg.startByte + (addr - base);
+      }
+    }
+    if (hit < 0) {
+      showToast(ranges.join(' / ') || `0x${hexAddr(baseOfSide(segs[0], side))}`, true);
       return;
     }
     openPanel('compile');
-    selectByte(byteIndex);
+    selectByte(hit);
     updateByteHighlight();
   }
 
@@ -2095,16 +2470,22 @@
   el.input.addEventListener('mouseleave', hideHover);
 
   /* ---------------- 覆写模拟器（RAM / launcher，位于顶部工具栏） ---------------- */
+  /** 第一段的运行区（左）地址；无分段标记时就是全局左地址 */
+  function firstSegLeft() {
+    const segs = segList();
+    return (segs && segs[0] && segs[0].left) || state.leftStartAddress;
+  }
+
   function initEmuToolbar() {
-    el.injectAddress.value = injectAddress || state.leftStartAddress;
+    el.injectAddress.value = injectAddress || firstSegLeft();
     el.launcher.value = launcher;
     el.launcherAddr.value = launcherAddr;
     el.emuError.hidden = true;
   }
 
-  // 用户未自定义注入地址时，跟随左地址变化。
+  // 用户未自定义注入地址时，跟随第一段的运行区地址变化。
   function syncEmuInjectAddress() {
-    if (!injectAddress) el.injectAddress.value = state.leftStartAddress;
+    if (!injectAddress) el.injectAddress.value = firstSegLeft();
   }
 
   function showEmuStatus(msg, kind) {
@@ -2152,7 +2533,7 @@
   });
 
   el.btnWriteRam.addEventListener('click', () => {
-    const raw = (injectAddress.trim() || state.leftStartAddress).toUpperCase().replace(/^0X/, '');
+    const raw = (injectAddress.trim() || firstSegLeft()).toUpperCase().replace(/^0X/, '');
     if (!/^[0-9A-F]{1,5}$/.test(raw)) {
       showEmuStatus(t('invalidAddr'), 'error');
       return;

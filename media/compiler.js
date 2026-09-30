@@ -9,9 +9,115 @@
  *   byteStartPositions  每个字节在 input 字符串中的起始字符位置（最终字节序）
  *   errorCount          语法错误数量
  *   totalBytes          总字节数
+ *   segments            分段列表（每段的运行区/储存区基准）
+ *   lineSegment         每一行所属的段索引
  */
+
+/* ---------------------------------------------------------------------------
+ * 分段（segment）
+ *
+ * 段标记写在**整行注释**里：
+ *
+ *   // @seg 名称 L=E9E0 R=D710
+ *
+ * 因为是注释，旧版编辑器 / 旧编译器会原样忽略，所以 .rop 文件结构
+ * （input / gadgets / leftStartAddress / rightStartAddress / ideVersion）
+ * 和「不使用分段标记」时的编译结果都完全不变。
+ *
+ * 语义：段内第一字节的地址 = 该段的运行区(L)/储存区(R)基准；
+ *      段内地址 = 段基准 + 段内字节偏移。
+ *      没有写 L= / R= 的段继承 .rop 顶层的 leftStartAddress / rightStartAddress。
+ *      第一个标记之前的代码属于「默认段」，同样继承顶层地址。
+ * ------------------------------------------------------------------------- */
 (function () {
   'use strict';
+
+  // // @seg / @segment / @分段 后跟空格或行尾（后面是名称与键值对）
+  const SEG_MARK_RE =
+    /^[ \t]*\/\/[ \t]*@(?:seg|segment|分段)(?![0-9A-Za-z_\u4e00-\u9fff])[ \t]*(.*)$/i;
+  // 支持 L= / left= / run= / 运行区= 与 R= / right= / store= / 储存区= / 存储区=
+  const SEG_KV_RE =
+    /(?:^|[\s,;|])(left|run|运行区|right|store|储存区|存储区|l|r)[ \t]*[:=][ \t]*(?:0x)?([0-9a-fA-F]{1,5})(?=$|[\s,;|])/gi;
+
+  /** 规范化十六进制地址字符串（去掉 0x、转大写、最多 5 位） */
+  function normHexAddr(s) {
+    const t = String(s == null ? '' : s)
+      .trim()
+      .replace(/^0[xX]/, '')
+      .replace(/[^0-9a-fA-F]/g, '')
+      .slice(0, 5)
+      .toUpperCase();
+    return t;
+  }
+
+  /** 把十六进制地址解析成数值；非法返回 0 */
+  function parseHexAddr(s) {
+    const n = parseInt(normHexAddr(s) || '0', 16);
+    return isNaN(n) ? 0 : n;
+  }
+
+  /** 判断一行是否为分段标记行；是则返回 { name, left, right }，否则返回 null。 */
+  function parseSegmentMark(line) {
+    const m = SEG_MARK_RE.exec(line);
+    if (!m) return null;
+    let left = '';
+    let right = '';
+    const rest = String(m[1] || '').replace(SEG_KV_RE, (_all, key, val) => {
+      const k = String(key).toLowerCase();
+      if (k === 'l' || k === 'left' || k === 'run' || key === '运行区') left = normHexAddr(val);
+      else right = normHexAddr(val);
+      return ' ';
+    });
+    let name = rest.replace(/[\s,;|]+/g, ' ').trim();
+    if (name.length >= 2) {
+      const a = name[0];
+      const b = name[name.length - 1];
+      if ((a === '"' && b === '"') || (a === "'" && b === "'") || (a === '“' && b === '”')) {
+        name = name.slice(1, -1).trim();
+      }
+    }
+    return { name, left, right };
+  }
+
+  /**
+   * 预扫描所有行，建立分段表。
+   * 返回 { segments, lineSegment }；lineSegment[i] 是第 i 行所属的段索引。
+   */
+  function buildSegments(lines, defaultLeft, defaultRight) {
+    const segments = [];
+    const lineSegment = new Array(lines.length);
+    const mk = (mark, lineIdx, hasMark) => ({
+      name: mark ? mark.name : '',
+      left: (mark && mark.left) || defaultLeft,
+      right: (mark && mark.right) || defaultRight,
+      leftExplicit: !!(mark && mark.left),
+      rightExplicit: !!(mark && mark.right),
+      hasMark: !!hasMark,
+      markLine: hasMark ? lineIdx : -1,
+      startLine: lineIdx,
+      endLine: lineIdx,
+      startByte: null, // 编译时填充：该段第一字节在整条字节流中的下标
+    });
+
+    let current = mk(null, 0, false);
+    for (let i = 0; i < lines.length; i++) {
+      const mark = parseSegmentMark(lines[i]);
+      if (mark) {
+        if (i === 0) {
+          // 第一行就是标记：直接作为第一段，不产生空的默认段
+          current = mk(mark, 0, true);
+        } else {
+          current.endLine = i - 1;
+          segments.push(current);
+          current = mk(mark, i, true);
+        }
+      }
+      lineSegment[i] = segments.length; // 当前段的最终下标
+    }
+    current.endLine = Math.max(0, lines.length - 1);
+    segments.push(current);
+    return { segments, lineSegment };
+  }
 
   function parseRopInput(input, gadgets, options) {
     options = options || {};
@@ -19,6 +125,13 @@
     const rightStartAddress = options.rightStartAddress || '0';
 
     const lines = input.split('\n');
+    const segInfo = buildSegments(
+      lines,
+      normHexAddr(leftStartAddress),
+      normHexAddr(rightStartAddress)
+    );
+    const segments = segInfo.segments;
+    const lineSegment = segInfo.lineSegment;
     const charPosInInputMap = [];
     const highlightLines = [];
     const constants = {};
@@ -29,6 +142,18 @@
 
     const deferredValuePatches = [];
     const deferredHighlightPatches = [];
+
+    /**
+     * 当前已产出的字节数（含尚未回填的延迟数值块）。
+     * 与旧版一致：Math.ceil(hexChars.length / 2) + 之前挂起的延迟字节数。
+     */
+    function currentByteCount() {
+      let deferred = 0;
+      for (const p of deferredValuePatches) {
+        if (p.startHexIndex <= hexChars.length) deferred += p.bytesToInsert || 2;
+      }
+      return Math.ceil(hexChars.length / 2) + deferred;
+    }
 
     function evalExpression(inner, allowUndefinedAsDeferred) {
       let value = 0x0000;
@@ -94,6 +219,11 @@
 
     lines.forEach((line, lineIndex) => {
       const lineStartPosInInput = posInInput;
+      const segIndex = lineSegment[lineIndex] || 0;
+      const seg = segments[segIndex];
+      // 记录该段第一字节在整条字节流中的下标（用于段内偏移换算）
+      if (seg.startByte === null) seg.startByte = currentByteCount();
+      const segMark = seg.markLine === lineIndex ? parseSegmentMark(line) : null;
       const spans = [];
       const pushSpan = (type, content) => spans.push({ type, content });
 
@@ -102,9 +232,9 @@
         const char = line[i];
         const charPosInInput = lineStartPosInInput + i;
 
-        // 注释 //...
+        // 注释 //...（分段标记行用 seg-mark 额外标注）
         if (char === '/' && line[i + 1] === '/') {
-          pushSpan('comment', line.substring(i));
+          pushSpan(segMark ? 'comment,seg-mark' : 'comment', line.substring(i));
           break;
         }
 
@@ -257,22 +387,16 @@
             pushSpan('anchor,closed', anchorContent);
 
             let anchorName = line.substring(i + 1, j);
-            let addrStart = parseInt(rightStartAddress || '0', 16);
+            let addrStart = parseHexAddr(seg.right);
             let side = 'right';
             if (anchorName.startsWith('-')) {
               anchorName = anchorName.substring(1);
-              addrStart = parseInt(leftStartAddress || '0', 16);
+              addrStart = parseHexAddr(seg.left);
               side = 'left';
             }
 
-            let deferredBytesBeforeAnchor = 0;
-            for (const p of deferredValuePatches) {
-              if (p.startHexIndex <= hexChars.length) {
-                deferredBytesBeforeAnchor += p.bytesToInsert || 2;
-              }
-            }
-            const addr =
-              addrStart + Math.ceil(hexChars.length / 2) + deferredBytesBeforeAnchor;
+            // 段内偏移 = 全局字节数 - 该段起始字节数（无分段标记时起始字节数为 0，与旧版一致）
+            const addr = addrStart + (currentByteCount() - seg.startByte);
             constants[anchorName] = addr;
             anchorSides[anchorName] = side;
           } else {
@@ -356,6 +480,18 @@
       byteStartPositions.push(charPosInInputMap[b * 2]);
     }
 
+    // 补全每段的字节区间，方便调用方做「字节 → 段」的换算
+    const totalBytes = Math.floor(hexChars.length / 2);
+    for (let s = 0; s < segments.length; s++) {
+      if (segments[s].startByte === null) segments[s].startByte = 0;
+      segments[s].endByte =
+        s + 1 < segments.length ? segments[s + 1].startByte : totalBytes;
+      if (segments[s].endByte < segments[s].startByte) {
+        segments[s].endByte = segments[s].startByte;
+      }
+      segments[s].byteLength = segments[s].endByte - segments[s].startByte;
+    }
+
     return {
       hexChars,
       charPosInInputMap,
@@ -364,9 +500,16 @@
       byteStartPositions,
       constants,
       anchorSides,
-      totalBytes: Math.floor(hexChars.length / 2),
+      totalBytes,
+      segments,
+      lineSegment,
     };
   }
 
-  window.RopCompiler = { parseRopInput };
+  window.RopCompiler = {
+    parseRopInput,
+    parseSegmentMark,
+    normHexAddr,
+    parseHexAddr,
+  };
 })();

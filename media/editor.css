@@ -34,6 +34,10 @@
   --s-launch: #6741d9;
   --s-launch-bg: #ede7ff;
   --s-launch-underline: #9775fa;
+  /* 分段标记 // @seg ... */
+  --s-seg: #0b7285;
+  --s-seg-bg: #e3fafc;
+  --s-seg-underline: #66d9e8;
 }
 
 body.vscode-dark {
@@ -53,6 +57,9 @@ body.vscode-dark {
   --s-launch: #b197fc;
   --s-launch-bg: #221c3a;
   --s-launch-underline: #6741d9;
+  --s-seg: #66d9e8;
+  --s-seg-bg: #0b1f24;
+  --s-seg-underline: #0c8599;
 }
 
 * { box-sizing: border-box; }
@@ -280,6 +287,13 @@ body {
   color: var(--vscode-editorLineNumber-activeForeground, var(--fg));
   opacity: 1;
 }
+/* 分段起始行 */
+.gutter-line.seg-start {
+  color: var(--s-seg);
+  font-weight: 700;
+  opacity: 1;
+  border-top: 1px solid var(--s-seg-underline);
+}
 
 .code-wrap {
   flex: 1 1 auto;
@@ -344,6 +358,16 @@ body.vscode-dark .code-input::selection { background: rgba(255, 255, 255, 0.2); 
   background: var(--s-launch-bg);
   border-radius: 2px;
   text-decoration: underline 1px var(--s-launch-underline);
+  text-underline-offset: 2px;
+}
+/* 分段标记注释：// @seg 名称 L=E9E0 R=D710 */
+.highlight .comment.seg-mark {
+  color: var(--s-seg);
+  background: var(--s-seg-bg);
+  font-style: normal;
+  font-weight: 600;
+  border-radius: 2px;
+  text-decoration: underline 1px var(--s-seg-underline);
   text-underline-offset: 2px;
 }
 .highlight .constant.name { color: var(--s-constant-name); }
@@ -465,6 +489,8 @@ body.vscode-dark .code-input::selection { background: rgba(255, 255, 255, 0.2); 
   border-bottom: 1px solid var(--border);
   flex: 0 0 auto;
   user-select: none;
+  overflow-x: auto;
+  scrollbar-width: thin;
 }
 .sidepanel-tabs .spacer { flex: 1 1 auto; }
 .sp-tab {
@@ -476,6 +502,8 @@ body.vscode-dark .code-input::selection { background: rgba(255, 255, 255, 0.2); 
   cursor: pointer;
   font-size: 12px;
   font-family: inherit;
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 .sp-tab:hover { background: var(--vscode-toolbar-hoverBackground, rgba(0,0,0,0.08)); }
 .sp-tab.active { border-bottom-color: var(--accent); font-weight: 700; }
@@ -929,3 +957,104 @@ body.vscode-dark .code-input::selection { background: rgba(255, 255, 255, 0.2); 
   border-color: var(--vscode-inputValidation-errorBorder, #be1100);
 }
 .toast[hidden] { display: none; }
+
+/* ---------- 高级：分段程序 ---------- */
+.panel-toolbar .spacer { flex: 1 1 auto; }
+.seg-heading { font-size: 13px; font-weight: 700; }
+.seg-count {
+  font-size: 11px;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 1px 7px;
+  line-height: 15px;
+}
+.seg-hint {
+  flex: 0 0 auto;
+  margin: 0 0 10px;
+  padding: 7px 9px;
+  border-left: 3px solid var(--s-seg-underline);
+  background: var(--s-seg-bg);
+  border-radius: 0 4px 4px 0;
+  color: var(--fg);
+  opacity: 0.9;
+}
+.seg-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.seg-card {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--s-seg-underline);
+  border-radius: 6px;
+  padding: 9px 11px;
+  background: var(--vscode-editor-background, #fff);
+}
+.seg-card.implicit { border-left-style: dashed; opacity: 0.85; }
+.seg-head { display: flex; align-items: center; gap: 6px; }
+.seg-index {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--s-seg-bg);
+  color: var(--s-seg);
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.seg-name { flex: 1 1 auto; min-width: 0; font-weight: 600; }
+.seg-btn { flex: 0 0 auto; padding: 3px 6px; }
+.seg-addrs { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; }
+.seg-field { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--muted); }
+.seg-input-wrap { display: inline-flex; align-items: center; gap: 5px; }
+.seg-inherit {
+  font-size: 10px;
+  font-style: normal;
+  color: var(--muted);
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 0 5px;
+  line-height: 15px;
+}
+.seg-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  padding-top: 7px;
+  border-top: 1px dashed var(--border);
+  font-size: 11px;
+  color: var(--muted);
+}
+.seg-name-tag { color: var(--s-seg); font-weight: 700; }
+.seg-name-tag.muted { color: var(--muted); font-weight: 400; }
+.seg-mark-src {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  opacity: 0.75;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.compile-hint.seg-compile-hint {
+  border-top: 1px dashed var(--border);
+  padding-top: 6px;
+  margin-top: 4px;
+}
+.seg-empty-hint {
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--muted);
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
