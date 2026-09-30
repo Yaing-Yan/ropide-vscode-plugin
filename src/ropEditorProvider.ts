@@ -648,6 +648,7 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
 
     const css = mediaUri('editor.css');
     const compiler = mediaUri('compiler.js');
+    const compress = mediaUri('compress.js');
     const main = mediaUri('editor.js');
 
     const nonce = getNonce();
@@ -664,6 +665,7 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
 <body>
   <div id="app"></div>
   <script nonce="${nonce}" src="${compiler}"></script>
+  <script nonce="${nonce}" src="${compress}"></script>
   <script nonce="${nonce}" src="${main}"></script>
 </body>
 </html>`;

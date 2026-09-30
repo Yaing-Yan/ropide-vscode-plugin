@@ -56,6 +56,36 @@
     return isNaN(n) ? 0 : n;
   }
 
+  /** 规范成 5 位地址（供 #gadget; / #!addr; 编码使用）；非法返回 '' */
+  function normAddr5(s) {
+    const t = String(s == null ? '' : s)
+      .replace(/^0[xX]/, '')
+      .replace(/[^0-9a-fA-F]/g, '')
+      .toUpperCase();
+    if (!t || t.length > 5) return '';
+    return t.padStart(5, '0');
+  }
+
+  /**
+   * 按 `#gadget;` 的规则把 5 位地址编码成 8 位 hex。
+   * 与旧版逐字节一致（含 h1 为 '00' 且非 allow00 时改写成 '01' 的特例）。
+   */
+  function encodeGadgetRef(addr, allow00) {
+    let hex = addr.slice(3, 5);
+    if (hex === '00' && !allow00) hex = '01';
+    hex += addr.slice(1, 3);
+    hex += (allow00 ? '0' : '3') + addr[0];
+    hex += allow00 ? '00' : '30';
+    return hex;
+  }
+
+  /** 读取 `*n` 重复后缀；没有则返回 null */
+  function matchRepeat(text, from) {
+    const m = /^\*(\d{1,3})/.exec(text.slice(from));
+    if (!m) return null;
+    return { count: Math.max(1, parseInt(m[1], 10)), end: from + m[0].length, text: m[0] };
+  }
+
   /** 判断一行是否为分段标记行；是则返回 { name, left, right }，否则返回 null。 */
   function parseSegmentMark(line) {
     const m = SEG_MARK_RE.exec(line);
@@ -142,6 +172,13 @@
 
     const deferredValuePatches = [];
     const deferredHighlightPatches = [];
+    const deferredConstPatches = [];   // $a = <用到尚未定义的名字>; 延后到第一遍结束再算
+    const byteMacros = {};             // %name = AA BB CC;  ->  { bytes, startPos, endPos }
+    const messages = [];               // 编译期诊断：{ level, line, text }
+
+    function addMessage(level, lineIndex, text) {
+      messages.push({ level, line: lineIndex + 1, text });
+    }
 
     /**
      * 当前已产出的字节数（含尚未回填的延迟数值块）。
@@ -155,17 +192,28 @@
       return Math.ceil(hexChars.length / 2) + deferred;
     }
 
-    function evalExpression(inner, allowUndefinedAsDeferred) {
+    /**
+     * 求值表达式：由 `+` / `-` 连接的字面量、`$常量` 与 `<锚点>` 组成。
+     *
+     * @param inner                    表达式文本（不含括号）
+     * @param allowUndefinedAsDeferred 未定义的名字是否按「延后回填」处理
+     * @param keepNegative             true 时保留负值（常量定义用；旧版 $a = -1; 存的就是 -1）
+     */
+    function evalExpression(inner, allowUndefinedAsDeferred, keepNegative) {
       let value = 0x0000;
       let symbol = '+';
       let hasErrors = false;
       let deferred = false;
 
-      const parts = inner.split(' ').filter(Boolean);
+      const parts = String(inner).split(' ').filter(Boolean);
       for (const part of parts) {
-        if (part.startsWith('$')) {
-          const constantName = part.substring(1);
-          const constantValue = constants[constantName];
+        // <锚点> / <-锚点>：锚点存在和常量同一个表里，负号在定义处已确定，这里忽略
+        const am = /^<(-?)([A-Za-z0-9_-]+)>$/.exec(part);
+        const refName = part.startsWith('$')
+          ? part.substring(1)
+          : (am ? am[2] : null);
+        if (refName !== null) {
+          const constantValue = constants[refName];
           if (constantValue !== undefined) {
             if (symbol === '+') value += constantValue;
             else if (symbol === '-') value -= constantValue;
@@ -200,7 +248,7 @@
         if (!(allowUndefinedAsDeferred && deferred) && (value > 0xffff || value < -0x8000)) {
           hasErrors = true;
         }
-        if (value < 0) value = 0xffff + value + 1; // 负数转补码
+        if (value < 0 && !keepNegative) value = 0xffff + value + 1; // 负数转补码
       } else {
         hasErrors = true;
       }
@@ -249,25 +297,55 @@
             const constantStr = line.substring(i + 1, j).replace(/\s+/g, '');
             const parts = constantStr.split('=');
             if (parts.length === 2) {
-              const intValue = parseInt(parts[1], 16);
-              if (
-                /^-?[0-9a-fA-F]+$/.test(parts[1]) &&
-                !isNaN(intValue) &&
-                intValue <= 0xffff &&
-                intValue >= -0x8000
-              ) {
+              // 旧行为：值里允许空格（$a = 12 34; 即 0x1234），所以字面量判定用去空格版本
+              const strippedValue = parts[1];
+              const rawBody = line.substring(i + 1, j);
+              const rawValue = rawBody.slice(rawBody.indexOf('=') + 1).trim();
+              if (/^-?[0-9a-fA-F]+$/.test(strippedValue)) {
+                const intValue = parseInt(strippedValue, 16);
+                if (!isNaN(intValue) && intValue <= 0xffff && intValue >= -0x8000) {
+                  if (constants[parts[0]] !== undefined) {
+                    errorCount++;
+                    addMessage('error', lineIndex, `常量 $${parts[0]} 重复定义`);
+                    pushSpan('constant,name,warning', constantContent);
+                    i = j + 1;
+                    continue;
+                  }
+                  constants[parts[0]] = intValue;
+                } else {
+                  errorCount++;
+                  pushSpan('constant,value,warning', constantContent);
+                  i = j + 1;
+                  continue;
+                }
+              } else {
+                // 表达式：$a = $b + 1; / $a = <label> - 8;
+                const res = evalExpression(rawValue, true, true);
+                if (res.hasErrors) {
+                  errorCount++;
+                  addMessage('error', lineIndex, `常量 $${parts[0]} 的表达式无法求值：${rawValue}`);
+                  pushSpan('constant,value,warning', constantContent);
+                  i = j + 1;
+                  continue;
+                }
                 if (constants[parts[0]] !== undefined) {
                   errorCount++;
+                  addMessage('error', lineIndex, `常量 $${parts[0]} 重复定义`);
                   pushSpan('constant,name,warning', constantContent);
                   i = j + 1;
                   continue;
                 }
-                constants[parts[0]] = intValue;
-              } else {
-                errorCount++;
-                pushSpan('constant,value,warning', constantContent);
-                i = j + 1;
-                continue;
+                if (res.deferred) {
+                  // 引用了后面才定义的名字 → 第一遍结束后再算
+                  deferredConstPatches.push({
+                    name: parts[0],
+                    expr: rawValue,
+                    lineIndex,
+                    valueSpanIndex: spans.length + 2, // name / equal / value / ';'
+                  });
+                } else {
+                  constants[parts[0]] = res.value;
+                }
               }
             }
 
@@ -292,7 +370,7 @@
           i = j + (hasSemicolon ? 1 : 0);
         }
 
-        // gadget #...;
+        // gadget #name; / 地址字面量 #!addr;（可带 -! 前缀）、均可加 *n 重复
         else if (char === '#') {
           let j = i + 1;
           while (j < line.length && line[j] !== ';' && line[j] !== ' ') j++;
@@ -304,22 +382,41 @@
             const allow00 = !gadgetName.startsWith('-');
             if (!allow00) gadgetName = gadgetName.slice(1);
 
-            const gadget = (gadgets || []).find((g) => g.name === gadgetName);
-            if (!gadget) {
-              errorCount++;
-              pushSpan('gadget,warning', gadgetContent);
-            } else {
-              pushSpan('gadget,closed', gadgetContent);
+            const rep = matchRepeat(line, j + 1) || { count: 1, end: j + 1, text: '' };
+            const spanContent = line.substring(i, rep.end);
 
-              const addr = gadget.addr || '';
-              let hex = '';
-              hex += addr.slice(3, 5);
-              if (hex === '00' && !allow00) hex = '01';
-              hex += addr.slice(1, 3);
-              hex += (allow00 ? '0' : '3') + addr[0];
-              hex += allow00 ? '00' : '30';
-              pushHexChars(hex, charPosInInput, lineStartPosInInput + j, 4);
+            if (gadgetName.startsWith('!')) {
+              // #!addr; —— 直接按 gadget 编码写地址，不必先建 gadget 条目
+              const addr = normAddr5(gadgetName.slice(1));
+              if (!addr) {
+                errorCount++;
+                addMessage('error', lineIndex, `地址字面量的写法不对：${spanContent}`);
+                pushSpan('gadget,literal,warning', spanContent);
+              } else {
+                pushSpan('gadget,literal,closed' + (rep.count > 1 ? ',repeat' : ''), spanContent);
+                const hex = encodeGadgetRef(addr, allow00);
+                for (let r = 0; r < rep.count; r++) {
+                  pushHexChars(hex, charPosInInput, lineStartPosInInput + j, 4);
+                }
+              }
+            } else {
+              const gadget = (gadgets || []).find((g) => g.name === gadgetName);
+              if (!gadget) {
+                errorCount++;
+                addMessage('error', lineIndex, `找不到 gadget #${gadgetName};`);
+                pushSpan('gadget,warning', spanContent);
+              } else {
+                pushSpan('gadget,closed' + (rep.count > 1 ? ',repeat' : ''), spanContent);
+
+                const addr = gadget.addr || '';
+                const hex = encodeGadgetRef(addr, allow00);
+                for (let r = 0; r < rep.count; r++) {
+                  pushHexChars(hex, charPosInInput, lineStartPosInInput + j, 4);
+                }
+              }
             }
+            i = rep.end;
+            continue;
           } else {
             pushSpan('gadget', gadgetContent);
           }
@@ -327,56 +424,64 @@
           i = j + (hasSemicolon ? 1 : 0);
         }
 
-        // 数值块 [...]
+        // 数值块 [...]，可加 *n 重复
         else if (char === '[') {
           let j = i + 1;
           while (j < line.length && line[j] !== ']') j++;
           const hasBracket = j < line.length && line[j] === ']';
           const valueContent = line.substring(i, hasBracket ? j + 1 : j);
+          const rep = matchRepeat(line, j + 1) || { count: 1, end: j + 1, text: '' };
 
           if (hasBracket) {
             const inner = line.substring(i + 1, j);
+            const spanContent = line.substring(i, rep.end);
             const firstPass = evalExpression(inner, true);
             const value = firstPass.value;
             const hasErrors = firstPass.hasErrors;
-            const deferred = firstPass.deferred || /\$/.test(inner);
+            const deferred = firstPass.deferred || /\$/.test(inner) || /<[^>]*>/.test(inner);
 
             if (hasErrors) {
-              pushSpan('value,closed,warning', valueContent);
-              i = j + 1;
+              // 旧版只给「警告」高亮、不计入 errorCount，这里保持计数不变，只额外记一条诊断
+              addMessage('warning', lineIndex, `数值块无法求值，已忽略：${valueContent}`);
+              pushSpan('value,closed,warning', spanContent);
+              i = rep.end;
               continue;
             } else {
-              pushSpan('value,closed', valueContent);
+              pushSpan('value,closed' + (rep.count > 1 ? ',repeat' : ''), spanContent);
             }
 
             const addrStr = value.toString(16).toUpperCase().padStart(4, '0');
             const littleEndian = addrStr.slice(2, 4) + addrStr.slice(0, 2);
 
             if (!deferred) {
-              pushHexChars(littleEndian, charPosInInput, lineStartPosInInput + j, 2);
+              for (let r = 0; r < rep.count; r++) {
+                pushHexChars(littleEndian, charPosInInput, lineStartPosInInput + j, 2);
+              }
             } else {
-              deferredValuePatches.push({
-                startHexIndex: hexChars.length,
-                endHexIndex: hexChars.length,
-                expression: inner,
-                startPosInLine: charPosInInput,
-                endPosInLine: lineStartPosInInput + j,
-                bytesToInsert: 2,
-              });
-              deferredHighlightPatches.push({
-                lineIndex,
-                spanIndex: spans.length - 1,
-                expression: inner,
-              });
+              for (let r = 0; r < rep.count; r++) {
+                deferredValuePatches.push({
+                  startHexIndex: hexChars.length,
+                  endHexIndex: hexChars.length,
+                  expression: inner,
+                  startPosInLine: charPosInInput,
+                  endPosInLine: lineStartPosInInput + j,
+                  bytesToInsert: 2,
+                });
+                deferredHighlightPatches.push({
+                  lineIndex,
+                  spanIndex: spans.length - 1,
+                  expression: inner,
+                });
+              }
             }
           } else {
             pushSpan('value', valueContent);
           }
 
-          i = j + (hasBracket ? 1 : 0);
+          i = hasBracket ? rep.end : j;
         }
 
-        // 地址锚点 <...> / <-...>
+        // 地址锚点 <...> / <-...>，可选 @绝对地址 断言（<key-table@EA3E>）
         else if (char === '<') {
           let j = i + 1;
           while (j < line.length && line[j] !== '>' && line[j] !== ' ') j++;
@@ -384,8 +489,6 @@
           const anchorContent = line.substring(i, hasClose ? j + 1 : j);
 
           if (hasClose) {
-            pushSpan('anchor,closed', anchorContent);
-
             let anchorName = line.substring(i + 1, j);
             let addrStart = parseHexAddr(seg.right);
             let side = 'right';
@@ -395,8 +498,36 @@
               side = 'left';
             }
 
+            let declared = null;
+            const at = anchorName.indexOf('@');
+            if (at >= 0) {
+              declared = normAddr5(anchorName.slice(at + 1));
+              anchorName = anchorName.slice(0, at);
+            }
+
             // 段内偏移 = 全局字节数 - 该段起始字节数（无分段标记时起始字节数为 0，与旧版一致）
             const addr = addrStart + (currentByteCount() - seg.startByte);
+
+            let badDeclared = false;
+            if (at >= 0) {
+              if (!declared) {
+                badDeclared = true;
+                errorCount++;
+                addMessage('error', lineIndex, `锚点 ${anchorContent} 的绝对地址写法不对`);
+              } else if (parseInt(declared, 16) !== addr) {
+                badDeclared = true;
+                errorCount++;
+                const actual = addr.toString(16).toUpperCase().padStart(4, '0');
+                const diff = addr - parseInt(declared, 16);
+                addMessage(
+                  'error',
+                  lineIndex,
+                  `锚点 ${anchorContent} 断言失败：实际 ${actual}，相差 ${diff > 0 ? '+' : ''}${diff} 字节`
+                );
+              }
+            }
+
+            pushSpan(badDeclared ? 'anchor,closed,warning' : 'anchor,closed', anchorContent);
             constants[anchorName] = addr;
             anchorSides[anchorName] = side;
           } else {
@@ -404,6 +535,70 @@
           }
 
           i = j + (hasClose ? 1 : 0);
+        }
+
+        // 字节串常量 %name = AA BB CC;  与引用 %name;（可加 *n 重复）
+        else if (char === '%') {
+          let j = i + 1;
+          while (j < line.length && /[A-Za-z0-9_-]/.test(line[j])) j++;
+          const macroName = line.substring(i + 1, j);
+          let k = j;
+          while (k < line.length && (line[k] === ' ' || line[k] === '\t')) k++;
+
+          if (macroName && line[k] === '=') {
+            let m = k + 1;
+            while (m < line.length && line[m] !== ';') m++;
+            const hasSemi = m < line.length;
+            const bodyHex = line.substring(k + 1, m).replace(/[^0-9a-fA-F]/g, '').toUpperCase();
+            const content = line.substring(i, hasSemi ? m + 1 : m);
+
+            if (!hasSemi || bodyHex.length % 2 !== 0 || bodyHex.length === 0) {
+              errorCount++;
+              addMessage('error', lineIndex, `字节串 %${macroName} 的定义不合法：${content}`);
+              pushSpan('macro,name,warning', content);
+            } else if (byteMacros[macroName]) {
+              errorCount++;
+              addMessage('error', lineIndex, `字节串 %${macroName} 重复定义`);
+              pushSpan('macro,name,warning', content);
+            } else {
+              byteMacros[macroName] = {
+                bytes: bodyHex,
+                startPos: lineStartPosInInput + i,
+                endPos: lineStartPosInInput + m,
+              };
+              pushSpan('macro,name', line.substring(i, j));
+              pushSpan('macro,equal', line.substring(j, k + 1));
+              pushSpan('macro,bytes', line.substring(k + 1, m));
+              pushSpan('', ';');
+            }
+            i = hasSemi ? m + 1 : m;
+            continue;
+          }
+
+          if (macroName && line[j] === ';') {
+            const base = j + 1;
+            const rep = matchRepeat(line, base) || { count: 1, end: base, text: '' };
+            const spanContent = line.substring(i, rep.end);
+            const rec = byteMacros[macroName];
+            if (!rec) {
+              errorCount++;
+              addMessage('error', lineIndex, `未定义的字节串 %${macroName}（需要先写 %${macroName} = ...; ）`);
+              pushSpan('macro,closed,warning', spanContent);
+            } else {
+              pushSpan('macro,closed' + (rep.count > 1 ? ',repeat' : ''), spanContent);
+              for (let r = 0; r < rep.count; r++) {
+                pushHexChars(rec.bytes, rec.startPos, rec.endPos, rec.bytes.length / 2);
+              }
+            }
+            i = rep.end;
+            continue;
+          }
+
+          // 不是字节串语法 → 保持旧版的 other 处理
+          let m2 = i + 1;
+          while (m2 < line.length && !/[0-9a-fA-F\/\$#\[<]/.test(line[m2])) m2++;
+          pushSpan('other', line.substring(i, m2));
+          i = m2;
         }
 
         // 裸十六进制字符
@@ -435,6 +630,31 @@
       highlightLines.push(spans);
       posInInput += line.length + 1;
     });
+
+    // 第一遍结束：结算「引用了后面才定义的名字」的常量定义（$a = <label> - 8;）
+    // 反复扫描直到没有进展，这样 $a = $b + 1; $b = $c + 1; $c = 5; 这类依赖链也能算出来。
+    {
+      const pending = deferredConstPatches.slice();
+      let progress = true;
+      while (progress && pending.length) {
+        progress = false;
+        for (let i = pending.length - 1; i >= 0; i--) {
+          const res = evalExpression(pending[i].expr, true, true);
+          if (!res.hasErrors && !res.deferred) {
+            constants[pending[i].name] = res.value;
+            pending.splice(i, 1);
+            progress = true;
+          }
+        }
+      }
+      for (const p of pending) {
+        errorCount++;
+        addMessage('error', p.lineIndex, `常量 $${p.name} 的表达式无法求值：${p.expr}`);
+        const spans = highlightLines[p.lineIndex];
+        const span = spans && spans[p.valueSpanIndex];
+        if (span && !span.type.includes('warning')) span.type += ',warning';
+      }
+    }
 
     // 第二遍：按位置顺序插入延迟字节
     {
@@ -503,6 +723,8 @@
       totalBytes,
       segments,
       lineSegment,
+      messages,
+      macros: byteMacros,
     };
   }
 
@@ -510,6 +732,9 @@
     parseRopInput,
     parseSegmentMark,
     normHexAddr,
+    normAddr5,
     parseHexAddr,
+    encodeGadgetRef,
+    matchRepeat,
   };
 })();
