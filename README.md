@@ -18,6 +18,7 @@
 
 <p align="center">
   <a href="#screenshot">Screenshot</a> ·
+  <a href="#quick-install-no-git-clone">Quick install</a> ·
   <a href="#features">Features</a> ·
   <a href="#install--run">Install</a> ·
   <a href="#-overwrite-feature-the-emulator-must-be-started-this-way">Emulator overwrite</a> ·
@@ -49,6 +50,32 @@ The RopIDE welcome page (shown on startup) — start a new `.rop` file, open an 
   <img src="media/demo.webp" alt="RopIDE for VS Code — welcome page" width="100%" />
 </p>
 
+## Quick install (no git clone)
+
+One command is enough. It opens a small install/uninstall menu — pick **1 (install)** or **2 (uninstall)**:
+
+**Linux / macOS:**
+
+```bash
+curl -sSL https://raw.githubusercontent.com/Yaing-Yan/ropide-vscode-plugin/main/simply-plugin.sh -o /tmp/simply-plugin.sh && bash /tmp/simply-plugin.sh
+```
+
+**Windows:**
+
+CMD (Command Prompt):
+
+```bat
+curl -sSL https://raw.githubusercontent.com/Yaing-Yan/ropide-vscode-plugin/main/simply-plugin.bat -o %TEMP%\simply-plugin.bat && call %TEMP%\simply-plugin.bat
+```
+
+PowerShell:
+
+```powershell
+curl.exe -sSL https://raw.githubusercontent.com/Yaing-Yan/ropide-vscode-plugin/main/simply-plugin.bat -o $env:TEMP\simply-plugin.bat; cmd /c $env:TEMP%\simply-plugin.bat
+```
+
+> Alternatively, clone the repo and run `./install.sh` / `install.bat` / `.\install.ps1` (see [Install / Run](#install--run)).
+
 ## Features
 
 When you open a `.rop` file, the editor shows the `input` field's content (not the raw JSON) with full syntax highlighting:
@@ -57,14 +84,21 @@ When you open a `.rop` file, the editor shows the `input` field's content (not t
 | --- | --- |
 | `// comment` | Gray italic |
 | `$name = value;` | Constant definition (cyan name + green value) |
+| `$a = $b + 1;` | Constant arithmetic: the right side may use `$constant` / `<anchor>` / hex literals with `+ -` (forward references supported) |
 | `#gadget;` / `#-gadget;` | Gadget reference (blue; recognized ones get a background) |
-| `[expression]` | Value block (orange; closed ones get a background) |
+| `#!addr;` / `#-!addr;` | **Address literal**: encode an address with gadget rules without creating a gadget entry (e.g. `#!23642;` → `42 36 02 00`) |
+| `%name = AA BB CC;` | **Byte-string constant**: name any byte sequence and reference it as `%name;` |
+| `[...]*n` etc. | Any `#…;` / `[...]` / `%…;` may take a repetition suffix `*n` (`#pop-xr0;*3`) |
+| `[expression]` | Value block (orange; closed ones get a background); expressions may use `$constants` or `<anchors>` |
 | `<anchor>` / `<-anchor>` | Address anchor (green; closed ones get a background) |
+| `<anchor@EA3E>` | **Absolute-address assertion**: fails compilation with the actual address and delta when the layout differs |
+| `// @seg name L=E9E0 R=D710` | **Segment marker** (cyan): a whole-line comment giving that segment its own run / store addresses |
 | `00 11 AA` | Raw hex bytes |
 
 #### Editing & navigation
 
 - **Left / right address gutters** — the line-number gutter on the left shows each line's **left address**; a right gutter shows each line's **right start address**. The current line's addresses are highlighted in both gutters.
+- **Segment programs (Advanced tab)** — see below.
 - **Status-bar address** — VS Code's status bar shows `L:xxxx R:xxxx` for the cursor position in real time.
 - **Cursor → address jump** — a jump box (bottom-right) moves the cursor to any address.
 - **Find / replace panel** — `Ctrl+F` opens an in-editor find/replace bar.
@@ -72,6 +106,27 @@ When you open a `.rop` file, the editor shows the `input` field's content (not t
 - **Tab-aligned comments** — pressing Tab aligns the current line's `//` comment with the column used above.
 - **Launcher highlight** — *Highlight launcher* (on by default) marks any word containing `launch` (case-insensitive) inside comments, so `// launcher` / `// launcherAddr = D180` stand out.
 - **Completion** — type `#` for gadget completion, `$` for defined constants and anchors.
+
+#### Segment programs (Advanced)
+
+The side panel's **Advanced** tab splits one program into segments, each with its own **run (left) address** and **store (right) address**:
+
+```
+// @seg loader L=E9E0 R=D710
+<-entry>
+#g1;
+AA BB CC DD
+// @seg payload L=8000 R=9000
+<-payload>
+11 22 33
+```
+
+- **Marker** must be a whole-line comment: `// @seg <name> L=xxxxx R=xxxxx`
+  (`@segment` / `@分段` are accepted too; key aliases: `L=` / `left=` / `run=` / `运行区=` and `R=` / `right=` / `store=` / `储存区=`; quote names containing spaces).
+- **Semantics** — the first byte of a segment sits at that segment's run / store base; in-segment addresses are `base + in-segment byte offset`, so `<-anchor>` / `<anchor>` are resolved against each segment's own base (`<-x>` uses run, `<x>` uses store).
+- **Inheritance** — omit `L=` / `R=` to inherit the compile tab's addresses; code before the first marker is the "default segment" and inherits them too.
+- **Panel** — rename, edit run / store (rewrites that marker comment in place), jump to the marker, delete it, or turn the default segment into an explicit marker; **Add segment** inserts a marker on the current line.
+- **Compatibility** — markers are comments and emit no bytes; the `.rop` file keeps exactly the five fields `{ input, gadgets, leftStartAddress, rightStartAddress, ideVersion }`. Files without markers compile byte-identically to older versions, and files with markers still open in older editors (markers are ordinary comments there; addresses fall back to the global bases).
 
 #### Gadgets & disassembly
 
@@ -87,8 +142,9 @@ When you open a `.rop` file, the editor shows the `input` field's content (not t
 #### Files, market & welcome
 
 - **New file** — creating a `.rop` file walks you through **file name**, **left address**, **right address**, and the gadgets source (VerF preset / VerC preset / import `gadgets.json` / empty).
-- **Market** — browse / search programs on [ropide.pages.dev](https://ropide.pages.dev), Featured / All sections, one-click download (**choose a save path, then it opens**), and publish (name / author / model / description form with expert check). An unread badge appears on the market buttons when new programs are published.
-- **Welcome page** — a polished start page (optionally shown on startup) with quick actions, **recent files**, an **update-available badge** that updates the extension in place when clicked (it compares the local build time against the latest `main` commit), and the market dialog.
+- **Market** — browse / search programs on [ropide.pages.dev](https://ropide.pages.dev), Featured / All sections, one-click download (**choose a save path, then it opens**), and publish (name / author / model / description form with expert check). Click any card to open its detail dialog: description, time, **comment count and comments**, with a form to post a comment (nickname + text). Card footers show the comment count and date. An unread badge appears on the market buttons when new programs are published.
+- **Welcome page** — a polished start page (optionally shown on startup) with quick actions, **recent files**, an **update-available badge** that updates the extension in place when clicked (it compares the local build time against the latest `main` commit), and the market dialog. The old logo is replaced by a **random ClassWiz-font typewriter slogan** on each load, and the top-left version line shows **the commit this build came from** (`ver.<version> (<commit>)`, with full details on hover).
+- **Open the main page from the status bar** — VS Code's bottom status bar always shows **↗ Open RopIDE main page**; the house icon in the top-right toolbar opens the same welcome page.
 - **Settings** — UI language (简体中文 / English), the launcher-highlight toggle, the disassembly toggles, the Disas-tab toggle, the startup-welcome toggle and a **Check for updates** button, from the toolbar gear or the side panel.
 - **In-place update** — the update check compares your local build time against the latest commit on GitHub `main`; when something newer exists, both the welcome-page badge and the Settings button **update the extension for you** — they run `scripts/self-update.sh` (`.ps1` on Windows) in an integrated terminal, which fetches the latest source, rebuilds and reinstalls the `.vsix`, then offers to reload the window. Nothing is opened in the browser.
 
@@ -111,7 +167,7 @@ cd /path/to/CasioEmuMsvc-mcp          # enter the directory that contains the Ca
 Requires Node.js 18+ and VS Code 1.85+, with the `code` CLI installed
 (VS Code command palette → `Shell Command: Install 'code' command in PATH`).
 
-**One-click install (recommended)**: compile → package `.vsix` → install into VS Code:
+**One-click install (from a cloned copy of this repo)**: compile → package `.vsix` → install into VS Code:
 
 ```bash
 ./install.sh          # Linux / macOS
@@ -137,8 +193,8 @@ Manual steps (equivalent to the scripts above):
 ```bash
 npm install
 npm run compile
-npm run package                       # produces ropide-vscode-plugin-0.1.0.vsix
-code --install-extension ropide-vscode-plugin-0.1.0.vsix --force
+npm run package                       # produces ropide-vscode-plugin-0.2.0.vsix
+code --install-extension ropide-vscode-plugin-0.2.0.vsix --force
 ```
 
 **Cross-platform packaging** (outputs `ropide-vscode-plugin-<yyyymmdd>.vsix`, works everywhere):
@@ -163,10 +219,14 @@ uninstall.bat           # Windows (CMD)
 The compiler is a faithful port of [rop-ide](https://github.com/WulanOVO/rop-ide)'s `src/parser.js` and ropide-python's `compiler.py`:
 
 - `#gadget;` encodes as 4 bytes (8 hex digits): `h1 h2 h3 h4`, where `h3 = ("0" if allow00 else "3") + addr[0]`, `h4 = "00" / "30"`.
-- `[expression]` encodes as little-endian 2 bytes; forward references to `$constants` are supported (deferred back-patch).
-- `<anchor>` records the address at the current byte-stream length (right address base; `<-anchor>` uses the left address base).
+  `#!addr;` / `#-!addr;` use the **exact same** encoding, with the address written inline.
+- `[expression]` encodes as little-endian 2 bytes; forward references to `$constants` and `<anchors>` are supported (deferred back-patch).
+- `$a = $b + 1;` evaluates the right side as an expression. A **single literal keeps the old path** (`$a = -1;` stores `-1`, not its two's complement), so existing files stay byte-identical.
+- `%name = AA BB CC;` expands to the defined bytes; references map back to the definition for click-to-jump.
+- `<anchor>` records the address at the current byte-stream length (right address base; `<-anchor>` uses the left address base); `<anchor@ADDR>` additionally asserts that the actual address equals `ADDR`.
 - Raw hex characters merge directly into the byte stream.
 - Gutter / status-bar addresses = start address + byte offset of the current line / cursor.
+- **Segments**: `// @seg ...` marker lines are comments and emit no bytes. Within a segment the base is that segment's run / store address and the offset is the **in-segment** byte offset (`base + current bytes − segment start bytes`). Without markers there is a single segment starting at byte 0, so output is byte-identical to older versions.
 
 ## Directory structure
 
@@ -188,13 +248,14 @@ ropide-vscode-plugin/
 │   ├── ui.sh               # Terminal UI library (bash): inverse title pill + 4-line fading log
 │   ├── ui.ps1              # Terminal UI library (PowerShell), same look as ui.sh
 │   ├── self-update.sh      # In-place updater launched by the "Update now" buttons (bash)
-│   └── self-update.ps1     # In-place updater launched by the "Update now" buttons (Windows)
+│   ├── self-update.ps1     # In-place updater launched by the "Update now" buttons (Windows)
+│   └── gen-build-info.js   # Generates src/buildInfo.ts (version + commit + build time)
 ├── media/
 │   ├── banner.png          # README banner (AI-generated)
 │   ├── demo.webp           # README screenshot (welcome page)
+│   ├── ClassWizMathX-Regular.otf  # ClassWiz font used by the welcome-page slogan
 │   ├── editor.css          # Editor/panel/syntax-highlight styles
 │   ├── compiler.js         # Compiler + syntax-highlight parser (parser port)
-│   ├── compress.js         # Compression engine: report / rewrite plan / splice candidates
 │   └── editor.js           # Webview main logic (gutters, gadgets, compile, completion, market, settings)
 └── src/
     ├── extension.ts          # Activation entry, command registration, new/open files
@@ -212,6 +273,12 @@ ropide-vscode-plugin/
 ```
 
 > Note: `media/editor.html` is not used separately; the HTML is generated by `RopEditorProvider.getHtml()` (to inject the CSP nonce and webview URIs).
+
+## Acknowledgements
+
+- **@wlyibo (Tieba)** — author of RopIDE and of [ropide.pages.dev](https://ropide.pages.dev); his RopIDE project brought ROP to everyone, and this plugin is built on top of it.
+- **rop-ide** (syntax highlighting / market / compiler reference): https://github.com/WulanOVO/rop-ide
+- Emulator foundation: the CasioEmuMsvc source project by @噶么prince (Tieba).
 
 ---
 
@@ -322,49 +389,6 @@ AA BB CC DD
   `{ input, gadgets, leftStartAddress, rightStartAddress, ideVersion }` 五个字段，没有新增字段。
   因此**不使用分段标记的文件，编译结果与旧版逐字节一致**；使用分段标记的文件在旧版编辑器里也能正常打开（标记行只是普通注释，旧版会按全局左右地址计算）。
 
-#### 压缩（体检 / 一键改写 / 拼接候选）
-
-侧边栏「压缩」选项卡把「让 hex 更短」这件事拆成三档，**越往后越需要你自己判断程序逻辑**：
-
-**档 1 · 体检（只看不改）**
-
-- **概览** —— 编译字节数、错误数、分段数、`.rop` 体积分解（源码 / gadgets / 其它）、未引用 gadget 数。
-- **每行字节数排行** —— 一眼看出 128 B 花在哪几行（点一行可跳到源码）。
-- **重复片段** —— 长度 ≥4 的重复字节串，以及「全部折叠理论上能省多少」。
-  注意：ROP 链里的地址是 CPU 从**固定位置**读走的，直接去重反而要多付一次跳转（≥4 B），
-  所以这个数字通常是 0 或负数 —— 这正是它该被显示出来的原因。
-- **锚点别名** —— 哪些锚点落在**同一个地址**（例如 `<main-end>` 与 `<key-table>` 都指向循环体结束处）。
-- **手写 4 字节地址** —— 把人工编码的 `42360200` 反解回 `#!23642;`，列出全部可改写处。
-- **gadget 使用率** —— 用到几个、哪些没被引用。
-- **编译诊断** —— 常量重复、找不到的 gadget、地址断言失败、无法求值的数值块等，带行号可点击。
-
-**档 2 · 一键改写（编译结果不变）**
-
-- **手写地址 → `#!addr;`** —— 改写后**自动重新编译并逐字节比对**，不一致就撤销并提示，所以它保证不改动 hex 一个字节。
-- **剔除未引用 gadget** —— 只缩小 `.rop` 体积（实测某作品 `4785 B → 2014 B`），编译结果完全不受影响。
-
-**档 3 · 拼接候选（需你确认）**
-
-真正的「拼凑字节」是让同一段字节**兼做代码与数据**——极致压缩的作品里，
-表尾的 `0000` 是借用代码流里已有的 `0000`，循环体结束处正好就是键表开头。
-编辑器只能给出线索，不能替你判断程序逻辑：
-
-- **复用** —— 某个 2 字节字面量在别处已存在；若那处落在**地址字内部且不是字首**（`medium`），
-  就是零成本字节，最有价值。
-- **折叠** —— 长度 ≥6 的重复片段，净省 = 长度 − 4（要付一次跳转）。
-
-每条候选都给出可省字节、风险级别和定位入口。
-
-**压缩校验（闭环）**
-
-「记录基线」快照当前的 hex 与所有锚点地址，手工压缩之后点「校验」，会给出：
-
-- 比基线**省了多少字节**（或多了多少）；
-- **哪些锚点地址变了** —— 这是 ROP 里最危险的副作用，硬编码的指针可能因此失效；
-- 与基线是否逐字节相同。
-
-基线存在 webview state 里，重载窗口后仍在。
-
 #### Gadgets 与反汇编
 
 - **Gadgets 面板** —— 右上角按钮打开，优美排版展示所有 gadgets（名称、彩色标签、地址、描述），支持搜索、新增、编辑、删除。
@@ -379,8 +403,9 @@ AA BB CC DD
 #### 文件、程序广场与欢迎页
 
 - **新建** —— 新建 `.rop` 文件时依次填写**文件名**、**左侧地址**、**右侧地址**，并选择 gadgets 来源（`VerF` 预设 / `VerC` 预设 / 导入 `gadgets.json` / 空）。
-- **程序广场** —— 浏览 / 搜索 [ropide.pages.dev](https://ropide.pages.dev) 上的程序，精选/全部分区，一键下载（**指定保存路径后打开**）、发布（程序名/作者/机型/描述表单）。有新程序发布时，程序广场按钮上会出现未读小红点。
-- **欢迎页** —— 精致的起始页（可设为启动时打开），含快捷操作、**最近打开的文件**、**新版本徽章**（比较本地构建时间与 `main` 分支最新提交时间）以及程序广场弹窗。
+- **程序广场** —— 浏览 / 搜索 [ropide.pages.dev](https://ropide.pages.dev) 上的程序，精选/全部分区，一键下载（**指定保存路径后打开**）、发布（程序名/作者/机型/描述表单）。点击卡片可打开详情：描述、时间、**评论数与评论列表**，并可直接填写昵称与内容发表评论；卡片底部显示评论数与日期。有新程序发布时，程序广场按钮上会出现未读小红点。
+- **欢迎页** —— 精致的起始页（可设为启动时打开），含快捷操作、**最近打开的文件**、**新版本徽章**（比较本地构建时间与 `main` 分支最新提交时间）以及程序广场弹窗。旧的大图标已换成**每次加载随机一条的 ClassWiz 字体打字机标语**；左上角版本行显示**构建所属的 commit**（`ver.<版本> (<commit>)`，悬停可看完整信息）。
+- **右下角入口** —— VS Code 底部状态栏（右下角）常驻 **↗ 打开RopIDE主界面**；工具栏右上角的房子图标也会打开同一个欢迎页。
 - **设置** —— 界面语言（简体中文 / English）、高亮 launcher 开关、反汇编开关、Disas 选项卡开关、启动欢迎页开关，以及一个「检查更新」按钮，通过工具栏齿轮或侧栏「设置」页修改。
 - **就地更新** —— 「检查更新」会比较本地构建时间与 GitHub `main` 的最新提交时间；发现新版本后，欢迎页的徽章和设置页的按钮都会**直接帮你更新**：在集成终端里运行随扩展分发的 `scripts/self-update.sh`（Windows 为 `.ps1`），自动拉取最新源码、重新编译打包并覆盖安装，完成后提示重载窗口，**不会跳转浏览器**。
 
@@ -405,7 +430,7 @@ cd /path/to/CasioEmuMsvc-mcp          # 进入 CasioEmuMsvc 可执行文件所�
 要求 Node.js 18+ 与 VS Code 1.85+，并确保已安装 `code` 命令行工具
 （VS Code 命令面板 → `Shell Command: Install 'code' command in PATH`）。
 
-**一键安装（推荐）**：编译 → 打包 `.vsix` → 安装进 VS Code：
+**一键安装（在 clone 的仓库里运行）**：编译 → 打包 `.vsix` → 安装进 VS Code：
 
 ```bash
 ./install.sh          # Linux / macOS
@@ -429,8 +454,8 @@ install.bat           # Windows（CMD 双击或命令行）
 ```bash
 npm install
 npm run compile
-npm run package                       # 生成 ropide-vscode-plugin-0.1.0.vsix
-code --install-extension ropide-vscode-plugin-0.1.0.vsix --force
+npm run package                       # 生成 ropide-vscode-plugin-0.2.0.vsix
+code --install-extension ropide-vscode-plugin-0.2.0.vsix --force
 ```
 
 **跨平台打包**（输出 `ropide-vscode-plugin-<yyyymmdd>.vsix`，全平台通用）：
@@ -486,13 +511,14 @@ ropide-vscode-plugin/
 │   ├── ui.sh               # 终端界面库（bash）：反色标题胶囊 + 4 行渐变日志
 │   ├── ui.ps1              # 终端界面库（PowerShell），效果与 ui.sh 一致
 │   ├── self-update.sh      # 「立即更新」按钮触发的就地更新脚本（bash）
-│   └── self-update.ps1     # 「立即更新」按钮触发的就地更新脚本（Windows）
+│   ├── self-update.ps1     # 「立即更新」按钮触发的就地更新脚本（Windows）
+│   └── gen-build-info.js   # 生成 src/buildInfo.ts（版本 + commit + 构建时间）
 ├── media/
 │   ├── banner.png          # README 横幅（AI 生成）
 │   ├── demo.webp           # README 截图（欢迎页）
+│   ├── ClassWizMathX-Regular.otf  # 欢迎页标语使用的 ClassWiz 字体
 │   ├── editor.css          # 编辑器/面板/语法高亮样式
 │   ├── compiler.js         # 编译器 + 语法高亮解析（parser 移植）
-│   ├── compress.js         # 压缩引擎（体检 / 改写方案 / 拼接候选）
 │   └── editor.js           # Webview 主逻辑（地址栏、gadgets、编译、补全、程序广场、设置）
 └── src/
     ├── extension.ts          # 激活入口、命令注册、新建/打开文件

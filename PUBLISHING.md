@@ -7,8 +7,8 @@
 | 项目 | 状态 |
 | --- | --- |
 | 扩展 ID | `yaing-yan.ropide-vscode-plugin` |
-| 版本 | `0.1.0` |
-| `.vsix` 打包 | ✅ 已通过 (`ropide-vscode-plugin-0.1.0.vsix`) |
+| 版本 | `0.2.0` |
+| `.vsix` 打包 | ✅ 已通过 (`ropide-vscode-plugin-0.2.0.vsix`) |
 | 发布者 `yaing-yan` | ❌ 尚未在 Marketplace 注册 |
 | 自动化脚本 / CI | ✅ `publish.sh` + `.github/workflows/publish.yml` |
 
@@ -77,7 +77,7 @@ BUMP=patch VSCE_PAT=xxx ./publish.sh   # 自动把版本号 +0.0.1 后发布
 
 之后两种触发方式：
 
-- **打 tag**：`git tag v0.1.0 && git push origin v0.1.0` → 自动发布 + 建 GitHub Release
+- **打 tag**：`git tag v0.2.0 && git push origin v0.2.0` → 自动发布 + 建 GitHub Release
 - **手动**：Actions → *Publish to Marketplaces* → *Run workflow*（可选 bump 版本）
 
 ---
@@ -109,7 +109,7 @@ BUMP=patch VSCE_PAT=xxx ./publish.sh   # 自动把版本号 +0.0.1 后发布
 
 ```bash
 ./publish.sh --package          # 打包必须无警告
-code --install-extension ropide-vscode-plugin-0.1.0.vsix   # 本地装一遍验证
+code --install-extension ropide-vscode-plugin-0.2.0.vsix   # 本地装一遍验证
 ```
 
 - [x] `package.json` 有 `publisher` / `license` / `icon` / `repository`

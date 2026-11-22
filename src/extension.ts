@@ -17,6 +17,7 @@ import { marketUnread } from './marketState';
 export function activate(context: vscode.ExtensionContext): void {
   const provider = new RopEditorProvider(context);
   marketUnread.init(context);
+  createOpenMainStatusBar(context);
 
   context.subscriptions.push(
     vscode.window.registerCustomEditorProvider(RopEditorProvider.viewType, provider, {
@@ -39,6 +40,40 @@ export function activate(context: vscode.ExtensionContext): void {
 }
 
 export function deactivate(): void {}
+
+const OPEN_MAIN_LABEL: Record<string, string> = {
+  'zh-CN': '打开RopIDE主界面',
+  en: 'Open RopIDE main page',
+};
+
+/**
+ * VS Code 底部状态栏（右下角）常驻入口：点击打开 RopIDE 主界面（欢迎页）。
+ * 语言跟随 ropide.language 设置，切换语言时实时刷新。
+ */
+function createOpenMainStatusBar(context: vscode.ExtensionContext): vscode.StatusBarItem {
+  const item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+  item.name = 'RopIDE';
+  item.command = 'ropide.about';
+
+  const applyLabel = () => {
+    const lang = vscode.workspace.getConfiguration('ropide').get<string>('language', 'zh-CN') === 'en'
+      ? 'en'
+      : 'zh-CN';
+    const label = OPEN_MAIN_LABEL[lang] || OPEN_MAIN_LABEL['zh-CN'];
+    item.text = `$(arrow-up-right) ${label}`;
+    item.tooltip = label;
+  };
+
+  applyLabel();
+  item.show();
+  context.subscriptions.push(item);
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration('ropide.language')) applyLabel();
+    })
+  );
+  return item;
+}
 
 async function openRopFile(): Promise<void> {
   const uris = await vscode.window.showOpenDialog({

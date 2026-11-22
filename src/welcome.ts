@@ -2,6 +2,8 @@ import * as vscode from 'vscode';
 import {
   fetchMarketItem,
   fetchMarketChallenge,
+  fetchComments,
+  postComment,
   publishToMarket,
 } from './market';
 import { parseRopDocument, serializeRopDocument } from './rop';
@@ -11,7 +13,13 @@ import { marketUnread } from './marketState';
 import { getRecentFiles, removeRecentFile } from './recent';
 import { checkForUpdate, REPO_URL } from './update';
 import { runSelfUpdate } from './selfUpdate';
-import { BUILD_TIME } from './buildInfo';
+import {
+  BUILD_TIME,
+  BUILD_VERSION,
+  BUILD_COMMIT,
+  BUILD_COMMIT_FULL,
+  BUILD_COMMIT_DATE,
+} from './buildInfo';
 
 type WelcomeLang = 'zh-CN' | 'en';
 
@@ -23,6 +31,7 @@ interface WelcomeMessage {
   name?: string;
   data?: string;
   author?: string;
+  content?: string;
   model?: string;
   description?: string;
   challengeToken?: string;
@@ -85,6 +94,22 @@ const WELCOME_STR: Record<WelcomeLang, Record<string, string>> = {
     needModel: '请选择 / 填写机型',
     needDesc: '请填写描述',
     needAnswer: '请输入 4 位十六进制的两字节答案',
+    // 评论
+    comments: '评论',
+    noComments: '暂无评论，来写第一条吧',
+    commentAuthorPh: '昵称',
+    commentContentPh: '写下你的评论…',
+    newComment: '新建评论',
+    cancelComment: '取消',
+    submitComment: '发表评论',
+    commentAuthorRequired: '请输入昵称',
+    commentContentRequired: '请输入评论内容',
+    commentSubmitSuccess: '评论发表成功',
+    commentSubmitFailed: '评论发表失败：',
+    commentLoadFailed: '获取评论失败：',
+    commentsRetry: '重试',
+    commentInvalid: '昵称或评论内容不合法',
+    commentNotFound: '程序不存在或已被删除',
     ropLoadFail: '读取 .rop 文件失败：',
     recentTitle: '最近打开',
     recentGone: '文件已不存在，已从最近列表移除',
@@ -145,6 +170,22 @@ const WELCOME_STR: Record<WelcomeLang, Record<string, string>> = {
     needModel: 'Please select / enter a model',
     needDesc: 'Please enter a description',
     needAnswer: 'Enter the two-byte answer as 4 hex digits',
+    // comments
+    comments: 'Comments',
+    noComments: 'No comments yet. Be the first!',
+    commentAuthorPh: 'Nickname',
+    commentContentPh: 'Write your comment…',
+    newComment: 'New Comment',
+    cancelComment: 'Cancel',
+    submitComment: 'Post Comment',
+    commentAuthorRequired: 'Please enter a nickname',
+    commentContentRequired: 'Please enter your comment',
+    commentSubmitSuccess: 'Comment posted',
+    commentSubmitFailed: 'Failed to post comment: ',
+    commentLoadFailed: 'Failed to load comments: ',
+    commentsRetry: 'Retry',
+    commentInvalid: 'Nickname or comment is invalid',
+    commentNotFound: 'This program no longer exists',
     ropLoadFail: 'Failed to read .rop file: ',
     recentTitle: 'Recent',
     recentGone: 'File no longer exists; removed from the recent list',
@@ -170,11 +211,16 @@ export function showWelcome(context: vscode.ExtensionContext): void {
     'ropide.welcome',
     'RopIDE',
     vscode.ViewColumn.Active,
-    { enableScripts: true, retainContextWhenHidden: true }
+    { enableScripts: true, retainContextWhenHidden: true, localResourceRoots: [context.extensionUri] }
+  );
+
+  // ClassWiz 字体随扩展分发，标语使用
+  const fontUri = panel.webview.asWebviewUri(
+    vscode.Uri.joinPath(context.extensionUri, 'media', 'ClassWizMathX-Regular.otf')
   );
 
   let lang: WelcomeLang = currentLanguage();
-  panel.webview.html = getWelcomeHtml(lang);
+  panel.webview.html = getWelcomeHtml(lang, fontUri, panel.webview.cspSource);
 
   // 市场未读广播：任意视图打开广场清零时，同步刷新本欢迎页的红点。
   const sendUnread = (unread: number): void => {
@@ -189,7 +235,7 @@ export function showWelcome(context: vscode.ExtensionContext): void {
       const next = currentLanguage();
       if (next !== lang) {
         lang = next;
-        panel.webview.html = getWelcomeHtml(lang);
+        panel.webview.html = getWelcomeHtml(lang, fontUri, panel.webview.cspSource);
       }
     }
   });
@@ -205,7 +251,7 @@ export function showWelcome(context: vscode.ExtensionContext): void {
           // 写入失败不阻断界面刷新
         }
         lang = next;
-        panel.webview.html = getWelcomeHtml(lang);
+        panel.webview.html = getWelcomeHtml(lang, fontUri, panel.webview.cspSource);
       })();
       return;
     }
@@ -321,6 +367,32 @@ export function showWelcome(context: vscode.ExtensionContext): void {
       })();
       return;
     }
+    if (msg.type === 'market:comments' && msg.id !== undefined) {
+      void (async () => {
+        const r = await fetchComments(msg.id as number | string);
+        panel.webview.postMessage(
+          'error' in r
+            ? { type: 'market:comments-result', id: msg.id, error: r.error }
+            : { type: 'market:comments-result', id: msg.id, comments: r.comments }
+        );
+      })();
+      return;
+    }
+    if (msg.type === 'market:comment-add' && msg.id !== undefined) {
+      void (async () => {
+        const r = await postComment(
+          msg.id as number | string,
+          String(msg.author || ''),
+          String(msg.content || '')
+        );
+        panel.webview.postMessage(
+          r.ok
+            ? { type: 'market:comment-add-result', id: msg.id, ok: true, comment: r.comment }
+            : { type: 'market:comment-add-result', id: msg.id, ok: false, code: r.code, error: r.error }
+        );
+      })();
+      return;
+    }
     if (msg.type === 'market:publish') {
       void (async () => {
         const r = await publishToMarket({
@@ -379,7 +451,7 @@ async function handleWelcomeMarketDownload(id: number | string, name: string): P
   await vscode.commands.executeCommand('vscode.openWith', uri, RopEditorProvider.viewType);
 }
 
-function getWelcomeHtml(lang: WelcomeLang): string {
+function getWelcomeHtml(lang: WelcomeLang, fontUri: vscode.Uri, cspSource: string): string {
   // 按钮文本显示目标语言：当前中文 → 显示 EN；当前英文 → 显示 中文
   const W = (k: string) => welcomeText(lang, k);
   const i18n = {
@@ -426,6 +498,21 @@ function getWelcomeHtml(lang: WelcomeLang): string {
     needModel: W('needModel'),
     needDesc: W('needDesc'),
     needAnswer: W('needAnswer'),
+    comments: W('comments'),
+    noComments: W('noComments'),
+    commentAuthorPh: W('commentAuthorPh'),
+    commentContentPh: W('commentContentPh'),
+    newComment: W('newComment'),
+    cancelComment: W('cancelComment'),
+    submitComment: W('submitComment'),
+    commentAuthorRequired: W('commentAuthorRequired'),
+    commentContentRequired: W('commentContentRequired'),
+    commentSubmitSuccess: W('commentSubmitSuccess'),
+    commentSubmitFailed: W('commentSubmitFailed'),
+    commentLoadFailed: W('commentLoadFailed'),
+    commentsRetry: W('commentsRetry'),
+    commentInvalid: W('commentInvalid'),
+    commentNotFound: W('commentNotFound'),
     ropLoadFail: W('ropLoadFail'),
     recentTitle: W('recentTitle'),
     recentGone: W('recentGone'),
@@ -434,13 +521,39 @@ function getWelcomeHtml(lang: WelcomeLang): string {
   };
   const langBtnLabel = i18n.target === 'en' ? 'EN' : '中文';
 
+  // 版本行：来自构建信息（package.json version + 构建所属 commit），随构建自动更新。
+  const commitKnown = String(BUILD_COMMIT) !== 'unknown' && String(BUILD_COMMIT) !== '';
+  const versionText = commitKnown
+    ? `ver.${BUILD_VERSION} (${BUILD_COMMIT})`
+    : `ver.${BUILD_VERSION}`;
+  const versionTitle = commitKnown
+    ? `commit ${BUILD_COMMIT_FULL} · ${BUILD_COMMIT_DATE} · build ${BUILD_TIME}`
+    : `build ${BUILD_TIME}`;
+
+  // 欢迎页标语（打字机效果；cw=true 的条目使用 ClassWiz 字体）
+  const LONG_DIGITS =
+    '1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890+123456789';
+  const SLOGANS: ReadonlyArray<{ text: string; cw: boolean; cursorBefore?: string; prepend?: boolean }> = [
+    { text: '<an> save the fx-es(ms).', cw: true },
+    { text: '@+2 save the fx-es(ms).', cw: true },
+    { text: '1&₉◁₉◁𝐄◁𝐧◁ℓ◁𝛾𝒊@', cw: true, cursorBefore: '@' },
+    { text: '语法错误??', cw: true },
+    { text: LONG_DIGITS + 'an', cw: true, prepend: true },
+    { text: '感谢大肥鱼喵！', cw: false },
+  ];
+
   return `<!DOCTYPE html>
 <html lang="${lang}">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline';" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; font-src ${cspSource};" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
+    @font-face {
+      font-family: 'ClassWiz Math';
+      src: url('${fontUri}');
+      font-display: swap;
+    }
     html, body { height: 100%; margin: 0; }
     body {
       display: flex;
@@ -513,21 +626,34 @@ function getWelcomeHtml(lang: WelcomeLang): string {
       align-items: center;
       margin-top: 11vh;
     }
-    .logo-badge {
+    /* ---------- 打字机标语（替代旧的大图标） ---------- */
+    .slogan {
+      width: min(680px, 78vw);
+      height: 44px;
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 76px;
-      height: 76px;
-      border-radius: 20px;
-      background: var(--vscode-button-background, #0e639c);
-      background: linear-gradient(135deg,
-        var(--vscode-button-background, #0e639c),
-        color-mix(in srgb, var(--vscode-button-background, #0e639c) 55%, #7b52ff));
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255,255,255,0.12);
-      margin-bottom: 18px;
+      margin-bottom: 14px;
+      overflow: hidden;
+      white-space: nowrap;
+      user-select: none;
+      font-size: 1.45em;
+      color: var(--vscode-foreground, #ccc);
     }
-    .logo-badge svg { width: 48px; height: 48px; }
+    .slogan .cw {
+      font-family: 'ClassWiz Math', 'Cambria Math', 'Segoe UI Symbol', serif;
+      font-weight: 400;
+    }
+    .slogan .cursor {
+      display: inline-block;
+      width: 0.55em;
+      text-align: center;
+      animation: blink 0.9s step-end infinite;
+      color: var(--vscode-button-background, #0e639c);
+    }
+    .slogan .cursor.cw { font-family: 'ClassWiz Math', 'Cambria Math', 'Segoe UI Symbol', serif; }
+    .slogan.prepend { justify-content: flex-end; }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
     .title {
       text-align: center;
       font-weight: 700;
@@ -740,6 +866,7 @@ function getWelcomeHtml(lang: WelcomeLang): string {
       border-radius: 8px;
       padding: 10px 12px;
       min-width: 0;
+      cursor: pointer;
       transition: border-color 0.12s ease, transform 0.12s ease, box-shadow 0.12s ease;
     }
     .market-card:hover {
@@ -748,6 +875,24 @@ function getWelcomeHtml(lang: WelcomeLang): string {
       box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
     }
     .market-card.featured { border-color: var(--vscode-button-background, #0e639c); }
+    .market-card-head { display: flex; align-items: flex-start; gap: 6px; }
+    .market-card-head .market-card-title { flex: 1 1 auto; }
+    .market-card-dl {
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2px;
+      border: none;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--vscode-descriptionForeground, #9d9d9d);
+      cursor: pointer;
+      line-height: 0;
+    }
+    .market-card-dl:hover { color: var(--vscode-foreground, #ccc); background: var(--vscode-toolbar-hoverBackground, rgba(90,93,94,0.31)); }
+    .market-card-dl:disabled { opacity: 0.5; cursor: default; }
+    .market-card-dl svg { width: 15px; height: 15px; }
     .market-card-title {
       font-weight: 700;
       font-size: 13px;
@@ -773,6 +918,52 @@ function getWelcomeHtml(lang: WelcomeLang): string {
       overflow: hidden;
       word-break: break-word;
     }
+    .market-card-foot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: auto;
+      font-size: 11px;
+      color: var(--vscode-descriptionForeground, #9d9d9d);
+    }
+    .market-card-comments { display: inline-flex; align-items: center; gap: 3px; }
+    .market-card-comments svg { width: 12px; height: 12px; }
+    .market-card-time { white-space: nowrap; }
+    /* ---------- 详情 / 评论 ---------- */
+    .detail-panel {
+      width: min(640px, 94vw);
+      height: auto;
+      max-height: 88vh;
+    }
+    .detail-meta { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--vscode-descriptionForeground, #9d9d9d); }
+    .detail-time { margin-top: 4px; font-size: 11px; color: var(--vscode-descriptionForeground, #9d9d9d); text-align: right; }
+    .detail-desc {
+      margin-top: 8px;
+      font-size: 13px;
+      line-height: 1.6;
+      white-space: pre-line;
+      word-break: break-word;
+      max-height: 22vh;
+      overflow-y: auto;
+    }
+    .comments-section { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--vscode-panel-border, #3c3c3c); }
+    .comments-header { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 13px; margin-bottom: 8px; }
+    .comments-header svg { width: 14px; height: 14px; color: var(--vscode-descriptionForeground, #9d9d9d); }
+    .comment-list { display: flex; flex-direction: column; gap: 8px; }
+    .comment-item {
+      padding: 8px 10px;
+      border: 1px solid var(--vscode-panel-border, #3c3c3c);
+      border-radius: 6px;
+    }
+    .comment-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
+    .comment-author { font-weight: 700; font-size: 12px; word-break: break-all; }
+    .comment-time { font-size: 11px; color: var(--vscode-descriptionForeground, #9d9d9d); white-space: nowrap; }
+    .comment-content { font-size: 12px; line-height: 1.6; white-space: pre-line; word-break: break-word; }
+    .comments-empty { padding: 14px 0; text-align: center; font-size: 12px; color: var(--vscode-descriptionForeground, #9d9d9d); }
+    .comments-empty.err { color: var(--vscode-errorForeground, #f48771); }
+    .comment-form { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+    .comment-form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
     .market-dl {
       align-self: flex-end;
       padding: 3px 10px;
@@ -887,23 +1078,11 @@ function getWelcomeHtml(lang: WelcomeLang): string {
 <body>
   <button class="lang-toggle" id="btnLang" data-target-lang="${i18n.target}" title="${W('switchTo')}">${langBtnLabel}</button>
   <div class="ver-top">
-    <span>ver.${BUILD_TIME}</span>
+    <span title="${versionTitle}">${versionText}</span>
     <button class="update-badge" id="updateBadge" hidden title="${i18n.updateTip}"><span class="dot"></span>${i18n.updateAvailable}</button>
   </div>
   <div class="hero">
-    <div class="logo-badge">
-      <svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <g stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none">
-          <rect x="14" y="18" width="30" height="20" rx="4"/>
-          <rect x="52" y="18" width="30" height="20" rx="4"/>
-          <path d="M44 28 h8"/><path d="M82 28 h14 v22"/><path d="M92 44 l4 6 4 -6"/>
-          <rect x="24" y="56" width="80" height="58" rx="8"/>
-          <rect x="34" y="64" width="60" height="16" rx="3"/>
-        </g>
-        <g fill="#fff"><circle cx="40" cy="92" r="3.2"/><circle cx="54" cy="92" r="3.2"/><circle cx="68" cy="92" r="3.2"/><circle cx="88" cy="92" r="3.2"/><circle cx="40" cy="104" r="3.2"/><circle cx="54" cy="104" r="3.2"/><circle cx="68" cy="104" r="3.2"/></g>
-        <g stroke="#fff" stroke-width="3" stroke-linecap="round" fill="none"><rect x="82" y="100" width="14" height="8" rx="3"/></g>
-      </svg>
-    </div>
+    <div class="slogan" id="slogan"></div>
     <h1 class="title">${W('title')}</h1>
     <div class="body">${W('subtitle')}</div>
     <div class="actions">
@@ -972,6 +1151,39 @@ function getWelcomeHtml(lang: WelcomeLang): string {
         <div class="market-actions">
           <button class="market-dl" id="btnCancelPublish" style="background:var(--vscode-button-secondaryBackground,#3a3d41)">${i18n.cancel}</button>
           <button class="market-dl" id="btnConfirmPublish">${i18n.publish}</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="market-overlay" id="detailOverlay" hidden>
+    <div class="market-panel detail-panel">
+      <div class="market-header">
+        <h2 id="detailTitle"></h2>
+        <div class="spacer"></div>
+        <button class="market-close" id="btnCloseDetail" title="${W('closeTitle')}">×</button>
+      </div>
+      <div class="market-body">
+        <div class="detail-meta" id="detailMeta"></div>
+        <div class="detail-time" id="detailTime"></div>
+        <div class="detail-desc" id="detailDesc"></div>
+        <div class="comments-section">
+          <div class="comments-header">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 10a1.5 1.5 0 0 1-1.5 1.5H5L2 14.5V3.5A1.5 1.5 0 0 1 3.5 2h9A1.5 1.5 0 0 1 14 3.5z"/></svg>
+            <span id="detailCommentCount">${i18n.comments}</span>
+          </div>
+          <div class="comment-list" id="commentList"></div>
+          <div class="comment-form-actions" id="commentToggleRow">
+            <button class="market-dl" id="btnNewComment">${i18n.newComment}</button>
+          </div>
+          <div class="comment-form" id="commentForm" hidden>
+            <input class="text-input" id="commentAuthor" maxlength="50" placeholder="${i18n.commentAuthorPh}" spellcheck="false" />
+            <textarea class="text-input" id="commentContent" rows="3" maxlength="1000" placeholder="${i18n.commentContentPh}"></textarea>
+            <div class="market-actions">
+              <button class="market-dl" id="btnCancelComment" style="background:var(--vscode-button-secondaryBackground,#3a3d41)">${i18n.cancelComment}</button>
+              <button class="market-dl" id="btnSubmitComment">${i18n.submitComment}</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1109,6 +1321,27 @@ function getWelcomeHtml(lang: WelcomeLang): string {
       })[c]);
     }
 
+    const ICON_DOWNLOAD = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
+    const ICON_COMMENT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
+
+    function fmtTime(ts) {
+      const n = Number(ts);
+      if (!n || !isFinite(n)) return '-';
+      const d = new Date(n);
+      if (isNaN(d.getTime())) return '-';
+      const p = (x) => String(x).padStart(2, '0');
+      return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) +
+        ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+    }
+    function fmtShortTime(ts) {
+      const n = Number(ts);
+      if (!n || !isFinite(n)) return '-';
+      const d = new Date(n);
+      if (isNaN(d.getTime())) return '-';
+      const p = (x) => String(x).padStart(2, '0');
+      return p(d.getMonth() + 1) + '-' + p(d.getDate());
+    }
+
     function openMarket() {
       overlay.hidden = false;
       search.value = '';
@@ -1126,13 +1359,18 @@ function getWelcomeHtml(lang: WelcomeLang): string {
     search.addEventListener('input', renderGrid);
 
     grid.addEventListener('click', (e) => {
-      const btn = e.target.closest('[data-download]');
-      if (!btn) return;
-      const id = btn.dataset.download;
-      downloadingId = String(id);
-      renderGrid();
-      const it = items.find((x) => String(x.id) === String(id));
-      vscode.postMessage({ type: 'market:get', id, name: it ? it.name : '' });
+      const dl = e.target.closest('[data-download]');
+      if (dl) {
+        e.stopPropagation();
+        const id = dl.dataset.download;
+        downloadingId = String(id);
+        renderGrid();
+        const it = items.find((x) => String(x.id) === String(id));
+        vscode.postMessage({ type: 'market:get', id, name: it ? it.name : '' });
+        return;
+      }
+      const open = e.target.closest('[data-open]');
+      if (open) openDetail(open.dataset.open);
     });
 
     function renderGrid() {
@@ -1154,17 +1392,23 @@ function getWelcomeHtml(lang: WelcomeLang): string {
       const card = (it, isFeatured) => {
         const idStr = String(it.id);
         const busy = downloadingId === idStr;
+        const count = Number(it.commentCount) || 0;
         return (
-          '<div class="market-card ' + (isFeatured ? 'featured' : '') + '">' +
-            '<div class="market-card-title">' + esc(it.name || WI18N.unnamed) +
-              (isFeatured ? ' <span class="market-star">★</span>' : '') + '</div>' +
+          '<div class="market-card ' + (isFeatured ? 'featured' : '') + '" data-open="' + esc(idStr) + '">' +
+            '<div class="market-card-head">' +
+              '<div class="market-card-title">' + esc(it.name || WI18N.unnamed) +
+                (isFeatured ? ' <span class="market-star">★</span>' : '') + '</div>' +
+              '<button class="market-card-dl" data-download="' + esc(idStr) + '" title="' + esc(WI18N.download) + '" aria-label="' + esc(WI18N.download) + '"' + (busy ? ' disabled' : '') + '>' + ICON_DOWNLOAD + '</button>' +
+            '</div>' +
             '<div class="market-card-meta">' +
               '<span>' + WI18N.byAuthor + esc(it.author || '-') + '</span>' +
               '<span>' + WI18N.byModel + esc(it.model || '-') + '</span>' +
             '</div>' +
             (it.description ? '<div class="market-card-desc">' + esc(it.description) + '</div>' : '') +
-            '<button class="market-dl" data-download="' + esc(idStr) + '"' + (busy ? ' disabled' : '') + '>' +
-              (busy ? WI18N.downloading : WI18N.download) + '</button>' +
+            '<div class="market-card-foot">' +
+              '<span class="market-card-comments" title="' + esc(WI18N.comments) + '">' + ICON_COMMENT + count + '</span>' +
+              '<span class="market-card-time" title="' + esc(fmtTime(it.timestamp)) + '">' + esc(fmtShortTime(it.timestamp)) + '</span>' +
+            '</div>' +
           '</div>'
         );
       };
@@ -1179,6 +1423,134 @@ function getWelcomeHtml(lang: WelcomeLang): string {
       }
       grid.innerHTML = html;
     }
+
+    /* ---------- 详情 / 评论 ---------- */
+    const detailOverlay = document.getElementById('detailOverlay');
+    const detailTitle = document.getElementById('detailTitle');
+    const detailMeta = document.getElementById('detailMeta');
+    const detailTime = document.getElementById('detailTime');
+    const detailDesc = document.getElementById('detailDesc');
+    const detailCommentCount = document.getElementById('detailCommentCount');
+    const commentList = document.getElementById('commentList');
+    const commentToggleRow = document.getElementById('commentToggleRow');
+    const commentForm = document.getElementById('commentForm');
+    const commentAuthorInput = document.getElementById('commentAuthor');
+    const commentContent = document.getElementById('commentContent');
+    const btnNewComment = document.getElementById('btnNewComment');
+    const btnCancelComment = document.getElementById('btnCancelComment');
+    const btnSubmitComment = document.getElementById('btnSubmitComment');
+    let detailItem = null;
+    let comments = [];
+    let commentsLoading = false;
+    let commentsError = '';
+    let commentSubmitting = false;
+    let commentAuthor = '';
+    try {
+      const st = vscode.getState() || {};
+      if (typeof st.commentAuthor === 'string') commentAuthor = st.commentAuthor;
+    } catch (e) { /* state 不可用 */ }
+
+    function saveCommentAuthor(name) {
+      try {
+        const st = vscode.getState() || {};
+        st.commentAuthor = name;
+        vscode.setState(st);
+      } catch (e) { /* 忽略 */ }
+    }
+
+    function openDetail(id) {
+      const it = items.find((x) => String(x.id) === String(id));
+      if (!it) return;
+      detailItem = it;
+      comments = [];
+      commentsError = '';
+      commentsLoading = true;
+      commentSubmitting = false;
+      detailTitle.textContent = it.name || WI18N.unnamed;
+      detailMeta.innerHTML =
+        '<span>' + esc(WI18N.byAuthor) + esc(it.author || '-') + '</span>' +
+        '<span>' + esc(WI18N.byModel) + esc(it.model || '-') + '</span>';
+      detailTime.textContent = fmtTime(it.timestamp);
+      detailDesc.textContent = it.description || '';
+      detailDesc.hidden = !it.description;
+      detailCommentCount.textContent = WI18N.comments + ' (' + (Number(it.commentCount) || 0) + ')';
+      commentAuthorInput.value = commentAuthor;
+      commentContent.value = '';
+      commentForm.hidden = true;
+      commentToggleRow.hidden = false;
+      btnSubmitComment.disabled = false;
+      detailOverlay.hidden = false;
+      renderComments();
+      vscode.postMessage({ type: 'market:comments', id: it.id });
+    }
+
+    function closeDetail() {
+      detailOverlay.hidden = true;
+      detailItem = null;
+      comments = [];
+      commentsError = '';
+      commentsLoading = false;
+    }
+
+    function renderComments() {
+      if (!detailItem) return;
+      if (commentsLoading) {
+        commentList.innerHTML = '<div class="comments-empty">' + WI18N.loading + '</div>';
+        return;
+      }
+      if (commentsError) {
+        commentList.innerHTML =
+          '<div class="comments-empty err">' + esc(WI18N.commentLoadFailed) + esc(commentsError) + '</div>' +
+          '<div class="comment-form-actions"><button class="market-dl" data-comments-retry="1" style="background:var(--vscode-button-secondaryBackground,#3a3d41)">' + WI18N.commentsRetry + '</button></div>';
+        return;
+      }
+      if (!comments.length) {
+        commentList.innerHTML = '<div class="comments-empty">' + esc(WI18N.noComments) + '</div>';
+        return;
+      }
+      commentList.innerHTML = comments.map((c) =>
+        '<div class="comment-item">' +
+          '<div class="comment-top"><span class="comment-author">' + esc(c.author || '-') + '</span>' +
+          '<span class="comment-time">' + fmtTime(c.timestamp) + '</span></div>' +
+          '<div class="comment-content">' + esc(c.content || '') + '</div>' +
+        '</div>'
+      ).join('');
+    }
+
+    function submitComment() {
+      if (!detailItem || commentSubmitting) return;
+      const author = commentAuthorInput.value.trim();
+      const content = commentContent.value.trim();
+      if (!author) { showToast(WI18N.commentAuthorRequired, true); commentAuthorInput.focus(); return; }
+      if (!content) { showToast(WI18N.commentContentRequired, true); commentContent.focus(); return; }
+      if (author.length > 50 || content.length > 1000) { showToast(WI18N.commentInvalid, true); return; }
+      commentSubmitting = true;
+      btnSubmitComment.disabled = true;
+      vscode.postMessage({ type: 'market:comment-add', id: detailItem.id, author: author, content: content });
+    }
+
+    document.getElementById('btnCloseDetail').addEventListener('click', closeDetail);
+    btnNewComment.addEventListener('click', () => {
+      commentAuthorInput.value = commentAuthor;
+      commentForm.hidden = false;
+      commentToggleRow.hidden = true;
+      commentContent.focus();
+    });
+    btnCancelComment.addEventListener('click', () => {
+      commentForm.hidden = true;
+      commentToggleRow.hidden = false;
+    });
+    btnSubmitComment.addEventListener('click', submitComment);
+    commentList.addEventListener('click', (e) => {
+      if (e.target.closest('[data-comments-retry]') && detailItem) {
+        commentsLoading = true;
+        renderComments();
+        vscode.postMessage({ type: 'market:comments', id: detailItem.id });
+      }
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && detailItem) closeDetail();
+    });
 
     /* ---------- 发布（需先选择 .rop 文件） ---------- */
     const publishOverlay = document.getElementById('publishOverlay');
@@ -1279,6 +1651,53 @@ function getWelcomeHtml(lang: WelcomeLang): string {
       } else if (msg.type === 'market:get-result') {
         downloadingId = null;
         renderGrid();
+      } else if (msg.type === 'market:comments-result') {
+        if (!detailItem || String(msg.id) !== String(detailItem.id)) {
+          // 过期响应，忽略
+        } else {
+          commentsLoading = false;
+          if (msg.error) {
+            commentsError = String(msg.error);
+            comments = [];
+          } else {
+            commentsError = '';
+            comments = Array.isArray(msg.comments) ? msg.comments : [];
+          }
+          renderComments();
+        }
+      } else if (msg.type === 'market:comment-add-result') {
+        commentSubmitting = false;
+        btnSubmitComment.disabled = false;
+        if (detailItem && String(msg.id) === String(detailItem.id)) {
+          if (msg.ok) {
+            const c = msg.comment || {};
+            comments.unshift({
+              id: c.id != null ? c.id : 'local-' + Date.now(),
+              author: typeof c.author === 'string' ? c.author : '',
+              content: typeof c.content === 'string' ? c.content : '',
+              timestamp: Number(c.timestamp) || Date.now(),
+            });
+            detailItem.commentCount = (Number(detailItem.commentCount) || 0) + 1;
+            const name = commentAuthorInput.value.trim();
+            if (name) {
+              commentAuthor = name;
+              saveCommentAuthor(name);
+            }
+            commentContent.value = '';
+            commentForm.hidden = true;
+            commentToggleRow.hidden = false;
+            detailCommentCount.textContent = WI18N.comments + ' (' + detailItem.commentCount + ')';
+            renderComments();
+            renderGrid();
+            showToast(WI18N.commentSubmitSuccess);
+          } else if (msg.code === 'invalid') {
+            showToast(WI18N.commentInvalid, true);
+          } else if (msg.code === 'notfound') {
+            showToast(WI18N.commentNotFound, true);
+          } else {
+            showToast(WI18N.commentSubmitFailed + (msg.error || ''), true);
+          }
+        }
       } else if (msg.type === 'market:unread') {
         setMarketUnread(msg.unread);
       } else if (msg.type === 'recent:list-result') {
@@ -1339,6 +1758,100 @@ function getWelcomeHtml(lang: WelcomeLang): string {
         }
       }
     });
+
+    /* ---------- 打字机标语（每次加载随机一条，只打一次） ---------- */
+    const SLOGANS = ${JSON.stringify(SLOGANS)};
+    const sloganEl = document.getElementById('slogan');
+    const reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+    function makeSloganSpan(cw) {
+      const s = document.createElement('span');
+      if (cw) s.className = 'cw';
+      return s;
+    }
+
+    function makeCursor(cw) {
+      const c = document.createElement('span');
+      c.className = 'cursor' + (cw ? ' cw' : '');
+      c.textContent = '|';
+      return c;
+    }
+
+    /** 终态：整段文字 + 需要保留的光标（#3 在 @ 前、#5 在 an 前）。 */
+    function renderSloganFinal(slogan) {
+      sloganEl.innerHTML = '';
+      sloganEl.classList.toggle('prepend', !!slogan.prepend);
+      const chars = Array.from(slogan.text);
+      let cursorIdx = -1;
+      if (slogan.prepend) cursorIdx = chars.length - 2;
+      else if (slogan.cursorBefore) cursorIdx = chars.indexOf(slogan.cursorBefore);
+      const span = makeSloganSpan(slogan.cw);
+      if (cursorIdx >= 0) {
+        span.appendChild(document.createTextNode(chars.slice(0, cursorIdx).join('')));
+        span.appendChild(makeCursor(slogan.cw));
+        span.appendChild(document.createTextNode(chars.slice(cursorIdx).join('')));
+      } else {
+        span.textContent = slogan.text;
+      }
+      sloganEl.appendChild(span);
+    }
+
+    /** 普通左→右打字；完成后隐藏光标（除非该标语要求保留光标）。 */
+    function typeSloganLinear(slogan) {
+      sloganEl.innerHTML = '';
+      sloganEl.classList.remove('prepend');
+      const chars = Array.from(slogan.text);
+      const span = makeSloganSpan(slogan.cw);
+      const cursor = makeCursor(slogan.cw);
+      sloganEl.appendChild(span);
+      sloganEl.appendChild(cursor);
+      let i = 0;
+      const delay = chars.length > 40 ? 14 : 70;
+      const step = () => {
+        if (i >= chars.length) {
+          if (slogan.cursorBefore) renderSloganFinal(slogan);
+          else if (cursor.parentNode) cursor.parentNode.removeChild(cursor);
+          return;
+        }
+        span.textContent += chars[i];
+        i += 1;
+        setTimeout(step, delay);
+      };
+      step();
+    }
+
+    /** 超长数字：以 an 起手，向左逐字追加；右侧锚定 + 左侧裁切，an 始终可见。 */
+    function typeSloganPrepend(slogan) {
+      sloganEl.innerHTML = '';
+      sloganEl.classList.add('prepend');
+      const chars = Array.from(slogan.text);
+      const prefixLen = chars.length - 2; // 末尾固定为 "an"
+      const prefix = makeSloganSpan(slogan.cw);
+      const cursor = makeCursor(slogan.cw);
+      const tail = makeSloganSpan(slogan.cw);
+      tail.textContent = chars.slice(prefixLen).join('');
+      sloganEl.appendChild(prefix);
+      sloganEl.appendChild(cursor);
+      sloganEl.appendChild(tail);
+      let idx = prefixLen;
+      const step = () => {
+        if (idx <= 0) return;
+        idx -= 1;
+        prefix.textContent = chars.slice(idx, prefixLen).join('');
+        setTimeout(step, 16);
+      };
+      step();
+    }
+
+    function playSlogan() {
+      if (!sloganEl || !SLOGANS.length) return;
+      const slogan = SLOGANS[Math.floor(Math.random() * SLOGANS.length)];
+      if (reduceMotion) renderSloganFinal(slogan);
+      else if (slogan.prepend) typeSloganPrepend(slogan);
+      else typeSloganLinear(slogan);
+    }
+
+    playSlogan();
   </script>
 </body>
 </html>`;

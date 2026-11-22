@@ -8,7 +8,13 @@ import {
   parseDisas,
   disasSnippet,
 } from './rop';
-import { fetchMarketItem, fetchMarketChallenge, publishToMarket } from './market';
+import {
+  fetchMarketItem,
+  fetchMarketChallenge,
+  fetchComments,
+  postComment,
+  publishToMarket,
+} from './market';
 import { emuWrite, parseHexBytes } from './emu';
 import { showWelcome } from './welcome';
 import { closeTabIfOpen } from './tabs';
@@ -375,6 +381,32 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
         })();
         break;
       }
+      case 'market:comments': {
+        const id = message.id as number | string;
+        void (async () => {
+          const r = await fetchComments(id);
+          session.panel.webview.postMessage(
+            'error' in r
+              ? { type: 'market:comments-result', id, error: r.error }
+              : { type: 'market:comments-result', id, comments: r.comments }
+          );
+        })();
+        break;
+      }
+      case 'market:comment-add': {
+        const id = message.id as number | string;
+        const author = String(message.author || '');
+        const content = String(message.content || '');
+        void (async () => {
+          const r = await postComment(id, author, content);
+          session.panel.webview.postMessage(
+            r.ok
+              ? { type: 'market:comment-add-result', id, ok: true, comment: r.comment }
+              : { type: 'market:comment-add-result', id, ok: false, code: r.code, error: r.error }
+          );
+        })();
+        break;
+      }
       case 'emu:write': {
         const address = Number(message.address);
         const hex = String(message.hex || '');
@@ -648,7 +680,6 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
 
     const css = mediaUri('editor.css');
     const compiler = mediaUri('compiler.js');
-    const compress = mediaUri('compress.js');
     const main = mediaUri('editor.js');
 
     const nonce = getNonce();
@@ -665,7 +696,6 @@ export class RopEditorProvider implements vscode.CustomTextEditorProvider {
 <body>
   <div id="app"></div>
   <script nonce="${nonce}" src="${compiler}"></script>
-  <script nonce="${nonce}" src="${compress}"></script>
   <script nonce="${nonce}" src="${main}"></script>
 </body>
 </html>`;

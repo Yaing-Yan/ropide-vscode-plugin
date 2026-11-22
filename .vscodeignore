@@ -17,3 +17,4 @@ build.sh
 **/tsconfig.json
 publish.sh
 PUBLISHING.md
+scripts/gen-build-info.js

@@ -24,7 +24,7 @@
       gadgetsTitle: '查看 / 编辑 gadgets',
       compile: '编译',
       market: '程序广场',
-      aboutTitle: '关于',
+      aboutTitle: 'RopIDE 主界面',
       closePanelTitle: '关闭分栏',
       leftAddr: '左地址',
       rightAddr: '右地址',
@@ -143,6 +143,22 @@
       all: '全部',
       byAuthor: '作者：',
       byModel: '机型：',
+      // ---- 评论 ----
+      comments: '评论',
+      noComments: '暂无评论，来写第一条吧',
+      commentAuthorPh: '昵称',
+      commentContentPh: '写下你的评论…',
+      newComment: '新建评论',
+      cancelComment: '取消',
+      submitComment: '发表评论',
+      commentAuthorRequired: '请输入昵称',
+      commentContentRequired: '请输入评论内容',
+      commentSubmitSuccess: '评论发表成功',
+      commentSubmitFailed: '评论发表失败：',
+      commentLoadFailed: '获取评论失败：',
+      commentsRetry: '重试',
+      commentInvalid: '昵称或评论内容不合法',
+      commentNotFound: '程序不存在或已被删除',
       invalidRop: '这不是合法的 .rop（JSON）文件。',
       constAnchor: '常量 / 锚点',
       htAddr: '地址',
@@ -175,68 +191,6 @@
       compileSegHint: '左右地址是各分段的默认基准；分段基准在「高级」选项卡里设置。',
       segSummary: '共 {n} 段',
       segDefaultName: '段 {n}',
-      // ---- 压缩 ----
-      compress: '压缩',
-      cxTitle: '压缩',
-      cxRefresh: '重新体检',
-      cxHint: '体检只看不改；「一键改写」改完会重新编译并逐字节自检，不一致就自动还原；拼接候选需要你确认程序逻辑后才可用。',
-      cxTotalBytes: '编译字节',
-      cxErrors: '错误',
-      cxSegments: '分段',
-      cxFileSize: '.rop 体积',
-      cxFileSplit: '源码 {input} B · gadgets {gadgets} B · 其它 {rest} B',
-      cxUnused: '未引用 gadget',
-      cxRewriteSection: '一键改写（编译结果不变）',
-      cxRewriteHex: '手写地址 → #!addr;',
-      cxRewriteHint: '把人工编码的 4 字节地址换成可读写法，编译结果逐字节不变。',
-      cxRewriteNone: '没有可反解的手写 4 字节地址',
-      cxRewriteCount: '{n} 处 · {bytes} 字节',
-      cxRewriteOk: '已改写 {n} 处，编译结果逐字节一致 ✅',
-      cxRewriteFail: '自检失败，已还原（该改写会改变编译结果）',
-      cxStrip: '剔除未引用 gadget',
-      cxStripHint: '只缩小 .rop 体积，编译结果不受影响。',
-      cxStripCount: '{n} 个',
-      cxStripOk: '已剔除 {n} 个 gadget，.rop {from} B → {to} B',
-      cxStripNone: '所有 gadget 都被引用',
-      cxCandSection: '拼接候选（需确认程序逻辑）',
-      cxCandHint: 'ROP 链里的地址是 CPU 从固定位置读走的，直接去重反而要多付一次跳转；真正能省的是「同一段字节兼做代码与数据」。以下只是线索。',
-      cxCandNone: '没有发现可拼接的字节',
-      cxCandReuse: '复用',
-      cxCandRepeat: '折叠',
-      cxCandSave: '可省 {n} B',
-      cxRisk: '风险',
-      cxRiskLow: '低',
-      cxRiskMedium: '中',
-      cxRiskHigh: '高',
-      cxCandAt: '字节 {at}',
-      cxLocate: '定位',
-      cxBaseSection: '压缩校验',
-      cxBaseHint: '压缩前先「记录基线」，改完点「校验」就能看出省了多少、哪些锚点地址变了。',
-      cxBaselineBtn: '记录基线',
-      cxVerifyBtn: '校验',
-      cxBaselineSet: '基线：{n} 字节 · {a} 个锚点',
-      cxVerifyNeed: '请先记录基线',
-      cxVerifySame: '与基线长度相同（未压缩）',
-      cxVerifySaved: '比基线省了 {n} B（{p}%）',
-      cxVerifyGrew: '比基线多了 {n} B',
-      cxVerifyIdentical: '编译结果与基线完全相同 ✅',
-      cxVerifyAnchorsNone: '所有锚点地址未变 ✅',
-      cxVerifyAnchors: '{n} 个锚点地址变了 — 硬编码指针可能失效 ⚠',
-      cxVerifyAnchorItem: '{name}: {from} → {to}',
-      cxDetailSection: '体检明细',
-      cxLines: '每行字节数',
-      cxLinesHint: '{n} 行产出 {b} 字节，按占用排序',
-      cxDup: '重复片段',
-      cxDupNone: '没有长度 ≥4 的重复片段',
-      cxDupSaving: '全部折叠后理论净省 {n} B',
-      cxAlias: '锚点别名',
-      cxAliasNone: '没有同地址锚点',
-      cxHand: '手写 4 字节地址',
-      cxHandNone: '没有可反解的手写地址',
-      cxGadgets: 'gadget 使用',
-      cxGadgetsHint: '共 {total} 个，用到 {used} 个',
-      cxMacros: '字节串常量',
-      cxMsgs: '编译诊断',
     },
     en: {
       injectAddr: 'Inject Addr',
@@ -250,7 +204,7 @@
       gadgetsTitle: 'View / edit gadgets',
       compile: 'Compile',
       market: 'Market',
-      aboutTitle: 'About',
+      aboutTitle: 'RopIDE main page',
       closePanelTitle: 'Close panel',
       leftAddr: 'Left addr',
       rightAddr: 'Right addr',
@@ -369,6 +323,22 @@
       all: 'All',
       byAuthor: 'Author: ',
       byModel: 'Model: ',
+      // ---- comments ----
+      comments: 'Comments',
+      noComments: 'No comments yet. Be the first!',
+      commentAuthorPh: 'Nickname',
+      commentContentPh: 'Write your comment…',
+      newComment: 'New Comment',
+      cancelComment: 'Cancel',
+      submitComment: 'Post Comment',
+      commentAuthorRequired: 'Please enter a nickname',
+      commentContentRequired: 'Please enter your comment',
+      commentSubmitSuccess: 'Comment posted',
+      commentSubmitFailed: 'Failed to post comment: ',
+      commentLoadFailed: 'Failed to load comments: ',
+      commentsRetry: 'Retry',
+      commentInvalid: 'Nickname or comment is invalid',
+      commentNotFound: 'This program no longer exists',
       invalidRop: 'This is not a valid .rop (JSON) file.',
       constAnchor: 'Constant / anchor',
       htAddr: 'Address',
@@ -401,68 +371,6 @@
       compileSegHint: 'Left/right addresses are the default bases for every segment; per-segment bases live in the "Advanced" tab.',
       segSummary: '{n} segments',
       segDefaultName: 'Part {n}',
-      // ---- Compression ----
-      compress: 'Compress',
-      cxTitle: 'Compress',
-      cxRefresh: 'Re-analyze',
-      cxHint: 'The report is read-only. "Rewrite" recompiles and byte-compares afterwards, reverting if anything changed. Splicing candidates need your judgement about the program logic.',
-      cxTotalBytes: 'Compiled bytes',
-      cxErrors: 'Errors',
-      cxSegments: 'Segments',
-      cxFileSize: '.rop size',
-      cxFileSplit: 'source {input} B · gadgets {gadgets} B · other {rest} B',
-      cxUnused: 'unused gadgets',
-      cxRewriteSection: 'One-click rewrite (compiled output unchanged)',
-      cxRewriteHex: 'Hand-written address → #!addr;',
-      cxRewriteHint: 'Turns hand-encoded 4-byte addresses into a readable form; the compiled output stays byte-identical.',
-      cxRewriteNone: 'No decodable hand-written 4-byte address',
-      cxRewriteCount: '{n} places · {bytes} bytes',
-      cxRewriteOk: 'Rewrote {n} places, compiled output byte-identical ✅',
-      cxRewriteFail: 'Self-check failed, reverted (the rewrite changed the output)',
-      cxStrip: 'Strip unreferenced gadgets',
-      cxStripHint: 'Shrinks the .rop only; the compiled output is unaffected.',
-      cxStripCount: '{n}',
-      cxStripOk: 'Removed {n} gadgets, .rop {from} B → {to} B',
-      cxStripNone: 'Every gadget is referenced',
-      cxCandSection: 'Splicing candidates (check the program logic)',
-      cxCandHint: 'Addresses in a ROP chain are read by the CPU from fixed positions, so plain de-duplication costs an extra jump. Real savings come from bytes that double as code and data. These are leads only.',
-      cxCandNone: 'No spliceable bytes found',
-      cxCandReuse: 'reuse',
-      cxCandRepeat: 'fold',
-      cxCandSave: 'saves {n} B',
-      cxRisk: 'risk',
-      cxRiskLow: 'low',
-      cxRiskMedium: 'mid',
-      cxRiskHigh: 'high',
-      cxCandAt: 'byte {at}',
-      cxLocate: 'Go to',
-      cxBaseSection: 'Compression check',
-      cxBaseHint: 'Snapshot a baseline first, then hit Verify after compressing to see how many bytes were saved and which anchor addresses moved.',
-      cxBaselineBtn: 'Snapshot baseline',
-      cxVerifyBtn: 'Verify',
-      cxBaselineSet: 'baseline: {n} bytes · {a} anchors',
-      cxVerifyNeed: 'Snapshot a baseline first',
-      cxVerifySame: 'Same length as the baseline (nothing compressed)',
-      cxVerifySaved: '{n} B saved vs baseline ({p}%)',
-      cxVerifyGrew: '{n} B larger than baseline',
-      cxVerifyIdentical: 'Compiled output identical to baseline ✅',
-      cxVerifyAnchorsNone: 'No anchor address moved ✅',
-      cxVerifyAnchors: '{n} anchor address(es) moved — hard-coded pointers may break ⚠',
-      cxVerifyAnchorItem: '{name}: {from} → {to}',
-      cxDetailSection: 'Details',
-      cxLines: 'Bytes per line',
-      cxLinesHint: '{n} lines produce {b} bytes, sorted by size',
-      cxDup: 'Repeated runs',
-      cxDupNone: 'No run of length ≥4 repeats',
-      cxDupSaving: 'Folding everything would save {n} B net',
-      cxAlias: 'Anchor aliases',
-      cxAliasNone: 'No two anchors share an address',
-      cxHand: 'Hand-written 4-byte addresses',
-      cxHandNone: 'No decodable hand-written address',
-      cxGadgets: 'Gadget usage',
-      cxGadgetsHint: '{used} of {total} used',
-      cxMacros: 'Byte-string constants',
-      cxMsgs: 'Compiler messages',
     },
   };
   let lang = 'zh-CN';
@@ -524,6 +432,10 @@
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
     info:
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
+    comment:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+    home:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
     gear:
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
     code:
@@ -555,12 +467,18 @@
   let marketLoading = false;
   let marketError = '';
   let downloadingId = null;
+  let marketDetail = null;          // 当前详情弹窗对应的市场条目
+  let marketComments = [];
+  let marketCommentsLoading = false;
+  let marketCommentsError = '';
+  let commentSubmitting = false;
+  let commentAuthor = '';           // 记住上次昵称（webview state）
   let challenge = null;
   let challengeLoading = false;
   let injectAddress = '';
   let launcher = '';
   let launcherAddr = 'D180';
-  let activeTab = null; // 侧栏当前 tab：compile / gadgets / market / disas / advanced / compress / settings
+  let activeTab = null; // 侧栏当前 tab：compile / gadgets / market / disas / advanced / settings
 
   /* ---------------- DOM ---------------- */
   document.getElementById('app').innerHTML = `
@@ -582,7 +500,7 @@
         <button class="tb-btn" id="btnCompile" data-i18n-title="compile">${ICONS.play}</button>
         <button class="tb-btn" id="btnMarket" data-i18n-title="market">${ICONS.globe}<span class="market-badge" id="marketBadge" hidden></span></button>
         <button class="tb-btn" id="btnSettings" data-i18n-title="settings">${ICONS.gear}</button>
-        <button class="tb-btn" id="btnAbout" data-i18n-title="aboutTitle">${ICONS.info}</button>
+        <button class="tb-btn" id="btnAbout" data-i18n-title="aboutTitle">${ICONS.home}</button>
       </div>
     </div>
 
@@ -623,7 +541,6 @@
           <button class="sp-tab" data-tab="market" data-i18n="market"></button>
           <button class="sp-tab" data-tab="disas" id="tabDisas" data-i18n="disas" hidden></button>
           <button class="sp-tab" data-tab="advanced" id="tabAdvanced" data-i18n="advanced"></button>
-          <button class="sp-tab" data-tab="compress" id="tabCompress" data-i18n="compress"></button>
           <button class="sp-tab" data-tab="settings" data-i18n="settings"></button>
           <div class="spacer"></div>
           <button class="sp-close" id="btnClosePanel" data-i18n-title="closePanelTitle">${ICONS.close}</button>
@@ -655,15 +572,6 @@
             <div class="seg-list" id="segList"></div>
           </div>
 
-          <div class="tab-content" id="panelCompress" hidden>
-            <div class="panel-toolbar">
-              <span class="seg-heading" data-i18n="cxTitle"></span>
-              <div class="spacer"></div>
-              <button class="icon-btn" id="btnCxRefresh">${ICONS.refresh}<span data-i18n="cxRefresh"></span></button>
-            </div>
-            <div class="settings-hint seg-hint" data-i18n="cxHint"></div>
-            <div class="cx-body" id="cxBody"></div>
-          </div>
 
           <div class="tab-content" id="panelGadgets" hidden>
             <div class="panel-toolbar">
@@ -803,6 +711,36 @@
       </div>
     </div>
 
+    <div class="overlay" id="marketDetailOverlay" hidden>
+      <div class="panel market-detail-panel">
+        <div class="panel-header">
+          <h2 id="detailTitle"></h2>
+          <div class="spacer"></div>
+          <button class="icon-btn" id="btnCloseDetail">${ICONS.close}</button>
+        </div>
+        <div class="panel-body">
+          <div class="detail-meta" id="detailMeta"></div>
+          <div class="detail-time" id="detailTime"></div>
+          <div class="detail-desc" id="detailDesc"></div>
+          <div class="comments-section">
+            <div class="comments-header">${ICONS.comment}<span id="detailCommentCount" data-i18n="comments"></span></div>
+            <div class="comment-list" id="commentList"></div>
+            <div class="comment-form-actions" id="commentToggleRow">
+              <button class="icon-btn primary" id="btnNewComment">${ICONS.plus}<span data-i18n="newComment"></span></button>
+            </div>
+            <div class="comment-form" id="commentForm" hidden>
+              <input class="text-input" id="commentAuthor" maxlength="50" data-i18n-ph="commentAuthorPh" />
+              <textarea class="text-input" id="commentContent" rows="3" maxlength="1000" data-i18n-ph="commentContentPh"></textarea>
+              <div class="market-actions">
+                <button class="icon-btn" id="btnCancelComment" data-i18n="cancelComment"></button>
+                <button class="icon-btn primary" id="btnSubmitComment" data-i18n="submitComment"></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="toast" id="toast" hidden></div>
   `;
 
@@ -838,10 +776,6 @@
     segList: document.getElementById('segList'),
     segCount: document.getElementById('segCount'),
     btnAddSegment: document.getElementById('btnAddSegment'),
-    tabCompress: document.getElementById('tabCompress'),
-    panelCompress: document.getElementById('panelCompress'),
-    cxBody: document.getElementById('cxBody'),
-    btnCxRefresh: document.getElementById('btnCxRefresh'),
     panelGadgets: document.getElementById('panelGadgets'),
     panelMarket: document.getElementById('panelMarket'),
     panelSettings: document.getElementById('panelSettings'),
@@ -894,6 +828,21 @@
     challengeAnswer: document.getElementById('challengeAnswer'),
     btnCancelPublish: document.getElementById('btnCancelPublish'),
     btnConfirmPublish: document.getElementById('btnConfirmPublish'),
+    marketDetailOverlay: document.getElementById('marketDetailOverlay'),
+    detailTitle: document.getElementById('detailTitle'),
+    detailMeta: document.getElementById('detailMeta'),
+    detailTime: document.getElementById('detailTime'),
+    detailDesc: document.getElementById('detailDesc'),
+    detailCommentCount: document.getElementById('detailCommentCount'),
+    commentList: document.getElementById('commentList'),
+    commentToggleRow: document.getElementById('commentToggleRow'),
+    commentForm: document.getElementById('commentForm'),
+    commentAuthor: document.getElementById('commentAuthor'),
+    commentContent: document.getElementById('commentContent'),
+    btnNewComment: document.getElementById('btnNewComment'),
+    btnCancelComment: document.getElementById('btnCancelComment'),
+    btnSubmitComment: document.getElementById('btnSubmitComment'),
+    btnCloseDetail: document.getElementById('btnCloseDetail'),
     toast: document.getElementById('toast'),
     findPanel: document.getElementById('findPanel'),
     findInput: document.getElementById('findInput'),
@@ -924,7 +873,6 @@
     if (activeTab === 'gadgets') renderGadgetList();
     if (activeTab === 'market') renderMarketList();
     if (activeTab === 'advanced') renderSegments();
-    if (activeTab === 'compress') renderCompress();
     if (activeTab === 'settings') syncSettingsUI();
   }
 
@@ -933,6 +881,27 @@
     return String(s).replace(/[&<>"']/g, (c) => ({
       '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
     }[c]));
+  }
+
+  /** 评论 / 市场时间：完整本地时间（YYYY-MM-DD HH:mm）。 */
+  function fmtTime(ts) {
+    const n = Number(ts);
+    if (!n || !isFinite(n)) return '-';
+    const d = new Date(n);
+    if (isNaN(d.getTime())) return '-';
+    const p = (x) => String(x).padStart(2, '0');
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) +
+      ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+
+  /** 市场卡片上的短时间（MM-DD）。 */
+  function fmtShortTime(ts) {
+    const n = Number(ts);
+    if (!n || !isFinite(n)) return '-';
+    const d = new Date(n);
+    if (isNaN(d.getTime())) return '-';
+    const p = (x) => String(x).padStart(2, '0');
+    return p(d.getMonth() + 1) + '-' + p(d.getDate());
   }
 
   function parseBase(s) {
@@ -1074,7 +1043,6 @@
     updateCursor();
     if (activeTab === 'compile') renderCompile();
     if (activeTab === 'advanced') renderSegments();
-    if (activeTab === 'compress') renderCompress();
     syncEmuInjectAddress();
   }
 
@@ -1588,7 +1556,6 @@
     else if (tab === 'gadgets') openGadgets();
     else if (tab === 'market') openMarket();
     else if (tab === 'advanced') renderSegments();
-    else if (tab === 'compress') renderCompress();
     else if (tab === 'settings') syncSettingsUI();
   }
 
@@ -1610,7 +1577,6 @@
     el.panelMarket.hidden = tab !== 'market';
     el.panelDisas.hidden = tab !== 'disas';
     el.panelAdvanced.hidden = tab !== 'advanced';
-    el.panelCompress.hidden = tab !== 'compress';
     el.panelSettings.hidden = tab !== 'settings';
     if (tab === 'disas') {
       if (disasLoaded && disasLines.length === 0) {
@@ -1619,7 +1585,6 @@
       renderDisas();
     }
     if (tab === 'advanced') renderSegments();
-    if (tab === 'compress') renderCompress();
   }
 
   // 右侧分栏宽度可拖拽调整
@@ -2127,364 +2092,6 @@
   }
   el.btnAddSegment.addEventListener('click', insertSegmentMarker);
 
-  /* ---------------- 压缩：体检 / 一键改写 / 拼接候选 / 校验 ----------------
-   * 分析引擎在 media/compress.js（window.RopCompress），这里只做渲染与动作。
-   * 「一键改写」的流程是：改写 → 重新编译 → 与改写前逐字节比对 → 不一致就还原。
-   */
-
-  let cxBaseline = null;   // { hex, totalBytes, anchors }，持久化在 webview state
-  let cxVerify = null;     // 最近一次校验结果
-  let cxNote = '';         // 最近一次动作的提示
-  let cxNoteErr = false;
-
-  function cxEngine() {
-    return window.RopCompress;
-  }
-
-  function cxSnapshot() {
-    return {
-      hex: parsed ? parsed.hexChars : '',
-      totalBytes: parsed ? parsed.totalBytes : 0,
-      anchors: Object.assign({}, parsed ? parsed.constants : {}),
-    };
-  }
-
-  function cxSaveState() {
-    try {
-      const st = vscode.getState() || {};
-      st.cxBaseline = cxBaseline;
-      vscode.setState(st);
-    } catch (e) { /* state 不可用就只放内存里 */ }
-  }
-
-  function cxRestoreState() {
-    try {
-      const st = vscode.getState() || {};
-      if (st && st.cxBaseline && typeof st.cxBaseline.hex === 'string') cxBaseline = st.cxBaseline;
-    } catch (e) { /* 忽略 */ }
-  }
-
-  function cxSerializedSize(gadgets) {
-    return JSON.stringify({
-      input: state.input,
-      gadgets: gadgets,
-      leftStartAddress: state.leftStartAddress,
-      rightStartAddress: state.rightStartAddress,
-      ideVersion: state.ideVersion,
-    }).length;
-  }
-
-  function cxRiskLabel(risk) {
-    return risk === 'low' ? t('cxRiskLow') : risk === 'medium' ? t('cxRiskMedium') : t('cxRiskHigh');
-  }
-
-  function cxCard(title, body, extraClass) {
-    return `<div class="cx-card${extraClass ? ' ' + extraClass : ''}">`
-      + `<div class="cx-card-title">${escapeHtml(title)}</div>`
-      + body
-      + `</div>`;
-  }
-
-  function cxRow(label, value, cls) {
-    return `<div class="cx-row"><span class="cx-k">${escapeHtml(label)}</span>`
-      + `<span class="cx-v${cls ? ' ' + cls : ''}">${value}</span></div>`;
-  }
-
-  /* ---- 动作 ---- */
-
-  /** 手写 4 字节地址 → #!addr;（自检：编译结果必须逐字节不变） */
-  function cxRewriteHex() {
-    const X = cxEngine();
-    if (!X || !parsed) return;
-    const plan = X.planHexRewrite(state.input, parsed, state.gadgets);
-    if (!plan.count) {
-      cxNote = t('cxRewriteNone');
-      cxNoteErr = false;
-      renderCompress();
-      return;
-    }
-    const before = parsed.hexChars;
-    const next = X.applyEdits(state.input, plan.edits);
-    const check = window.RopCompiler.parseRopInput(next, state.gadgets, {
-      leftStartAddress: state.leftStartAddress,
-      rightStartAddress: state.rightStartAddress,
-    });
-    if (check.hexChars !== before) {
-      cxNote = t('cxRewriteFail');
-      cxNoteErr = true;
-      renderCompress();
-      return;
-    }
-    cxNote = tf('cxRewriteOk', { n: plan.count });
-    cxNoteErr = false;
-    applyInputText(next);
-    renderCompress();
-  }
-
-  /** 剔除未引用的 gadget（只影响 .rop 体积） */
-  function cxStripGadgets() {
-    const X = cxEngine();
-    if (!X || !parsed) return;
-    const st = X.stripUnusedGadgets(state.input, parsed, state.gadgets);
-    if (!st.removed) {
-      cxNote = t('cxStripNone');
-      cxNoteErr = false;
-      renderCompress();
-      return;
-    }
-    const before = cxSerializedSize(state.gadgets);
-    state.gadgets = st.gadgets;
-    const after = cxSerializedSize(state.gadgets);
-    markChanged();
-    cxNote = tf('cxStripOk', { n: st.removed, from: before, to: after });
-    cxNoteErr = false;
-    renderCompress();
-  }
-
-  function cxTakeBaseline() {
-    cxBaseline = cxSnapshot();
-    cxVerify = null;
-    cxSaveState();
-    renderCompress();
-  }
-
-  function cxRunVerify() {
-    const X = cxEngine();
-    if (!X || !parsed) return;
-    if (!cxBaseline) {
-      cxNote = t('cxVerifyNeed');
-      cxNoteErr = true;
-      renderCompress();
-      return;
-    }
-    cxVerify = X.diffBaseline(parsed, cxBaseline);
-    cxNote = '';
-    cxNoteErr = false;
-    renderCompress();
-  }
-
-  /** 把光标定位到某个字节对应的源码位置 */
-  function cxLocateByte(byteIndex) {
-    const map = parsed ? parsed.charPosInInputMap : [];
-    if (isNaN(byteIndex) || byteIndex < 0) return;
-    const start = map[byteIndex * 2];
-    if (start === undefined) return;
-    const end = map[byteIndex * 2 + 1];
-    el.input.focus();
-    el.input.setSelectionRange(start, end === undefined ? start : end + 1);
-    scrollToInputPos(start);
-    updateCursor();
-  }
-
-  function cxLocateLine(line) {
-    if (isNaN(line) || line < 0 || line >= lineStarts.length) return;
-    const pos = lineStarts[line];
-    el.input.focus();
-    el.input.setSelectionRange(pos, pos);
-    scrollToInputPos(pos);
-    updateCursor();
-  }
-
-  /* ---- 渲染 ---- */
-  function renderCompress() {
-    if (!el.cxBody) return;
-    const X = cxEngine();
-    if (!X || !parsed) {
-      el.cxBody.innerHTML = '';
-      return;
-    }
-    const rep = X.analyze(state.input, parsed, state.gadgets);
-    const plan = X.planHexRewrite(state.input, parsed, state.gadgets);
-    const cands = X.candidates(state.input, parsed, { max: 30 });
-    const cards = [];
-
-    // ---- 概览 ----
-    let overview = '';
-    overview += cxRow(t('cxTotalBytes'), `<b>${rep.totalBytes}</b> B`);
-    overview += cxRow(t('cxErrors'), String(rep.errorCount), rep.errorCount ? 'err' : '');
-    overview += cxRow(t('cxSegments'), String(rep.segments));
-    overview += cxRow(t('cxFileSize'), `${rep.fileSize.total} B`);
-    overview += `<div class="cx-sub">${escapeHtml(
-      tf('cxFileSplit', { input: rep.fileSize.input, gadgets: rep.fileSize.gadgets, rest: rep.fileSize.rest })
-    )}</div>`;
-    overview += `<div class="cx-sub">${escapeHtml(
-      t('cxUnused') + ' ' + rep.gadgetUsage.unused.length + ' / ' + rep.gadgetUsage.total
-    )}</div>`;
-    cards.push(cxCard(t('cxTitle'), overview));
-
-    // ---- 一键改写 ----
-    let rw = `<div class="cx-act">`;
-    rw += `<button class="icon-btn${plan.count ? ' primary' : ''}" data-act="rewrite-hex" ${plan.count ? '' : 'disabled'}>`
-      + `${ICONS.code}<span>${escapeHtml(t('cxRewriteHex'))}</span></button>`;
-    rw += `<span class="cx-badge">${escapeHtml(plan.count
-      ? tf('cxRewriteCount', { n: plan.count, bytes: plan.bytes })
-      : t('cxRewriteNone'))}</span>`;
-    rw += `</div>`;
-    rw += `<div class="settings-hint">${escapeHtml(t('cxRewriteHint'))}</div>`;
-    rw += `<div class="cx-act cx-gap">`;
-    rw += `<button class="icon-btn" data-act="strip-gadgets" ${rep.gadgetUsage.unused.length ? '' : 'disabled'}>`
-      + `${ICONS.trash}<span>${escapeHtml(t('cxStrip'))}</span></button>`;
-    rw += `<span class="cx-badge">${escapeHtml(rep.gadgetUsage.unused.length
-      ? tf('cxStripCount', { n: rep.gadgetUsage.unused.length })
-      : t('cxStripNone'))}</span>`;
-    rw += `</div>`;
-    rw += `<div class="settings-hint">${escapeHtml(t('cxStripHint'))}</div>`;
-    cards.push(cxCard(t('cxRewriteSection'), rw));
-
-    // ---- 拼接候选 ----
-    let cd = '';
-    if (!cands.length) {
-      cd = `<div class="settings-hint">${escapeHtml(t('cxCandNone'))}</div>`;
-    } else {
-      cd = cands
-        .map((c) => {
-          const kindLabel = c.kind === 'repeat' ? t('cxCandRepeat') : t('cxCandReuse');
-          return `<div class="cx-cand">
-            <span class="cx-cand-kind ${c.risk}">${escapeHtml(kindLabel)}</span>
-            <span class="cx-cand-save">${escapeHtml(tf('cxCandSave', { n: c.save }))}</span>
-            <span class="cx-cand-pos" data-act="locate-byte" data-byte="${c.at}">${
-              escapeHtml(tf('cxCandAt', { at: c.at }))} · L${c.line + 1}</span>
-            <span class="cx-cand-detail">${escapeHtml(c.detail)}</span>
-            <span class="cx-cand-risk">${escapeHtml(t('cxRisk'))} ${escapeHtml(cxRiskLabel(c.risk))}</span>
-          </div>`;
-        })
-        .join('');
-      cd += `<div class="settings-hint">${escapeHtml(t('cxCandHint'))}</div>`;
-    }
-    cards.push(cxCard(t('cxCandSection'), cd));
-
-    // ---- 压缩校验 ----
-    let vf = `<div class="cx-act">`;
-    vf += `<button class="icon-btn" data-act="baseline">${ICONS.check}<span>${escapeHtml(t('cxBaselineBtn'))}</span></button>`;
-    vf += `<button class="icon-btn" data-act="verify" ${cxBaseline ? '' : 'disabled'}>${ICONS.refresh}<span>${escapeHtml(t('cxVerifyBtn'))}</span></button>`;
-    if (cxBaseline) {
-      vf += `<span class="cx-badge">${escapeHtml(tf('cxBaselineSet', {
-        n: cxBaseline.totalBytes,
-        a: Object.keys(cxBaseline.anchors || {}).length,
-      }))}</span>`;
-    }
-    vf += `</div>`;
-    if (cxVerify) {
-      const d = cxVerify;
-      let line;
-      if (d.identical) line = t('cxVerifyIdentical');
-      else if (d.saved > 0) line = tf('cxVerifySaved', { n: d.saved, p: ((d.saved / Math.max(1, d.beforeBytes)) * 100).toFixed(1) });
-      else if (d.saved < 0) line = tf('cxVerifyGrew', { n: -d.saved });
-      else line = t('cxVerifySame');
-      vf += `<div class="cx-sub cx-strong">${escapeHtml(line)}</div>`;
-      if (!d.anchorChanges.length) {
-        vf += `<div class="cx-sub ok">${escapeHtml(t('cxVerifyAnchorsNone'))}</div>`;
-      } else {
-        vf += `<div class="cx-sub err">${escapeHtml(tf('cxVerifyAnchors', { n: d.anchorChanges.length }))}</div>`;
-        vf += d.anchorChanges
-          .slice(0, 12)
-          .map((c) => `<div class="cx-anchor">${escapeHtml(tf('cxVerifyAnchorItem', {
-            name: c.name,
-            from: c.from === null ? '—' : '0x' + hexAddr(c.from),
-            to: c.to === null ? '—' : '0x' + hexAddr(c.to),
-          }))}</div>`)
-          .join('');
-      }
-    } else {
-      vf += `<div class="settings-hint">${escapeHtml(t('cxBaseHint'))}</div>`;
-    }
-    cards.push(cxCard(t('cxBaseSection'), vf));
-
-    // ---- 体检明细 ----
-    let dt = '';
-    dt += `<details open><summary>${escapeHtml(t('cxLines'))} <em>${escapeHtml(
-      tf('cxLinesHint', { n: rep.lineBytes.length, b: rep.totalBytes })
-    )}</em></summary><div class="cx-list">`;
-    dt += rep.lineBytes
-      .slice(0, 12)
-      .map((l) => `<div class="cx-line" data-act="locate-line" data-line="${l.line}">`
-        + `<span class="cx-line-no">L${l.line + 1}</span>`
-        + `<span class="cx-line-bar"><i style="width:${Math.max(4, Math.round((l.bytes / Math.max(1, rep.lineBytes[0].bytes)) * 100))}%"></i></span>`
-        + `<span class="cx-line-n">${l.bytes} B</span>`
-        + `<span class="cx-line-tx">${escapeHtml(l.text.trim().slice(0, 40))}</span>`
-        + `</div>`)
-      .join('');
-    dt += `</div></details>`;
-
-    dt += `<details><summary>${escapeHtml(t('cxDup'))} <em>${escapeHtml(
-      rep.duplicates.length ? tf('cxDupSaving', { n: rep.duplicateSaving }) : t('cxDupNone')
-    )}</em></summary><div class="cx-list">`;
-    dt += rep.duplicates
-      .slice(0, 12)
-      .map((d) => `<div class="cx-line" data-act="locate-byte" data-byte="${d.at}">`
-        + `<span class="cx-line-no">${d.len}B</span>`
-        + `<span class="cx-line-tx">字节 ${d.at} ↔ ${d.other}</span></div>`)
-      .join('');
-    dt += `</div></details>`;
-
-    dt += `<details><summary>${escapeHtml(t('cxAlias'))}</summary><div class="cx-list">`;
-    dt += rep.aliases.length
-      ? rep.aliases
-          .map((a) => `<div class="cx-line"><span class="cx-line-no">0x${hexAddr(a.addr)}</span>`
-            + `<span class="cx-line-tx">${escapeHtml(a.names.join(' = '))}</span></div>`)
-          .join('')
-      : `<div class="cx-line"><span class="cx-line-tx">${escapeHtml(t('cxAliasNone'))}</span></div>`;
-    dt += `</div></details>`;
-
-    dt += `<details${rep.handHex.length ? ' open' : ''}><summary>${escapeHtml(t('cxHand'))} <em>${escapeHtml(
-      rep.handHex.length ? tf('cxRewriteCount', { n: rep.handHex.length, bytes: rep.handHexBytes }) : t('cxHandNone')
-    )}</em></summary><div class="cx-list">`;
-    dt += rep.handHex
-      .map((h) => `<div class="cx-line" data-act="locate-line" data-line="${h.line}">`
-        + `<span class="cx-line-no">L${h.line + 1}</span>`
-        + `<span class="cx-line-tx"><code>${h.hex}</code> → <code>${
-          h.allow00 ? '#!' : '#-!'}${h.addr};</code></span></div>`)
-      .join('');
-    dt += `</div></details>`;
-
-    dt += `<details><summary>${escapeHtml(t('cxGadgets'))} <em>${escapeHtml(
-      tf('cxGadgetsHint', { used: rep.gadgetUsage.used.length, total: rep.gadgetUsage.total })
-    )}</em></summary><div class="cx-list">`;
-    dt += `<div class="cx-line"><span class="cx-line-tx">${escapeHtml(rep.gadgetUsage.used.join(', ') || '—')}</span></div>`;
-    if (rep.gadgetUsage.unused.length) {
-      dt += `<div class="cx-line"><span class="cx-line-tx muted">${escapeHtml(
-        rep.gadgetUsage.unused.slice(0, 40).join(', ')
-      )}${rep.gadgetUsage.unused.length > 40 ? ' …' : ''}</span></div>`;
-    }
-    dt += `</div></details>`;
-
-    if (rep.messages.length) {
-      dt += `<details open><summary>${escapeHtml(t('cxMsgs'))} <em>${rep.messages.length}</em></summary><div class="cx-list">`;
-      dt += rep.messages
-        .slice(0, 30)
-        .map((m) => `<div class="cx-line" data-act="locate-line" data-line="${m.line - 1}">`
-          + `<span class="cx-line-no ${m.level}">L${m.line}</span>`
-          + `<span class="cx-line-tx">${escapeHtml(m.text)}</span></div>`)
-        .join('');
-      dt += `</div></details>`;
-    }
-    cards.push(cxCard(t('cxDetailSection'), dt, 'cx-detail'));
-
-    const head = cxNote
-      ? `<div class="cx-note${cxNoteErr ? ' err' : ''}">${escapeHtml(cxNote)}</div>`
-      : '';
-    el.cxBody.innerHTML = head + cards.join('');
-  }
-
-  // 动作分发
-  if (el.cxBody) {
-    el.cxBody.addEventListener('click', (e) => {
-      const btn = e.target.closest('[data-act]');
-      if (!btn) return;
-      const act = btn.dataset.act;
-      if (act === 'rewrite-hex') cxRewriteHex();
-      else if (act === 'strip-gadgets') cxStripGadgets();
-      else if (act === 'baseline') cxTakeBaseline();
-      else if (act === 'verify') cxRunVerify();
-      else if (act === 'locate-byte') cxLocateByte(parseInt(btn.dataset.byte, 10));
-      else if (act === 'locate-line') cxLocateLine(parseInt(btn.dataset.line, 10));
-    });
-  }
-  el.btnCxRefresh.addEventListener('click', () => {
-    cxNote = '';
-    cxNoteErr = false;
-    renderCompress();
-  });
 
   /* ---------------- Disas 反汇编浏览器 ---------------- */
   function setDisasData(addresses, byAddr) {
@@ -3204,7 +2811,14 @@
       vscode.postMessage({ type: 'disas:send-all' });
     }
     if (wasLaunchHl !== highlightLauncher && parsed) renderHighlight();
-    if (lang !== oldLang) applyStaticI18n();
+    if (lang !== oldLang) {
+      applyStaticI18n();
+      if (marketDetail) {
+        renderMarketDetail();
+        renderComments();
+      }
+      if (activeTab === 'market') renderMarketList();
+    }
     if (activeTab === 'settings') syncSettingsUI();
     if (activeTab === 'gadgets') renderGadgetList();
   }
@@ -3323,8 +2937,36 @@
   el.btnConfirmPublish.addEventListener('click', confirmPublish);
 
   el.marketList.addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-download]');
-    if (btn) downloadMarketItem(btn.dataset.download);
+    const dl = e.target.closest('[data-download]');
+    if (dl) {
+      e.stopPropagation();
+      downloadMarketItem(dl.dataset.download);
+      return;
+    }
+    const open = e.target.closest('[data-open]');
+    if (open) openMarketDetail(open.dataset.open);
+  });
+
+  // 详情弹窗 / 评论
+  el.btnCloseDetail.addEventListener('click', closeMarketDetail);
+  el.btnNewComment.addEventListener('click', () => {
+    el.commentAuthor.value = commentAuthor || loadCommentAuthor();
+    el.commentForm.hidden = false;
+    el.commentToggleRow.hidden = true;
+    el.commentContent.focus();
+  });
+  el.btnCancelComment.addEventListener('click', () => {
+    el.commentForm.hidden = true;
+    el.commentToggleRow.hidden = false;
+  });
+  el.btnSubmitComment.addEventListener('click', submitComment);
+  el.commentList.addEventListener('click', (e) => {
+    if (e.target.closest('[data-comments-retry]')) requestComments();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && marketDetail) {
+      closeMarketDetail();
+    }
   });
 
   function openMarket() {
@@ -3438,17 +3080,22 @@
     const card = (it, isFeatured) => {
       const idStr = String(it.id);
       const busy = downloadingId === idStr;
+      const count = Number(it.commentCount) || 0;
       return `
-      <div class="market-card ${isFeatured ? 'featured' : ''}">
-        <div class="market-card-info">
+      <div class="market-card ${isFeatured ? 'featured' : ''}" data-open="${escapeHtml(idStr)}">
+        <div class="market-card-head">
           <div class="market-card-title">${escapeHtml(it.name || t('unnamed'))}${isFeatured ? ' <span class="market-star">★</span>' : ''}</div>
-          <div class="market-card-meta">
-            <span>${t('byAuthor')}${escapeHtml(it.author || '-')}</span>
-            <span>${t('byModel')}${escapeHtml(it.model || '-')}</span>
-          </div>
-          ${it.description ? `<div class="market-card-desc">${escapeHtml(it.description)}</div>` : ''}
+          <button class="market-card-dl" data-download="${escapeHtml(idStr)}" title="${t('download')}" aria-label="${t('download')}" ${busy ? 'disabled' : ''}>${ICONS.download}</button>
         </div>
-        <button class="icon-btn primary market-dl" data-download="${escapeHtml(idStr)}" ${busy ? 'disabled' : ''}>${busy ? t('downloading') : ICONS.download + t('download')}</button>
+        <div class="market-card-meta">
+          <span>${t('byAuthor')}${escapeHtml(it.author || '-')}</span>
+          <span>${t('byModel')}${escapeHtml(it.model || '-')}</span>
+        </div>
+        ${it.description ? `<div class="market-card-desc">${escapeHtml(it.description)}</div>` : ''}
+        <div class="market-card-foot">
+          <span class="market-card-comments" title="${t('comments')}">${ICONS.comment}${count}</span>
+          <span class="market-card-time" title="${fmtTime(it.timestamp)}">${fmtShortTime(it.timestamp)}</span>
+        </div>
       </div>`;
     };
 
@@ -3462,6 +3109,108 @@
       html += normal.map((it) => card(it, false)).join('');
     }
     el.marketList.innerHTML = html;
+  }
+
+  /* ---------------- 程序广场详情 / 评论 ---------------- */
+  function saveCommentAuthor(name) {
+    try {
+      const st = vscode.getState() || {};
+      st.commentAuthor = name;
+      vscode.setState(st);
+    } catch (e) { /* state 不可用就只放内存里 */ }
+  }
+
+  function loadCommentAuthor() {
+    try {
+      const st = vscode.getState() || {};
+      return typeof st.commentAuthor === 'string' ? st.commentAuthor : '';
+    } catch (e) { return ''; }
+  }
+
+  function openMarketDetail(id) {
+    const it = marketItems.find((x) => String(x.id) === String(id));
+    if (!it) return;
+    marketDetail = it;
+    marketComments = [];
+    marketCommentsError = '';
+    marketCommentsLoading = true;
+    commentSubmitting = false;
+    el.commentAuthor.value = commentAuthor || loadCommentAuthor();
+    el.commentContent.value = '';
+    el.commentForm.hidden = true;
+    el.commentToggleRow.hidden = false;
+    el.btnSubmitComment.disabled = false;
+    el.marketDetailOverlay.hidden = false;
+    renderMarketDetail();
+    requestComments();
+  }
+
+  function closeMarketDetail() {
+    el.marketDetailOverlay.hidden = true;
+    marketDetail = null;
+    marketComments = [];
+    marketCommentsError = '';
+    marketCommentsLoading = false;
+  }
+
+  function requestComments() {
+    if (!marketDetail) return;
+    marketCommentsLoading = true;
+    renderComments();
+    vscode.postMessage({ type: 'market:comments', id: marketDetail.id });
+  }
+
+  function renderMarketDetail() {
+    if (!marketDetail) return;
+    const it = marketDetail;
+    el.detailTitle.textContent = it.name || t('unnamed');
+    el.detailMeta.innerHTML =
+      '<span>' + t('byAuthor') + escapeHtml(it.author || '-') + '</span>' +
+      '<span>' + t('byModel') + escapeHtml(it.model || '-') + '</span>';
+    el.detailTime.textContent = fmtTime(it.timestamp);
+    el.detailDesc.textContent = it.description || '';
+    el.detailDesc.hidden = !it.description;
+    el.detailCommentCount.textContent = t('comments') + ' (' + (Number(it.commentCount) || 0) + ')';
+  }
+
+  function renderComments() {
+    if (!marketDetail) return;
+    if (marketCommentsLoading) {
+      el.commentList.innerHTML = '<div class="comments-empty">' + t('loading') + '</div>';
+      return;
+    }
+    if (marketCommentsError) {
+      el.commentList.innerHTML =
+        '<div class="comments-empty err">' + escapeHtml(t('commentLoadFailed')) + escapeHtml(marketCommentsError) + '</div>' +
+        '<div class="comment-form-actions"><button class="icon-btn" data-comments-retry="1">' + t('commentsRetry') + '</button></div>';
+      return;
+    }
+    if (!marketComments.length) {
+      el.commentList.innerHTML = '<div class="comments-empty">' + escapeHtml(t('noComments')) + '</div>';
+      return;
+    }
+    el.commentList.innerHTML = marketComments.map((c) =>
+      '<div class="comment-item">' +
+        '<div class="comment-top"><span class="comment-author">' + escapeHtml(c.author || '-') + '</span>' +
+        '<span class="comment-time">' + fmtTime(c.timestamp) + '</span></div>' +
+        '<div class="comment-content">' + escapeHtml(c.content || '') + '</div>' +
+      '</div>'
+    ).join('');
+  }
+
+  function submitComment() {
+    if (!marketDetail || commentSubmitting) return;
+    const author = el.commentAuthor.value.trim();
+    const content = el.commentContent.value.trim();
+    if (!author) { showToast(t('commentAuthorRequired'), true); el.commentAuthor.focus(); return; }
+    if (!content) { showToast(t('commentContentRequired'), true); el.commentContent.focus(); return; }
+    if (author.length > 50 || content.length > 1000) {
+      showToast(t('commentInvalid'), true);
+      return;
+    }
+    commentSubmitting = true;
+    el.btnSubmitComment.disabled = true;
+    vscode.postMessage({ type: 'market:comment-add', id: marketDetail.id, author, content });
   }
 
   /* ---------------- 宿主消息 ---------------- */
@@ -3618,6 +3367,53 @@
           showToast(t('publishFail') + msg.error, true);
         }
         break;
+      case 'market:comments-result': {
+        if (!marketDetail || String(msg.id) !== String(marketDetail.id)) break;
+        marketCommentsLoading = false;
+        if (msg.error) {
+          marketCommentsError = String(msg.error);
+          marketComments = [];
+        } else {
+          marketCommentsError = '';
+          marketComments = Array.isArray(msg.comments) ? msg.comments : [];
+        }
+        renderComments();
+        break;
+      }
+      case 'market:comment-add-result': {
+        commentSubmitting = false;
+        el.btnSubmitComment.disabled = false;
+        if (!marketDetail || String(msg.id) !== String(marketDetail.id)) break;
+        if (msg.ok) {
+          const c = msg.comment || {};
+          marketComments.unshift({
+            id: c.id != null ? c.id : 'local-' + Date.now(),
+            author: typeof c.author === 'string' ? c.author : '',
+            content: typeof c.content === 'string' ? c.content : '',
+            timestamp: Number(c.timestamp) || Date.now(),
+          });
+          marketDetail.commentCount = (Number(marketDetail.commentCount) || 0) + 1;
+          const name = el.commentAuthor.value.trim();
+          if (name) {
+            commentAuthor = name;
+            saveCommentAuthor(name);
+          }
+          el.commentContent.value = '';
+          el.commentForm.hidden = true;
+          el.commentToggleRow.hidden = false;
+          el.detailCommentCount.textContent = t('comments') + ' (' + marketDetail.commentCount + ')';
+          renderComments();
+          renderMarketList();
+          showToast(t('commentSubmitSuccess'));
+        } else if (msg.code === 'invalid') {
+          showToast(t('commentInvalid'), true);
+        } else if (msg.code === 'notfound') {
+          showToast(t('commentNotFound'), true);
+        } else {
+          showToast(t('commentSubmitFailed') + (msg.error || ''), true);
+        }
+        break;
+      }
       case 'emu:write-result':
         if (msg.ok) {
           showEmuStatus('', '');
@@ -3670,6 +3466,5 @@
 
   // 就绪后向宿主请求初始数据
   try { applyStaticI18n(); } catch (e) { /* 静态文案异常不得阻塞初始化握手 */ }
-  try { cxRestoreState(); } catch (e) { /* 压缩基线恢复失败不影响启动 */ }
   vscode.postMessage({ type: 'ready' });
 })();

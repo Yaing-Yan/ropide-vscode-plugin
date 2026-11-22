@@ -2,7 +2,7 @@
   "name": "ropide-vscode-plugin",
   "displayName": "RopIDE for VS Code",
   "description": "VS Code editor for CASIO fx-991 CN X ROP (.rop) files — syntax highlighting, address gutter, gadget manager and one-click compile.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "yaing-yan",
   "license": "GPL-3.0",
   "icon": "icon.png",
@@ -158,7 +158,7 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "echo \"export const BUILD_TIME = '$(date -u +%Y%m%d-%H%M%S)';\" > src/buildInfo.ts && esbuild src/extension.ts --bundle --external:vscode --format=cjs --platform=node --outfile=dist/extension.js",
+    "compile": "node scripts/gen-build-info.js && esbuild src/extension.ts --bundle --external:vscode --format=cjs --platform=node --outfile=dist/extension.js",
     "watch": "esbuild src/extension.ts --bundle --external:vscode --format=cjs --platform=node --outfile=dist/extension.js --watch",
     "package": "vsce package",
     "publish:vsce": "./publish.sh",

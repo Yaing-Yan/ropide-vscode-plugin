@@ -900,7 +900,10 @@ body.vscode-dark .code-input::selection { background: rgba(255, 255, 255, 0.2); 
   padding: 8px 10px;
   background: var(--vscode-editor-background, #fff);
   min-width: 0;
+  cursor: pointer;
+  transition: border-color 0.12s ease;
 }
+.market-card:hover { border-color: var(--accent); }
 .market-card.featured { border-color: var(--accent); }
 .market-card-info { flex: 1 1 auto; min-width: 0; }
 .market-card-title {
@@ -932,8 +935,69 @@ body.vscode-dark .code-input::selection { background: rgba(255, 255, 255, 0.2); 
   overflow: hidden;
   word-break: break-word;
 }
-.market-dl { flex: 0 0 auto; align-self: flex-end; padding: 2px 8px; font-size: 12px; }
+.market-card-head { display: flex; align-items: flex-start; gap: 6px; }
+.market-card-head .market-card-title { flex: 1 1 auto; }
+.market-card-dl {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  line-height: 0;
+}
+.market-card-dl:hover { color: var(--fg); background: var(--vscode-toolbar-hoverBackground, rgba(128,128,128,0.15)); }
+.market-card-dl:disabled { opacity: 0.5; cursor: default; }
+.market-card-dl svg { width: 14px; height: 14px; }
+.market-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+  font-size: 11px;
+  color: var(--muted);
+}
+.market-card-comments { display: inline-flex; align-items: center; gap: 3px; }
+.market-card-comments svg { width: 12px; height: 12px; }
+.market-card-time { white-space: nowrap; }
 .market-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+
+/* ---------- 程序广场详情 / 评论 ---------- */
+.market-detail-panel { width: min(640px, 100%); }
+.detail-meta { display: flex; flex-wrap: wrap; gap: 14px; font-size: 11px; color: var(--muted); }
+.detail-time { margin-top: 4px; font-size: 11px; color: var(--muted); text-align: right; }
+.detail-desc {
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-line;
+  word-break: break-word;
+  max-height: 22vh;
+  overflow-y: auto;
+}
+.comments-section { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
+.comments-header { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 12px; margin-bottom: 8px; }
+.comments-header svg { width: 14px; height: 14px; color: var(--muted); }
+.comment-list { display: flex; flex-direction: column; gap: 8px; }
+.comment-item {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--vscode-editor-background, transparent);
+}
+.comment-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
+.comment-author { font-weight: 700; font-size: 12px; color: var(--fg); word-break: break-all; }
+.comment-time { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.comment-content { font-size: 12px; line-height: 1.55; white-space: pre-line; word-break: break-word; }
+.comments-empty { padding: 14px 0; text-align: center; font-size: 12px; color: var(--muted); }
+.comments-empty.err { color: var(--vscode-errorForeground, #e51400); }
+.comment-form { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.comment-form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
 
 /* ---------- toast ---------- */
 .toast {
@@ -1057,130 +1121,4 @@ body.vscode-dark .code-input::selection { background: rgba(255, 255, 255, 0.2); 
   border: 1px dashed var(--border);
   border-radius: 6px;
   padding: 8px 10px;
-}
-
-/* ---------- 压缩：体检 / 一键改写 / 拼接候选 / 校验 ---------- */
-.cx-body {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  overflow-y: auto;
-  flex: 1 1 auto;
-  min-height: 0;
-}
-.cx-card {
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 9px 11px;
-  background: var(--vscode-editor-background, #fff);
-  flex: 0 0 auto;
-}
-.cx-card-title { font-size: 12px; font-weight: 700; margin-bottom: 7px; }
-.cx-row { display: flex; align-items: baseline; gap: 8px; padding: 2px 0; font-size: 12px; }
-.cx-row .cx-k { color: var(--muted); min-width: 6.5em; }
-.cx-row .cx-v { color: var(--fg); }
-.cx-row .cx-v.err { color: #e03131; font-weight: 700; }
-.cx-sub { font-size: 11px; color: var(--muted); line-height: 1.6; word-break: break-word; }
-.cx-sub.ok { color: #0ca678; }
-.cx-sub.err { color: #e8590c; }
-.cx-sub.cx-strong { color: var(--fg); font-weight: 700; font-size: 12px; }
-.cx-anchor { font-size: 11px; font-family: var(--font-mono); color: #e8590c; padding-left: 6px; }
-.cx-act { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.cx-act.cx-gap { margin-top: 8px; }
-.cx-badge {
-  font-size: 11px;
-  color: var(--muted);
-  border: 1px solid var(--border);
-  border-radius: 9px;
-  padding: 1px 7px;
-  line-height: 15px;
-}
-.cx-note {
-  font-size: 12px;
-  border-radius: 5px;
-  padding: 6px 9px;
-  background: var(--s-seg-bg);
-  color: var(--fg);
-  border-left: 3px solid var(--s-seg-underline);
-}
-.cx-note.err { background: #fff4e6; border-left-color: #e8590c; color: #b34700; }
-.cx-cand {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  flex-wrap: wrap;
-  font-size: 11px;
-  padding: 5px 0;
-  border-bottom: 1px dashed var(--border);
-}
-.cx-cand:last-child { border-bottom: none; }
-.cx-cand-kind {
-  border-radius: 4px;
-  padding: 0 5px;
-  font-weight: 700;
-  background: var(--s-seg-bg);
-  color: var(--s-seg);
-}
-.cx-cand-kind.high { background: #fff4e6; color: #d9480f; }
-.cx-cand-kind.medium { background: #fff9db; color: #e67700; }
-.cx-cand-save { font-weight: 700; color: var(--fg); }
-.cx-cand-pos {
-  font-family: var(--font-mono);
-  color: var(--accent);
-  cursor: pointer;
-  text-decoration: underline dotted;
-}
-.cx-cand-detail { color: var(--muted); flex: 1 1 100%; word-break: break-word; }
-.cx-cand-risk { color: var(--muted); }
-.cx-detail details { margin-bottom: 6px; }
-.cx-detail summary {
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 600;
-  padding: 3px 0;
-  user-select: none;
-}
-.cx-detail summary em { font-style: normal; font-weight: 400; color: var(--muted); font-size: 11px; }
-.cx-list { padding: 2px 0 4px 10px; }
-.cx-line {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  padding: 1px 0;
-  cursor: pointer;
-}
-.cx-line:hover { background: var(--vscode-list-hoverBackground, rgba(128, 128, 128, 0.1)); }
-.cx-line-no {
-  flex: 0 0 auto;
-  min-width: 2.6em;
-  color: var(--muted);
-  font-family: var(--font-mono);
-}
-.cx-line-no.error { color: #e03131; font-weight: 700; }
-.cx-line-no.warning { color: #e8590c; }
-.cx-line-n { flex: 0 0 auto; min-width: 3.2em; text-align: right; color: var(--fg); }
-.cx-line-bar {
-  flex: 0 0 60px;
-  height: 8px;
-  background: var(--border);
-  border-radius: 4px;
-  overflow: hidden;
-}
-.cx-line-bar i { display: block; height: 100%; background: var(--s-seg-underline); }
-.cx-line-tx {
-  flex: 1 1 auto;
-  min-width: 0;
-  color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.cx-line-tx.muted { opacity: 0.75; }
-.cx-line-tx code {
-  font-family: var(--font-mono);
-  background: var(--s-seg-bg);
-  color: var(--s-seg);
-  border-radius: 3px;
-  padding: 0 3px;
 }
